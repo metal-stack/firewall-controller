@@ -1,0 +1,7 @@
+apiVersion: firewall.metalstack.io/v1
+kind: Network
+metadata:
+  name: network-sample
+spec:
+  # Add fields here
+  foo: bar

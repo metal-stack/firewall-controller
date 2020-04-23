@@ -1,0 +1,7 @@
+domain: metalstack.io
+repo: github.com/metal-stack/firewall-builder
+resources:
+- group: firewall
+  kind: Network
+  version: v1
+version: "2"

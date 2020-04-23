@@ -1,0 +1,24 @@
+# permissions for end users to edit networks.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: network-editor-role
+rules:
+- apiGroups:
+  - firewall.metalstack.io
+  resources:
+  - networks
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - firewall.metalstack.io
+  resources:
+  - networks/status
+  verbs:
+  - get
