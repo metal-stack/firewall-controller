@@ -5,3 +5,4 @@ metadata:
 spec:
   enabled: true
   interval: 10
+  nodeexporterurl: http://localhost:9100/metrics

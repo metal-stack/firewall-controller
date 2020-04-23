@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	firewallv1 "github.com/metal-stack/firewall-builder/api/v1"
+	"github.com/metal-stack/firewall-builder/pkg/collector"
 )
 
 // NetworkTrafficReconciler reconciles a NetworkTraffic object
@@ -35,9 +36,9 @@ type NetworkTrafficReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+// Reconcile NetworkTraffic
 // +kubebuilder:rbac:groups=firewall.metal-stack.io,resources=networktraffics,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=firewall.metal-stack.io,resources=networktraffics/status,verbs=get;update;patch
-
 func (r *NetworkTrafficReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	_ = context.Background()
 	_ = r.Log.WithValues("network", req.NamespacedName)
@@ -49,21 +50,42 @@ func (r *NetworkTrafficReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		r.Log.Error(err, "unable to get networkTraffic")
 		return ctrl.Result{}, err
 	}
+	spec := networkTraffic.Spec
 	interval := time.Minute
-	if networkTraffic.Spec.Interval > 0 {
-		interval = networkTraffic.Spec.Interval * time.Second
+	if spec.Interval > 0 {
+		interval = spec.Interval * time.Second
 	}
 
 	// TODO implement here
-	if networkTraffic.Spec.Enabled {
+	if spec.Enabled {
 		r.Log.Info("networkTraffic is enabled", "interval", interval)
-		// make configurable by crd
+		c := collector.NewCollector(&r.Log, spec.NodeExportURL)
+		ds, err := c.Collect()
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		deviceStatistics := []firewallv1.DeviceStatistic{}
+		for name, v := range *ds {
+			deviceStatistic := firewallv1.DeviceStatistic{
+				DeviceName: name,
+				InBytes:    v["in"],
+				OutBytes:   v["out"],
+			}
+			deviceStatistics = append(deviceStatistics, deviceStatistic)
+		}
+		networkTraffic.Status.DeviceStatistics.Items = deviceStatistics
+		if err := r.Update(ctx, &networkTraffic); err != nil {
+			r.Log.Error(err, "unable to update networkTraffic")
+			return ctrl.Result{}, err
+		}
+		r.Log.Info("traffic updated")
 		return ctrl.Result{RequeueAfter: interval}, nil
 	}
 	r.Log.Info("networkTraffic is disabled")
 	return ctrl.Result{}, nil
 }
 
+// SetupWithManager create a new controller to reconcile NetworkTraffic
 func (r *NetworkTrafficReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&firewallv1.NetworkTraffic{}).

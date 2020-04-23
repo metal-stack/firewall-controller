@@ -31,14 +31,30 @@ type NetworkTrafficSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Foo is an example field of Network. Edit Network_types.go to remove/update
-	Enabled  bool          `json:"enabled,omitempty"`
-	Interval time.Duration `json:"interval,omitempty"`
+	Enabled       bool            `json:"enabled,omitempty"`
+	Interval      time.Duration   `json:"interval,omitempty"`
+	NodeExportURL string          `json:"nodeexporterurl,omitempty"`
+	Interfaces    map[string]bool `json:"interfaces,omitempty"`
 }
 
 // NetworkTrafficStatus defines the observed state of Network
 type NetworkTrafficStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+	DeviceStatistics DeviceStatistics `json:"devicestatistics"`
+}
+
+// DeviceStatistics is a list of statistics of all devices
+type DeviceStatistics struct {
+	Items []DeviceStatistic `json:"items"`
+}
+
+// DeviceStatistic contains statistics of a device
+type DeviceStatistic struct {
+	DeviceName string           `json:"device"`
+	InBytes    int64            `json:"in"`
+	OutBytes   int64            `json:"out"`
+	Timestamp  metav1.Timestamp `json:"ts"`
 }
 
 // +kubebuilder:object:root=true
