@@ -1,0 +1,7 @@
+apiVersion: firewall.metal-stack.io/v1
+kind: NetworkTraffic
+metadata:
+  name: networktraffic-sample
+spec:
+  # Add fields here
+  enabled: true

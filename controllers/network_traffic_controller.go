@@ -27,21 +27,34 @@ import (
 	firewallv1 "github.com/metal-stack/firewall-builder/api/v1"
 )
 
-// NetworkReconciler reconciles a Network object
+// NetworkTrafficReconciler reconciles a NetworkTraffic object
 type NetworkTrafficReconciler struct {
 	client.Client
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=firewall.metal-stack.io,resources=networks,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=firewall.metal-stack.io,resources=networks/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=firewall.metal-stack.io,resources=networktraffics,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=firewall.metal-stack.io,resources=networktraffics/status,verbs=get;update;patch
 
 func (r *NetworkTrafficReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	_ = context.Background()
 	_ = r.Log.WithValues("network", req.NamespacedName)
 
-	// your logic here
+	ctx := context.Background()
+
+	var networkTraffic firewallv1.NetworkTraffic
+	if err := r.Get(ctx, req.NamespacedName, &networkTraffic); err != nil {
+		r.Log.Error(err, "unable to get networkTraffic")
+		return ctrl.Result{}, err
+	}
+
+	// TODO implement here
+	if networkTraffic.Spec.Enabled {
+		r.Log.Info("networkTraffic is enabled")
+	} else {
+		r.Log.Info("networkTraffic is disabled")
+	}
 
 	return ctrl.Result{}, nil
 }
