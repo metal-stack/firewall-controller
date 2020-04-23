@@ -29,12 +29,10 @@ import (
 type NetworkTrafficSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of Network. Edit Network_types.go to remove/update
-	Enabled       bool            `json:"enabled,omitempty"`
-	Interval      time.Duration   `json:"interval,omitempty"`
-	NodeExportURL string          `json:"nodeexporterurl,omitempty"`
-	Interfaces    map[string]bool `json:"interfaces,omitempty"`
+	Enabled       bool          `json:"enabled,omitempty"`
+	Interval      time.Duration `json:"interval,omitempty"`
+	NodeExportURL string        `json:"nodeexporterurl,omitempty"`
+	Interfaces    string        `json:"interfaces,omitempty"`
 }
 
 // NetworkTrafficStatus defines the observed state of Network
@@ -42,6 +40,7 @@ type NetworkTrafficStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 	DeviceStatistics DeviceStatistics `json:"devicestatistics"`
+	Updated          metav1.Time      `json:"lastRun,omitempty"`
 }
 
 // DeviceStatistics is a list of statistics of all devices
@@ -51,15 +50,18 @@ type DeviceStatistics struct {
 
 // DeviceStatistic contains statistics of a device
 type DeviceStatistic struct {
-	DeviceName string           `json:"device"`
-	InBytes    int64            `json:"in"`
-	OutBytes   int64            `json:"out"`
-	Timestamp  metav1.Timestamp `json:"ts"`
+	DeviceName string `json:"device"`
+	InBytes    int64  `json:"in"`
+	OutBytes   int64  `json:"out"`
 }
 
 // +kubebuilder:object:root=true
 
 // NetworkTraffic is the Schema for the networks API
+// +kubebuilder:printcolumn:name="NodeExporter",type=string,JSONPath=`.spec.nodeexporterurl`
+// +kubebuilder:printcolumn:name="Enabled",type=boolean,JSONPath=`.spec.enabled`
+// +kubebuilder:printcolumn:name="Interval",type=string,JSONPath=`.spec.interval`
+// +kubebuilder:printcolumn:name="Interfaces",type=string,JSONPath=`.spec.interfaces`
 type NetworkTraffic struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

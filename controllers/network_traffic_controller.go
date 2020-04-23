@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -66,6 +67,9 @@ func (r *NetworkTrafficReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		}
 		deviceStatistics := []firewallv1.DeviceStatistic{}
 		for name, v := range *ds {
+			if !strings.HasPrefix(name, spec.Interfaces) {
+				continue
+			}
 			deviceStatistic := firewallv1.DeviceStatistic{
 				DeviceName: name,
 				InBytes:    v["in"],
@@ -74,6 +78,7 @@ func (r *NetworkTrafficReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 			deviceStatistics = append(deviceStatistics, deviceStatistic)
 		}
 		networkTraffic.Status.DeviceStatistics.Items = deviceStatistics
+		networkTraffic.Status.Updated.Time = time.Now()
 		if err := r.Update(ctx, &networkTraffic); err != nil {
 			r.Log.Error(err, "unable to update networkTraffic")
 			return ctrl.Result{}, err
