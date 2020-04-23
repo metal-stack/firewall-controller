@@ -8,7 +8,7 @@
 1. init project and run kubebuilder
 
 ```bash
-kubebuilder init --domain metalstack.io
+kubebuilder init --domain metal-stack.io
 kubebuilder create api --group firewall --version v1 --kind Network
 ```
 

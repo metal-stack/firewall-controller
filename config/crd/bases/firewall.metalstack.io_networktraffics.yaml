@@ -6,9 +6,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: (unknown)
   creationTimestamp: null
-  name: networktraffics.firewall.metalstack.io
+  name: networktraffics.firewall.metal-stack.io
 spec:
-  group: firewall.metalstack.io
+  group: firewall.metal-stack.io
   names:
     kind: NetworkTraffic
     listKind: NetworkTrafficList

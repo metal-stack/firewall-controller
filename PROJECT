@@ -1,4 +1,4 @@
-domain: metalstack.io
+domain: metal-stack.io
 repo: github.com/metal-stack/firewall-builder
 resources:
 - group: firewall

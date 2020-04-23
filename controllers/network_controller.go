@@ -34,8 +34,8 @@ type NetworkReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=firewall.metalstack.io,resources=networks,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=firewall.metalstack.io,resources=networks/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=firewall.metal-stack.io,resources=networks,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=firewall.metal-stack.io,resources=networks/status,verbs=get;update;patch
 
 func (r *NetworkReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	_ = context.Background()
