@@ -17,6 +17,8 @@ limitations under the License.
 package v1
 
 import (
+	"time"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -29,7 +31,8 @@ type NetworkTrafficSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Foo is an example field of Network. Edit Network_types.go to remove/update
-	Enabled bool `json:"enabled,omitempty"`
+	Enabled  bool          `json:"enabled,omitempty"`
+	Interval time.Duration `json:"interval,omitempty"`
 }
 
 // NetworkTrafficStatus defines the observed state of Network

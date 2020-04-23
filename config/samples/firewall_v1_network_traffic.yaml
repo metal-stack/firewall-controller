@@ -3,5 +3,5 @@ kind: NetworkTraffic
 metadata:
   name: networktraffic-sample
 spec:
-  # Add fields here
   enabled: true
+  interval: 10

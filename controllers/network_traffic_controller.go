@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -48,14 +49,18 @@ func (r *NetworkTrafficReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		r.Log.Error(err, "unable to get networkTraffic")
 		return ctrl.Result{}, err
 	}
+	interval := time.Minute
+	if networkTraffic.Spec.Interval > 0 {
+		interval = networkTraffic.Spec.Interval * time.Second
+	}
 
 	// TODO implement here
 	if networkTraffic.Spec.Enabled {
-		r.Log.Info("networkTraffic is enabled")
-	} else {
-		r.Log.Info("networkTraffic is disabled")
+		r.Log.Info("networkTraffic is enabled", "interval", interval)
+		// make configurable by crd
+		return ctrl.Result{RequeueAfter: interval}, nil
 	}
-
+	r.Log.Info("networkTraffic is disabled")
 	return ctrl.Result{}, nil
 }
 
