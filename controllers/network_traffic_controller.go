@@ -79,7 +79,8 @@ func (r *NetworkTrafficReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 			return ctrl.Result{}, err
 		}
 		r.Log.Info("traffic updated")
-		return ctrl.Result{RequeueAfter: interval}, nil
+		time.Sleep(interval)
+		return ctrl.Result{}, nil
 	}
 	r.Log.Info("networkTraffic is disabled")
 	return ctrl.Result{}, nil
