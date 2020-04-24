@@ -1,0 +1,8 @@
+apiVersion: firewall.metal-stack.io/v1
+kind: NetworkIDS
+metadata:
+  name: networkids-sample
+spec:
+  enabled: true
+  interval: 10
+  statslog: stats.log
