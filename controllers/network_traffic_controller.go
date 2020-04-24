@@ -18,7 +18,7 @@ package controllers
 
 import (
 	"context"
-	"strings"
+	"path/filepath"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -67,7 +67,11 @@ func (r *NetworkTrafficReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		}
 		deviceStatistics := []firewallv1.DeviceStatistic{}
 		for name, v := range *ds {
-			if !strings.HasPrefix(name, spec.Interfaces) {
+			match, err := filepath.Match(spec.Interfaces, name)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			if !match {
 				continue
 			}
 			deviceStatistic := firewallv1.DeviceStatistic{
