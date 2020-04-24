@@ -95,6 +95,17 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "NetworkIDS")
 		os.Exit(1)
 	}
+
+	// Droptailer Reconciler
+	if err = (&controllers.DroptailerReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("Droptailer"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Droptailer")
+		os.Exit(1)
+	}
+
 	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")
