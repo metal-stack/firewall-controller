@@ -21,32 +21,20 @@ make test
 
 ## Testing locally
 
-1. start kind cluster
-
 ```bash
+# start kind cluster
 kind create cluster
-```
 
-1. start node-exporter
+# start node-exporter
+node_exporter
 
-```bash
-node_expoporter
-```
-
-1. deploy manifests
-
-```bash
+# deploy manifests and sample crd
 k apply -f config/crd/bases
-```
+k apply -f config/samples
 
-1. start the controller
-
-```bash
+# start the controller
 bin/firewall-controller
-```
 
-1. watch results
-
-```bash
+# watch results
 k describe networktraffic
 ```
