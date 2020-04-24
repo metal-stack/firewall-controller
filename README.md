@@ -18,3 +18,35 @@ kubebuilder create api --group firewall --version v1 --kind Network
 export KUBEBUILDER_ASSETS=~/dev/kubebuilder_2.3.1_linux_amd64/bin
 make test
 ```
+
+## Testing locally
+
+1. start kind cluster
+
+```bash
+kind create cluster
+```
+
+1. start node-exporter
+
+```bash
+node_expoporter
+```
+
+1. deploy manifests
+
+```bash
+k apply -f config/crd/bases
+```
+
+1. start the controller
+
+```bash
+bin/firewall-controller
+```
+
+1. watch results
+
+```bash
+k describe networktraffic
+```

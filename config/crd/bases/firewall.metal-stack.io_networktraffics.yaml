@@ -19,7 +19,7 @@ spec:
     name: Interval
     type: string
   - JSONPath: .spec.interfaces
-    name: Interfaceprefix
+    name: Interfaces
     type: string
   group: firewall.metal-stack.io
   names:
@@ -52,7 +52,7 @@ spec:
               description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
                 Important: Run "make" to regenerate code after modifying this file'
               type: boolean
-            interfaceprefix:
+            interfaces:
               type: string
             interval:
               description: A Duration represents the elapsed time between two instants
