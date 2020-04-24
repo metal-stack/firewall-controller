@@ -40,14 +40,12 @@ type NetworkIDSReconciler struct {
 // +kubebuilder:rbac:groups=firewall.metal-stack.io,resources=NetworkIDSs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=firewall.metal-stack.io,resources=NetworkIDSs/status,verbs=get;update;patch
 func (r *NetworkIDSReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	_ = context.Background()
-	_ = r.Log.WithValues("NetworkIDS", req.NamespacedName)
-
 	ctx := context.Background()
+	log := r.Log.WithValues("NetworkIDS", req.NamespacedName)
 
 	var NetworkIDS firewallv1.NetworkIDS
 	if err := r.Get(ctx, req.NamespacedName, &NetworkIDS); err != nil {
-		r.Log.Error(err, "unable to get NetworkIDS")
+		log.Error(err, "unable to get NetworkIDS")
 		return ctrl.Result{}, err
 	}
 	spec := NetworkIDS.Spec
@@ -58,7 +56,7 @@ func (r *NetworkIDSReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 
 	// TODO implement here
 	if spec.Enabled {
-		r.Log.Info("NetworkIDS is enabled", "interval", interval)
+		log.Info("NetworkIDS is enabled", "interval", interval)
 		s := suricata.New(spec.StatsLog)
 		ss, err := s.Stats()
 		if err != nil {
@@ -67,14 +65,14 @@ func (r *NetworkIDSReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 		NetworkIDS.Status.IDSStatistic.Items = ss
 		NetworkIDS.Status.Updated.Time = time.Now()
 		if err := r.Update(ctx, &NetworkIDS); err != nil {
-			r.Log.Error(err, "unable to update NetworkIDS")
+			log.Error(err, "unable to update NetworkIDS")
 			return ctrl.Result{}, err
 		}
-		r.Log.Info("ids stats updated")
+		log.Info("ids stats updated")
 		time.Sleep(interval)
 		return ctrl.Result{}, nil
 	}
-	r.Log.Info("NetworkIDS is disabled")
+	log.Info("NetworkIDS is disabled")
 	return ctrl.Result{}, nil
 }
 

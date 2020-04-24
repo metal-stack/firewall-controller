@@ -41,14 +41,12 @@ type NetworkTrafficReconciler struct {
 // +kubebuilder:rbac:groups=firewall.metal-stack.io,resources=networktraffics,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=firewall.metal-stack.io,resources=networktraffics/status,verbs=get;update;patch
 func (r *NetworkTrafficReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	_ = context.Background()
-	_ = r.Log.WithValues("networktraffic", req.NamespacedName)
-
 	ctx := context.Background()
+	log := r.Log.WithValues("networktraffic", req.NamespacedName)
 
 	var networkTraffic firewallv1.NetworkTraffic
 	if err := r.Get(ctx, req.NamespacedName, &networkTraffic); err != nil {
-		r.Log.Error(err, "unable to get networkTraffic")
+		log.Error(err, "unable to get networkTraffic")
 		return ctrl.Result{}, err
 	}
 	spec := networkTraffic.Spec
@@ -57,9 +55,8 @@ func (r *NetworkTrafficReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		interval = spec.Interval * time.Second
 	}
 
-	// TODO implement here
 	if spec.Enabled {
-		r.Log.Info("networkTraffic is enabled", "interval", interval)
+		log.Info("networkTraffic is enabled", "interval", interval)
 		c := collector.NewCollector(&r.Log, spec.NodeExportURL)
 		ds, err := c.Collect()
 		if err != nil {
@@ -84,14 +81,14 @@ func (r *NetworkTrafficReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		networkTraffic.Status.DeviceStatistics.Items = deviceStatistics
 		networkTraffic.Status.Updated.Time = time.Now()
 		if err := r.Update(ctx, &networkTraffic); err != nil {
-			r.Log.Error(err, "unable to update networkTraffic")
+			log.Error(err, "unable to update networkTraffic")
 			return ctrl.Result{}, err
 		}
-		r.Log.Info("traffic updated")
+		log.Info("traffic updated")
 		time.Sleep(interval)
 		return ctrl.Result{}, nil
 	}
-	r.Log.Info("networkTraffic is disabled")
+	log.Info("networkTraffic is disabled")
 	return ctrl.Result{}, nil
 }
 
