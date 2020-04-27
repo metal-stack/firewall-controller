@@ -19,7 +19,31 @@ package v1
 import (
 	"time"
 
+	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+var (
+	// NetworkTrafficCRD is the apiresource of a NetworkTraffix
+	NetworkTrafficCRD = apiextensionsv1beta1.CustomResourceDefinition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "networktraffics." + GroupVersion.Group,
+		},
+		Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
+			Group:   GroupVersion.Group,
+			Version: GroupVersion.Version,
+			Scope:   apiextensionsv1beta1.NamespaceScoped,
+			Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
+				Kind:     "NetworkTraffic",
+				Plural:   "networktraffics",
+				Singular: "networktraffic",
+				ListKind: "NetworkTrafficList",
+			},
+			Subresources: &apiextensionsv1beta1.CustomResourceSubresources{
+				Status: &apiextensionsv1beta1.CustomResourceSubresourceStatus{},
+			},
+		},
+	}
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
