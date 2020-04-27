@@ -20,14 +20,14 @@ import (
 	"flag"
 	"os"
 
+	firewallv1 "github.com/metal-stack/firewall-builder/api/v1"
+	"github.com/metal-stack/firewall-builder/controllers"
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
-	firewallv1 "github.com/metal-stack/firewall-builder/api/v1"
-	"github.com/metal-stack/firewall-builder/controllers"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -40,6 +40,8 @@ func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
 	_ = firewallv1.AddToScheme(scheme)
+
+	_ = apiextensions.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -65,14 +67,26 @@ func main() {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
+	stopCh := ctrl.SetupSignalHandler()
+	go func() {
+		setupLog.Info("starting manager")
+		if err := mgr.Start(stopCh); err != nil {
+			setupLog.Error(err, "problem running manager")
+			panic(err)
+		}
+	}()
 
-	// Network Reconciler
-	if err = (&controllers.NetworkReconciler{
+	if started := mgr.GetCache().WaitForCacheSync(stopCh); !started {
+		panic("not all started")
+	}
+
+	// APIExtension Reconciler
+	if err = (&controllers.APIExtensionsReconciler{
 		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Network"),
+		Log:    ctrl.Log.WithName("controllers").WithName("APIExtension"),
 		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Network")
+	}).APIExtension(firewallv1.GroupCRDs); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "APIExtension")
 		os.Exit(1)
 	}
 
@@ -117,9 +131,6 @@ func main() {
 	}
 	// +kubebuilder:scaffold:builder
 
-	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		setupLog.Error(err, "problem running manager")
-		os.Exit(1)
-	}
+	// FIXME howto cope with OS signals ?
+	<-stopCh
 }

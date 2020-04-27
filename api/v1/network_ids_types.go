@@ -19,7 +19,32 @@ package v1
 import (
 	"time"
 
+	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+var (
+	// NetworkIDSCRD is the apiresource of a NetworkIDS
+	NetworkIDSCRD = apiextensionsv1beta1.CustomResourceDefinition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "networkids." + GroupVersion.Group,
+		},
+		Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
+			Group:   GroupVersion.Group,
+			Version: GroupVersion.Version,
+			Scope:   apiextensionsv1beta1.NamespaceScoped,
+			Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
+				Kind:     "NetworkIDS",
+				Plural:   "networkids",
+				Singular: "networkids",
+				ListKind: "NetworkIDSList",
+			},
+			Subresources: &apiextensionsv1beta1.CustomResourceSubresources{
+				Status: &apiextensionsv1beta1.CustomResourceSubresourceStatus{},
+			},
+		},
+	}
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
