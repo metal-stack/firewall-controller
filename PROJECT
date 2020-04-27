@@ -4,4 +4,7 @@ resources:
 - group: firewall
   kind: Network
   version: v1
+- group: firewall
+  kind: ClusterwideNetworkPolicy
+  version: v1
 version: "2"

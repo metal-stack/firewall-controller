@@ -9,6 +9,46 @@ rules:
 - apiGroups:
   - firewall.metal-stack.io
   resources:
+  - Droptailers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - firewall.metal-stack.io
+  resources:
+  - Droptailers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - firewall.metal-stack.io
+  resources:
+  - clusterwidenetworkpolicies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - firewall.metal-stack.io
+  resources:
+  - clusterwidenetworkpolicies/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - firewall.metal-stack.io
+  resources:
   - networks
   verbs:
   - create
