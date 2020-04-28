@@ -6,5 +6,3 @@ spec:
   enabled: true
   interval: 10
   nftablesexporterurl: http://localhost:9630/metrics
-  rulesipv4: nft.ipv4
-  rulesipv6: nft.ipv6

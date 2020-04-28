@@ -44,10 +44,6 @@ spec:
               type: integer
             nftablesexporterurl:
               type: string
-            rulesIPv4:
-              type: string
-            rulesIPv6:
-              type: string
           type: object
         status:
           description: FirewallStatus defines the observed state of Firewall

@@ -33,8 +33,6 @@ type FirewallSpec struct {
 	Enabled           bool          `json:"enabled,omitempty"`
 	Interval          time.Duration `json:"interval,omitempty"`
 	NftablesExportURL string        `json:"nftablesexporterurl,omitempty"`
-	RulesFileIPv4     string        `json:"rulesIPv4,omitempty"`
-	RulesFileIPv6     string        `json:"rulesIPv6,omitempty"`
 }
 
 // FirewallStatus defines the observed state of Firewall

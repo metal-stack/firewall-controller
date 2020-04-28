@@ -121,7 +121,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// ClusterWideNetworkPolicy Reconciler
+	// ClusterwideNetworkPolicy Reconciler
 	if err = (&controllers.ClusterwideNetworkPolicyReconciler{
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicy"),

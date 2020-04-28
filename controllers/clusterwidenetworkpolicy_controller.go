@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/go-logr/logr"
 	firewallv1 "github.com/metal-stack/firewall-builder/api/v1"
@@ -26,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -39,47 +41,69 @@ type ClusterwideNetworkPolicyReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-const firewallNamespace = "firewall"
+const (
+	clusterwideNPNamespace = "firewall"
+	firewallNamespace      = "firewall"
+	firewallName           = "firewall"
+)
 
 // +kubebuilder:rbac:groups=firewall.metal-stack.io,resources=clusterwidenetworkpolicies,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=firewall.metal-stack.io,resources=clusterwidenetworkpolicies/status,verbs=get;update;patch
 
 func (r *ClusterwideNetworkPolicyReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
-	log := r.Log.WithValues("ClusterWideNetworkPolicy", req.NamespacedName)
-	if req.Namespace != firewallNamespace {
+	log := r.Log.WithValues("ClusterwideNetworkPolicy", req.NamespacedName)
+
+	defaultRequeueAfter := 30 * time.Second
+	defaultRequeue := ctrl.Result{
+		Requeue:      true,
+		RequeueAfter: defaultRequeueAfter,
+	}
+
+	// if network policy does not belong to the namespace where clusterwide network policies are stored: update status with error message
+	if req.Namespace != clusterwideNPNamespace {
 		var clusterNP firewallv1.ClusterwideNetworkPolicy
 		if err := r.Get(ctx, req.NamespacedName, &clusterNP); err != nil {
-			return ctrl.Result{}, err
+			return defaultRequeue, err
 		}
-		clusterNP.Status.Message = fmt.Sprintf("cluster wide network policies must be defined in namespace %s otherwise they won't take effect", firewallNamespace)
+		clusterNP.Status.Message = fmt.Sprintf("cluster wide network policies must be defined in namespace %s otherwise they won't take effect", clusterwideNPNamespace)
 		if err := r.Update(ctx, &clusterNP); err != nil {
-			log.Error(err, "unable to update ClusterWideNetworkPolicy", "namespacedname", req.NamespacedName)
-			return ctrl.Result{}, err
+			log.Error(err, "unable to update ClusterwideNetworkPolicy", "namespacedname", req.NamespacedName)
+			return defaultRequeue, nil
 		}
-		return ctrl.Result{}, nil
+		return defaultRequeue, nil
+	}
+
+	// use the interval from the firewall object
+	var f firewallv1.Firewall
+	firewallNN := types.NamespacedName{Namespace: firewallNamespace, Name: firewallName}
+	var requeue ctrl.Result
+	if err := r.Get(ctx, firewallNN, &f); err != nil {
+		log.Error(err, "unable to get firewall")
+		requeue = defaultRequeue
+	} else {
+		requeue = ctrl.Result{
+			Requeue:      true,
+			RequeueAfter: f.Spec.Interval,
+		}
 	}
 
 	var clusterNPs firewallv1.ClusterwideNetworkPolicyList
 	if err := r.List(ctx, &clusterNPs, client.InNamespace(req.Namespace)); err != nil {
-		log.Error(err, "")
+		return requeue, err
 	}
 
 	var services v1.ServiceList
 	if err := r.List(ctx, &services); err != nil {
-		log.Error(err, "")
+		return requeue, err
 	}
 
-	fwr := &nftables.FirewallResources{
-		NetworkPolicyList: &clusterNPs,
-		ServiceList:       &services,
+	nftableFirewall := nftables.NewFirewall(&clusterNPs, &services)
+	if err := nftableFirewall.Reconcile(); err != nil {
+		return requeue, err
 	}
-	rules := fwr.AssembleRules()
-	log.Info("assembled", "rules", rules)
-	f, _ := rules.Render()
-	log.Info("nftables", "file", f)
 
-	return ctrl.Result{}, nil
+	return requeue, nil
 }
 
 func (r *ClusterwideNetworkPolicyReconciler) SetupWithManager(mgr ctrl.Manager) error {

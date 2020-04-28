@@ -56,13 +56,13 @@ type PolicySpec struct {
 	Description string `json:"description,omitempty"`
 
 	// List of ingress rules to be applied. Traffic is allowed to
-	// a cluster if there is a ClusterWideNetworkPolicy that allows it, OR there is a service
+	// a cluster if there is a ClusterwideNetworkPolicy that allows it, OR there is a service
 	// exposed with type Loadbalancer. Clusters are isolated by default.
 	// +optional
 	Ingress []IngressRule `json:"ingress,omitempty"`
 
 	// List of egress rules to be applied. Outgoing traffic is
-	// allowed if there is a ClusterWideNetworkPolicy that allows it.
+	// allowed if there is a ClusterwideNetworkPolicy that allows it.
 	// Clusters are isolated by default.
 	// +optional
 	Egress []EgressRule `json:"egress,omitempty"`
