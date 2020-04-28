@@ -79,6 +79,7 @@ func TestHasChanged(t *testing.T) {
 	}
 }
 
+// won't work because crd is not deployed
 // func TestFetchAndAssembleWithTestData(t *testing.T) {
 // 	for _, tc := range list("test_data", true) {
 // 		t.Run(tc, func(t *testing.T) {
@@ -91,7 +92,7 @@ func TestHasChanged(t *testing.T) {
 // 				assert.Nil(t, err)
 // 			}
 // 			for _, i := range list(path.Join(tcd, "policies"), false) {
-// 				var np networkingv1.NetworkPolicy
+// 				var np firewallv1.ClusterwideNetworkPolicy
 // 				mustUnmarshal(path.Join(tcd, "policies", i), &np)
 // 				_, err := c.NetworkingV1().NetworkPolicies(np.ObjectMeta.Namespace).Create(&np)
 // 				assert.Nil(t, err)

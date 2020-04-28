@@ -46,3 +46,23 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - firewall.metal-stack.io
+  resources:
+  - firewalls
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - firewall.metal-stack.io
+  resources:
+  - firewalls/status
+  verbs:
+  - get
+  - patch
+  - update

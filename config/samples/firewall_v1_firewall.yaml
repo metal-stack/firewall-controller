@@ -1,0 +1,10 @@
+apiVersion: firewall.metal-stack.io/v1
+kind: Firewall
+metadata:
+  name: firewall-sample
+spec:
+  enabled: true
+  interval: 10
+  nftablesexporterurl: http://localhost:9630/metrics
+  rulesipv4: nft.ipv4
+  rulesipv6: nft.ipv6

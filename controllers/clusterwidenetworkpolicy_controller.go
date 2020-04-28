@@ -60,13 +60,11 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, nil
 	}
 
-	// list all network policies
 	var clusterNPs firewallv1.ClusterwideNetworkPolicyList
 	if err := r.List(ctx, &clusterNPs, client.InNamespace(req.Namespace)); err != nil {
 		log.Error(err, "")
 	}
 
-	// list all services
 	var services v1.ServiceList
 	if err := r.List(ctx, &services); err != nil {
 		log.Error(err, "")
@@ -76,11 +74,10 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(req ctrl.Request) (ctrl.R
 		NetworkPolicyList: &clusterNPs,
 		ServiceList:       &services,
 	}
-	rules, err := fwr.AssembleRules()
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("could not reconcile firewall rules")
-	}
+	rules := fwr.AssembleRules()
 	log.Info("assembled", "rules", rules)
+	f, _ := rules.Render()
+	log.Info("nftables", "file", f)
 
 	return ctrl.Result{}, nil
 }

@@ -23,7 +23,7 @@ type FirewallRules struct {
 	EgressRules  []string
 }
 
-func (fr *FirewallResources) AssembleRules() (*FirewallRules, error) {
+func (fr *FirewallResources) AssembleRules() *FirewallRules {
 	result := &FirewallRules{}
 	for _, np := range fr.NetworkPolicyList.Items {
 		if len(np.Spec.Egress) > 0 {
@@ -38,7 +38,7 @@ func (fr *FirewallResources) AssembleRules() (*FirewallRules, error) {
 	}
 	result.EgressRules = uniqueSorted(result.EgressRules)
 	result.IngressRules = uniqueSorted(result.IngressRules)
-	return result, nil
+	return result
 }
 
 // HasChanged checks whether new firewall rules have changed in comparison to the last run

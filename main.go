@@ -20,14 +20,15 @@ import (
 	"flag"
 	"os"
 
-	firewallv1 "github.com/metal-stack/firewall-builder/api/v1"
-	"github.com/metal-stack/firewall-builder/controllers"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
+	firewallv1 "github.com/metal-stack/firewall-builder/api/v1"
+	"github.com/metal-stack/firewall-builder/controllers"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -127,6 +128,14 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ClusterwideNetworkPolicy")
+		os.Exit(1)
+	}
+	if err = (&controllers.FirewallReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("Firewall"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Firewall")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

@@ -1,0 +1,24 @@
+# permissions for end users to edit firewalls.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: firewall-editor-role
+rules:
+- apiGroups:
+  - firewall.metal-stack.io
+  resources:
+  - firewalls
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - firewall.metal-stack.io
+  resources:
+  - firewalls/status
+  verbs:
+  - get

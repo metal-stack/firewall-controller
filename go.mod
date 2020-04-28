@@ -3,6 +3,7 @@ module github.com/metal-stack/firewall-builder
 go 1.14
 
 require (
+	github.com/Sheridan/nftables_exporter v0.0.0-20190817163529-9f81995f22cb // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-logr/logr v0.1.0
@@ -10,6 +11,7 @@ require (
 	github.com/onsi/gomega v1.9.0
 	github.com/prometheus/prometheus v2.5.0+incompatible
 	github.com/stretchr/testify v1.5.1
+	github.com/tidwall/gjson v1.6.0 // indirect
 	k8s.io/api v0.17.5
 	k8s.io/apiextensions-apiserver v0.17.5
 	k8s.io/apimachinery v0.17.5
