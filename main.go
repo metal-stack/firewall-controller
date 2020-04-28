@@ -22,6 +22,7 @@ import (
 
 	firewallv1 "github.com/metal-stack/firewall-builder/api/v1"
 	"github.com/metal-stack/firewall-builder/controllers"
+	"github.com/metal-stack/v"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -64,14 +65,14 @@ func main() {
 		LeaderElectionID:   "25f95f9f.metal-stack.io",
 	})
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
+		setupLog.Error(err, "unable to start firewall-controller manager")
 		os.Exit(1)
 	}
 	stopCh := ctrl.SetupSignalHandler()
 	go func() {
-		setupLog.Info("starting manager")
+		setupLog.Info("starting firewall-controller", "version", v.V)
 		if err := mgr.Start(stopCh); err != nil {
-			setupLog.Error(err, "problem running manager")
+			setupLog.Error(err, "problem running firewall-controller")
 			panic(err)
 		}
 	}()
@@ -80,15 +81,15 @@ func main() {
 		panic("not all started")
 	}
 
-	// APIExtension Reconciler
-	if err = (&controllers.APIExtensionsReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("APIExtension"),
-		Scheme: mgr.GetScheme(),
-	}).APIExtension(firewallv1.GroupCRDs); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "APIExtension")
-		os.Exit(1)
-	}
+	// // APIExtension Reconciler
+	// if err = (&controllers.APIExtensionsReconciler{
+	// 	Client: mgr.GetClient(),
+	// 	Log:    ctrl.Log.WithName("controllers").WithName("APIExtension"),
+	// 	Scheme: mgr.GetScheme(),
+	// }).APIExtension(firewallv1.GroupCRDs); err != nil {
+	// 	setupLog.Error(err, "unable to create controller", "controller", "APIExtension")
+	// 	os.Exit(1)
+	// }
 
 	// NetworkTraffic Reconciler
 	if err = (&controllers.NetworkTrafficReconciler{
