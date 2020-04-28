@@ -16,7 +16,7 @@ func newEnqueueReconcilationHandler(namespace, name string) enqueueReconcilation
 		request: reconcile.Request{
 			NamespacedName: types.NamespacedName{
 				Name:      name,
-				Namespace: firewallNamespace,
+				Namespace: namespace,
 			},
 		},
 	}

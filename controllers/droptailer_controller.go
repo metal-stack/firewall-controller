@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path"
+	"time"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -12,6 +13,7 @@ import (
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 const (
@@ -38,6 +40,10 @@ func (r *DroptailerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 	ctx := context.Background()
 	log := r.Log.WithValues("Droptailer", req.NamespacedName)
 
+	if req.Namespace != namespace {
+		return ctrl.Result{}, nil
+	}
+
 	var secrets corev1.SecretList
 	if err := r.List(ctx, &secrets, &client.ListOptions{Namespace: namespace}); err != nil {
 		log.Error(err, "unable to get droptailer secrets")
@@ -54,7 +60,7 @@ func (r *DroptailerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 		}
 	}
 	if !secretFound {
-		return ctrl.Result{}, fmt.Errorf("droptailer-secret not found")
+		return ctrl.Result{RequeueAfter: 10 * time.Second}, fmt.Errorf("droptailer-secret not found")
 	}
 	err := r.writeSecret(droptailerSecret)
 	if err != nil {
@@ -90,7 +96,7 @@ func (r *DroptailerReconciler) writeSecret(secret corev1.Secret) error {
 
 func (r *DroptailerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&corev1.Secret{}).
-		Owns(&corev1.Pod{}).
+		For(&corev1.Pod{}).
+		Watches(&source.Kind{Type: &corev1.Secret{}}, newEnqueueReconcilationHandler(namespace, "trigger-reconcilation-for-droptailer")).
 		Complete(r)
 }

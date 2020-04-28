@@ -98,7 +98,7 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(req ctrl.Request) (ctrl.R
 		return requeue, err
 	}
 
-	nftableFirewall := nftables.NewFirewall(&clusterNPs, &services)
+	nftableFirewall := nftables.NewFirewall(&clusterNPs, &services, true)
 	if err := nftableFirewall.Reconcile(); err != nil {
 		return requeue, err
 	}
