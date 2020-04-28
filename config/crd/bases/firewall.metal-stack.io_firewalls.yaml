@@ -34,14 +34,14 @@ spec:
         spec:
           description: FirewallSpec defines the desired state of Firewall
           properties:
+            dryrun:
+              type: boolean
             enabled:
               type: boolean
             interval:
-              description: A Duration represents the elapsed time between two instants
-                as an int64 nanosecond count. The representation limits the largest
-                representable duration to approximately 290 years.
-              format: int64
-              type: integer
+              type: string
+            ipv4rulefile:
+              type: string
             nftablesexporterurl:
               type: string
           type: object
@@ -51,13 +51,16 @@ spec:
             lastRun:
               format: date-time
               type: string
+            message:
+              type: string
             stats:
-              description: INSERT ADDITIONAL STATUS FIELD - define observed state
-                of cluster
+              description: FirewallStats contains firewall statistics
               properties:
                 rules:
                   additionalProperties:
                     additionalProperties:
+                      description: RuleStat contains the statistics for a single nftables
+                        rule
                       properties:
                         counters:
                           additionalProperties:
@@ -67,7 +70,11 @@ spec:
                       required:
                       - counters
                       type: object
+                    description: RuleStats contains firewall rule statistics of all
+                      rules of an action
                     type: object
+                  description: 'RuleStatsByAction contains firewall rule statistics
+                    groups by action: e.g. accept, drop, policy, masquerade'
                   type: object
               required:
               - rules

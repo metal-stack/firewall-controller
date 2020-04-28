@@ -13,12 +13,12 @@ const nftableTemplateIpv4 = `table ip firewall {
 		ip protocol icmp icmp type { destination-unreachable, router-solicitation, router-advertisement, time-exceeded, parameter-problem } counter accept comment "accept icmp"
 
 		# dynamic ingress rules
-		{{- range .IngressRules }}
+		{{- range .Ingress }}
 		{{ . }}
 		{{- end }}
 
 		# dynamic egress rules
-		{{- range .EgressRules }}
+		{{- range .Egress }}
 		{{ . }}
 		{{- end }}
 

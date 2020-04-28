@@ -9,6 +9,7 @@ require (
 	github.com/metal-stack/v v1.0.2
 	github.com/onsi/ginkgo v1.12.0
 	github.com/onsi/gomega v1.9.0
+	github.com/prometheus/common v0.4.1
 	github.com/prometheus/prometheus v2.5.0+incompatible
 	github.com/stretchr/testify v1.5.1
 	k8s.io/api v0.17.5

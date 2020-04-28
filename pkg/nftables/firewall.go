@@ -15,18 +15,19 @@ import (
 const (
 	nftablesService = "nftables.service"
 	nftBin          = "/usr/sbin/nft"
-	nftFile         = "/etc/nftables/firewall-controller.v4"
 	systemctlBin    = "/bin/systemctl"
 )
 
 // Firewall assembles nftable rules based on k8s entities
 type Firewall struct {
-	Ingress []string
-	Egress  []string
+	Ingress      []string
+	Egress       []string
+	Ipv4RuleFile string
+	DryRun       bool
 }
 
 // NewFirewall creates a new nftables firewall object based on k8s entities
-func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.ServiceList) *Firewall {
+func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.ServiceList, ipv4RuleFile string, dryRun bool) *Firewall {
 	ingress := []string{}
 	egress := []string{}
 	for _, np := range nps.Items {
@@ -41,8 +42,10 @@ func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.Serv
 		ingress = append(ingress, ingressForService(svc)...)
 	}
 	return &Firewall{
-		Egress:  uniqueSorted(egress),
-		Ingress: uniqueSorted(ingress),
+		Egress:       uniqueSorted(egress),
+		Ingress:      uniqueSorted(ingress),
+		Ipv4RuleFile: ipv4RuleFile,
+		DryRun:       dryRun,
 	}
 }
 
@@ -53,12 +56,15 @@ func (r *Firewall) Reconcile() error {
 	if err != nil {
 		return err
 	}
-	if equal(nftFile, desired) {
+	if equal(r.Ipv4RuleFile, desired) {
 		return nil
 	}
-	err = os.Rename(desired, nftFile)
+	err = os.Rename(desired, r.Ipv4RuleFile)
 	if err != nil {
 		return err
+	}
+	if r.DryRun {
+		return nil
 	}
 	err = r.reload()
 	if err != nil {
@@ -72,6 +78,9 @@ func (r *Firewall) renderFile(file string) error {
 	if err != nil {
 		return err
 	}
+	if r.DryRun {
+		return nil
+	}
 	err = r.validate(file)
 	if err != nil {
 		return err
@@ -81,6 +90,9 @@ func (r *Firewall) renderFile(file string) error {
 
 func (r *Firewall) write(file string) error {
 	c, err := r.renderString()
+	if err != nil {
+		return err
+	}
 	err = ioutil.WriteFile(file, []byte(c), 0644)
 	if err != nil {
 		return fmt.Errorf("error writing to nftables file '%s': %w", file, err)

@@ -1,8 +1,11 @@
 apiVersion: firewall.metal-stack.io/v1
 kind: Firewall
 metadata:
-  name: firewall-sample
+  namespace: firewall
+  name: firewall
 spec:
   enabled: true
-  interval: 10
+  interval: 10s
   nftablesexporterurl: http://localhost:9630/metrics
+  dryrun: true
+  ipv4rulefile: nftables.v4

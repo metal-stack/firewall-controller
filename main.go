@@ -113,14 +113,14 @@ func main() {
 	}
 
 	// Droptailer Reconciler
-	if err = (&controllers.DroptailerReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Droptailer"),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Droptailer")
-		os.Exit(1)
-	}
+	// if err = (&controllers.DroptailerReconciler{
+	// 	Client: mgr.GetClient(),
+	// 	Log:    ctrl.Log.WithName("controllers").WithName("Droptailer"),
+	// 	Scheme: mgr.GetScheme(),
+	// }).SetupWithManager(mgr); err != nil {
+	// 	setupLog.Error(err, "unable to create controller", "controller", "Droptailer")
+	// 	os.Exit(1)
+	// }
 
 	// ClusterwideNetworkPolicy Reconciler
 	if err = (&controllers.ClusterwideNetworkPolicyReconciler{
