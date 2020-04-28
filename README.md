@@ -40,4 +40,6 @@ bin/firewall-controller
 
 # watch results
 k describe networktraffic
+k describe -n firewall firewall
+cat nftables.v4
 ```
