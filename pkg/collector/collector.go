@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
-	"time"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -17,9 +16,8 @@ import (
 type (
 	// Collector scrapes the node-exporter
 	Collector struct {
-		logger   logr.Logger
-		url      string
-		interval time.Duration
+		logger logr.Logger
+		url    string
 	}
 	// DeviceStat maps series to value
 	DeviceStat map[string]int64

@@ -1,3 +1,8 @@
+.ONESHELL:
+SHA := $(shell git rev-parse --short=8 HEAD)
+GITVERSION := $(shell git describe --long --all)
+BUILDDATE := $(shell GO111MODULE=off go run ${COMMONDIR}/time.go)
+VERSION := $(or ${VERSION},$(shell git describe --tags --exact-match 2> /dev/null || git symbolic-ref -q --short HEAD || git rev-parse --short HEAD))
 
 # Image URL to use all building/pushing image targets
 IMG ?= metalstack/firewall-controller
@@ -19,7 +24,16 @@ test: generate fmt vet manifests
 
 # Build firewall-controller binary
 firewall-controller: generate fmt vet
-	go build -o bin/firewall-controller main.go
+	go build \
+		-tags netgo \
+		-trimpath \
+		-ldflags \
+			"-X 'github.com/metal-stack/v.Version=$(VERSION)' \
+			-X 'github.com/metal-stack/v.Revision=$(GITVERSION)' \
+			-X 'github.com/metal-stack/v.GitSHA1=$(SHA)' \
+			-X 'github.com/metal-stack/v.BuildDate=$(BUILDDATE)'" \
+		-o bin/firewall-controller main.go
+	strip bin/firewall-controller
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet manifests
