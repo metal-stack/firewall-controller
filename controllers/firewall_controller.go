@@ -31,7 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	firewallv1 "github.com/metal-stack/firewall-builder/api/v1"
-	firewall "github.com/metal-stack/firewall-builder/pkg/firewall"
 	"github.com/metal-stack/firewall-builder/pkg/nftables"
 )
 
@@ -131,7 +130,7 @@ func (r *FirewallReconciler) reconcileRules(ctx context.Context, f firewallv1.Fi
 	}
 
 	nftablesFirewall := nftables.NewFirewall(&clusterNPs, &services, f.Spec.Ipv4RuleFile, f.Spec.DryRun)
-	log.Info("loaded firewall rules", "ingress", nftablesFirewall.Ingress, "egress", nftablesFirewall.Egress)
+	log.Info("loaded firewall rules", "ingress", len(nftablesFirewall.Ingress), "egress", len(nftablesFirewall.Egress))
 
 	if err := nftablesFirewall.Reconcile(); err != nil {
 		return err
@@ -142,7 +141,7 @@ func (r *FirewallReconciler) reconcileRules(ctx context.Context, f firewallv1.Fi
 
 // updateStatus updates the status field for this firewall
 func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Firewall) error {
-	c := firewall.NewCollector(&r.Log, f.Spec.NftablesExportURL)
+	c := nftables.NewCollector(&r.Log, f.Spec.NftablesExportURL)
 
 	ruleStats, err := c.Collect()
 	if err != nil {

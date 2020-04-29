@@ -1,4 +1,4 @@
-package firewall
+package nftables
 
 import (
 	"io"
