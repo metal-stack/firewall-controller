@@ -17,52 +17,19 @@ limitations under the License.
 package v1
 
 import (
-	"time"
-
-	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var (
-	// NetworkTrafficCRD is the apiresource of a NetworkTraffix
-	NetworkTrafficCRD = apiextensionsv1beta1.CustomResourceDefinition{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "networktraffics." + GroupVersion.Group,
-		},
-		Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
-			Group:   GroupVersion.Group,
-			Version: GroupVersion.Version,
-			Scope:   apiextensionsv1beta1.NamespaceScoped,
-			Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
-				Kind:     "NetworkTraffic",
-				Plural:   "networktraffics",
-				Singular: "networktraffic",
-				ListKind: "NetworkTrafficList",
-			},
-			Subresources: &apiextensionsv1beta1.CustomResourceSubresources{
-				Status: &apiextensionsv1beta1.CustomResourceSubresourceStatus{},
-			},
-		},
-	}
-)
-
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // NetworkTrafficSpec defines the desired state of Network
 type NetworkTrafficSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-	Enabled       bool          `json:"enabled,omitempty"`
-	Interval      time.Duration `json:"interval,omitempty"`
-	NodeExportURL string        `json:"nodeexporterurl,omitempty"`
-	Interfaces    string        `json:"interfaces,omitempty"`
+	Enabled       bool   `json:"enabled,omitempty"`
+	Interval      string `json:"interval,omitempty"`
+	NodeExportURL string `json:"nodeexporterurl,omitempty"`
+	Interfaces    string `json:"interfaces,omitempty"`
 }
 
 // NetworkTrafficStatus defines the observed state of Network
 type NetworkTrafficStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
 	DeviceStatistics DeviceStatistics `json:"devicestatistics"`
 	Updated          metav1.Time      `json:"lastRun,omitempty"`
 }

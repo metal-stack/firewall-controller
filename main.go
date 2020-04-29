@@ -82,16 +82,6 @@ func main() {
 		panic("not all started")
 	}
 
-	// // APIExtension Reconciler
-	// if err = (&controllers.APIExtensionsReconciler{
-	// 	Client: mgr.GetClient(),
-	// 	Log:    ctrl.Log.WithName("controllers").WithName("APIExtension"),
-	// 	Scheme: mgr.GetScheme(),
-	// }).APIExtension(firewallv1.GroupCRDs); err != nil {
-	// 	setupLog.Error(err, "unable to create controller", "controller", "APIExtension")
-	// 	os.Exit(1)
-	// }
-
 	// NetworkTraffic Reconciler
 	if err = (&controllers.NetworkTrafficReconciler{
 		Client: mgr.GetClient(),

@@ -50,9 +50,9 @@ func (r *NetworkTrafficReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		return ctrl.Result{}, err
 	}
 	spec := networkTraffic.Spec
-	interval := time.Minute
-	if spec.Interval > 0 {
-		interval = spec.Interval * time.Second
+	interval, err := time.ParseDuration(spec.Interval)
+	if err != nil {
+		interval = time.Minute
 	}
 
 	if spec.Enabled {

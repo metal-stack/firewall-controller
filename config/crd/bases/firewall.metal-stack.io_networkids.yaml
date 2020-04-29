@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.2.5
+    controller-gen.kubebuilder.io/version: (unknown)
   creationTimestamp: null
   name: networkids.firewall.metal-stack.io
 spec:
@@ -35,15 +35,9 @@ spec:
           description: NetworkIDSSpec defines the desired state of Network
           properties:
             enabled:
-              description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-                Important: Run "make" to regenerate code after modifying this file'
               type: boolean
             interval:
-              description: A Duration represents the elapsed time between two instants
-                as an int64 nanosecond count. The representation limits the largest
-                representable duration to approximately 290 years.
-              format: int64
-              type: integer
+              type: string
             statslog:
               type: string
           type: object
