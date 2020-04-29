@@ -29,8 +29,6 @@ type ClusterwideNetworkPolicy struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec PolicySpec `json:"spec,omitempty"`
-
-	Status ClusterwideNetworkPolicyStatus `json:"status,omitempty"`
 }
 
 // ClusterwideNetworkPolicyList contains a list of ClusterwideNetworkPolicy
@@ -100,11 +98,6 @@ type EgressRule struct {
 	// allows traffic only if the traffic matches at least one item in the to list.
 	// +optional
 	To []networking.IPBlock `json:"to,omitempty"`
-}
-
-// ClusterwideNetworkPolicyStatus defines the observed state of ClusterwideNetworkPolicy
-type ClusterwideNetworkPolicyStatus struct {
-	Message string `json:"message,omitempty"`
 }
 
 func init() {

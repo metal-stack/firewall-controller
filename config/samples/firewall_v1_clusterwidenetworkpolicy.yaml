@@ -22,6 +22,24 @@ spec:
     - protocol: TCP
       port: 53
 ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: wrong
+---
+apiVersion: firewall.metal-stack.io/v1
+kind: ClusterwideNetworkPolicy
+metadata:
+  namespace: wrong
+  name: sample
+spec:
+  egress:
+  - to:
+    - cidr: 192.168.0.0/24
+    ports:
+    - protocol: TCP
+      port: 80
+---
   apiVersion: v1
   kind: Service
   metadata:
