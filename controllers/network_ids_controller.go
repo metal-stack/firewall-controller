@@ -46,15 +46,14 @@ func (r *NetworkIDSReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 	var NetworkIDS firewallv1.NetworkIDS
 	if err := r.Get(ctx, req.NamespacedName, &NetworkIDS); err != nil {
 		log.Error(err, "unable to get NetworkIDS")
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: 10 * time.Second}, err
 	}
 	spec := NetworkIDS.Spec
-	interval := time.Minute
-	if spec.Interval > 0 {
-		interval = spec.Interval * time.Second
+	interval, err := time.ParseDuration(spec.Interval)
+	if err != nil {
+		interval = time.Minute
 	}
 
-	// TODO implement here
 	if spec.Enabled {
 		log.Info("NetworkIDS is enabled", "interval", interval)
 		s := suricata.New(spec.StatsLog)
@@ -69,8 +68,7 @@ func (r *NetworkIDSReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 			return ctrl.Result{}, err
 		}
 		log.Info("ids stats updated")
-		time.Sleep(interval)
-		return ctrl.Result{}, nil
+		return ctrl.Result{RequeueAfter: interval}, nil
 	}
 	log.Info("NetworkIDS is disabled")
 	return ctrl.Result{}, nil

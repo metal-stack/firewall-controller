@@ -1,9 +1,9 @@
 apiVersion: firewall.metal-stack.io/v1
 kind: NetworkTraffic
 metadata:
-  name: networktraffic-sample
+  name: cluster-networktraffic
 spec:
   enabled: true
-  interval: 10
+  interval: 10s
   nodeexporterurl: http://localhost:9100/metrics
   interfaces: "w*"

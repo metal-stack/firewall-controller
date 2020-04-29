@@ -20,7 +20,6 @@ limitations under the License.
 package v1
 
 import (
-	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/scheme"
 )
@@ -34,13 +33,6 @@ var (
 
 	// AddToScheme adds the types in this group-version to the given scheme.
 	AddToScheme = SchemeBuilder.AddToScheme
-	// GroupCRDs contains all CustomresourceDefinitions which should be created on startup
-	GroupCRDs = apiextensionsv1beta1.CustomResourceDefinitionList{
-		Items: []apiextensionsv1beta1.CustomResourceDefinition{
-			NetworkIDSCRD,
-			NetworkTrafficCRD,
-		},
-	}
 )
 
 func init() {
