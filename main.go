@@ -19,9 +19,11 @@ package main
 import (
 	"flag"
 	"os"
+	"time"
 
 	firewallv1 "github.com/metal-stack/firewall-builder/api/v1"
 	"github.com/metal-stack/firewall-builder/controllers"
+	"github.com/metal-stack/firewall-builder/controllers/crd"
 	"github.com/metal-stack/v"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -57,7 +59,8 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	restConfig := ctrl.GetConfigOrDie()
+	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme:             scheme,
 		MetricsBindAddress: metricsAddr,
 		Port:               9443,
@@ -79,6 +82,20 @@ func main() {
 
 	if started := mgr.GetCache().WaitForCacheSync(stopCh); !started {
 		panic("not all started")
+	}
+
+	crds, err := crd.InstallCRDs(restConfig, crd.InstallOptions{
+		Paths: []string{"config/crd/bases"},
+	})
+	if err != nil {
+		setupLog.Error(err, "unable to create crds of firewall-controller")
+		os.Exit(1)
+	}
+
+	err = crd.WaitForCRDs(restConfig, crds, crd.InstallOptions{MaxTime: 500 * time.Millisecond, PollInterval: 100 * time.Millisecond})
+	if err != nil {
+		setupLog.Error(err, "unable to wait for created crds of firewall-controller")
+		os.Exit(1)
 	}
 
 	// NetworkTraffic Reconciler

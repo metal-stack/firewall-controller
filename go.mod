@@ -17,4 +17,5 @@ require (
 	k8s.io/client-go v0.18.2
 	k8s.io/kube-openapi v0.0.0-20200316234421-82d701f24f9d // indirect
 	sigs.k8s.io/controller-runtime v0.6.0
+	sigs.k8s.io/yaml v1.2.0
 )
