@@ -45,7 +45,6 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(req ctrl.Request) (ctrl.R
 	log := r.Log.WithValues("ClusterwideNetworkPolicy", req.NamespacedName)
 
 	requeue := ctrl.Result{
-		Requeue:      true,
 		RequeueAfter: 30 * time.Second,
 	}
 

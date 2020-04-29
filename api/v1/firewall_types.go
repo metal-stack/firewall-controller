@@ -23,9 +23,9 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// +kubebuilder:object:root=true
-
 // Firewall is the Schema for the firewalls API
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 type Firewall struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -34,9 +34,8 @@ type Firewall struct {
 	Status FirewallStatus `json:"status,omitempty"`
 }
 
-// +kubebuilder:object:root=true
-
 // FirewallList contains a list of Firewall
+// +kubebuilder:object:root=true
 type FirewallList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

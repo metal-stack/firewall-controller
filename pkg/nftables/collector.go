@@ -15,7 +15,7 @@ import (
 )
 
 type (
-	// Collector scrapes the node-exporter
+	// Collector scrapes the nftables-exporter
 	Collector struct {
 		logger logr.Logger
 		url    string

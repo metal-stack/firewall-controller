@@ -307,7 +307,7 @@
                 "table": "firewall",
                 "chain": "forward",
                 "handle": 42,
-                "comment": "accept traffic for k8s service shoot--pbcf4p--sap-seed02/kube-apiserver",
+                "comment": "accept traffic for k8s service shoot--pbcf4p--seed02/kube-apiserver",
                 "expr": [
                     {
                         "match": {

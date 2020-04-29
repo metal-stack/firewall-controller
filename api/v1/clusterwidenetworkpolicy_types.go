@@ -21,9 +21,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// +kubebuilder:object:root=true
-
 // ClusterwideNetworkPolicy contains the desired state for a cluster wide network policy to be applied.
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 type ClusterwideNetworkPolicy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -33,9 +33,8 @@ type ClusterwideNetworkPolicy struct {
 	Status ClusterwideNetworkPolicyStatus `json:"status,omitempty"`
 }
 
-// +kubebuilder:object:root=true
-
 // ClusterwideNetworkPolicyList contains a list of ClusterwideNetworkPolicy
+// +kubebuilder:object:root=true
 type ClusterwideNetworkPolicyList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

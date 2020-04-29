@@ -15,6 +15,8 @@ spec:
     plural: clusterwidenetworkpolicies
     singular: clusterwidenetworkpolicy
   scope: Namespaced
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       description: ClusterwideNetworkPolicy contains the desired state for a cluster
@@ -82,20 +84,20 @@ spec:
                       allows traffic only if the traffic matches at least one item
                       in the to list.
                     items:
-                      description: IPBlock describes a particular CIDR (Ex. "192.168.1.1/24")
+                      description: IPBlock describes a particular CIDR (Ex. "192.168.1.1/24","2001:db9::/64")
                         that is allowed to the pods matched by a NetworkPolicySpec's
                         podSelector. The except entry describes CIDRs that should
                         not be included within this rule.
                       properties:
                         cidr:
                           description: CIDR is a string representing the IP Block
-                            Valid examples are "192.168.1.1/24"
+                            Valid examples are "192.168.1.1/24" or "2001:db9::/64"
                           type: string
                         except:
                           description: Except is a slice of CIDRs that should not
                             be included within an IP Block Valid examples are "192.168.1.1/24"
-                            Except values will be rejected if they are outside the
-                            CIDR range
+                            or "2001:db9::/64" Except values will be rejected if they
+                            are outside the CIDR range
                           items:
                             type: string
                           type: array
@@ -124,20 +126,20 @@ spec:
                       rule allows traffic only if the traffic matches at least one
                       item in the from list.
                     items:
-                      description: IPBlock describes a particular CIDR (Ex. "192.168.1.1/24")
+                      description: IPBlock describes a particular CIDR (Ex. "192.168.1.1/24","2001:db9::/64")
                         that is allowed to the pods matched by a NetworkPolicySpec's
                         podSelector. The except entry describes CIDRs that should
                         not be included within this rule.
                       properties:
                         cidr:
                           description: CIDR is a string representing the IP Block
-                            Valid examples are "192.168.1.1/24"
+                            Valid examples are "192.168.1.1/24" or "2001:db9::/64"
                           type: string
                         except:
                           description: Except is a slice of CIDRs that should not
                             be included within an IP Block Valid examples are "192.168.1.1/24"
-                            Except values will be rejected if they are outside the
-                            CIDR range
+                            or "2001:db9::/64" Except values will be rejected if they
+                            are outside the CIDR range
                           items:
                             type: string
                           type: array
