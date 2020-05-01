@@ -8,6 +8,13 @@ metadata:
   creationTimestamp: null
   name: networkids.metal-stack.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.enabled
+    name: Enabled
+    type: boolean
+  - JSONPath: .spec.interval
+    name: Interval
+    type: string
   group: metal-stack.io
   names:
     kind: NetworkIDS
@@ -15,6 +22,8 @@ spec:
     plural: networkids
     singular: networkids
   scope: Namespaced
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       description: NetworkIDS is the Schema for the networks API
@@ -45,9 +54,7 @@ spec:
           description: NetworkIDSStatus defines the observed state of Network
           properties:
             IDSstatistics:
-              description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
-                of cluster Important: Run "make" to regenerate code after modifying
-                this file'
+              description: IDSStatistic contains ids statistics
               properties:
                 stats:
                   additionalProperties:

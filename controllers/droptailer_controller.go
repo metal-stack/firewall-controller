@@ -36,28 +36,37 @@ const (
 // DroptailerReconciler reconciles a Droptailer object
 type DroptailerReconciler struct {
 	client.Client
-	Log             logr.Logger
-	Scheme          *runtime.Scheme
+	Log    logr.Logger
+	Scheme *runtime.Scheme
+	// FIXME is not filled properly
 	certificateBase string
 	oldPodIP        string
 	hosts           *txeh.Hosts
 }
 
+const (
+	droptailerReconcileInterval = time.Second * 10
+)
+
+// Reconcile droptailer with certificate and droptailer-server ip from pod inspection
 // +kubebuilder:rbac:groups=metal-stack.io,resources=Droptailers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=metal-stack.io,resources=Droptailers/status,verbs=get;update;patch
-
 func (r *DroptailerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("Droptailer", req.NamespacedName)
-	defaultRequeue := ctrl.Result{RequeueAfter: 10 * time.Second}
+	requeue := ctrl.Result{
+		RequeueAfter: droptailerReconcileInterval,
+	}
 	if req.Namespace != namespace {
-		return defaultRequeue, nil
+		return requeue, nil
 	}
 
 	var secrets corev1.SecretList
 	if err := r.List(ctx, &secrets, &client.ListOptions{Namespace: namespace}); err != nil {
-		log.Error(err, "unable to get droptailer secrets")
-		return defaultRequeue, err
+		// we'll ignore not-found errors, since they can't be fixed by an immediate
+		// requeue (we'll need to wait for a new notification), and we can get them
+		// on deleted requests.
+		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	var droptailerSecret corev1.Secret
@@ -70,16 +79,18 @@ func (r *DroptailerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 		}
 	}
 	if !secretFound {
-		return defaultRequeue, fmt.Errorf("droptailer-secret not found")
+		return ctrl.Result{}, client.IgnoreNotFound(fmt.Errorf("droptailer-secret not found"))
 	}
+
+	log.Info("droptailer-secret", "name", droptailerSecret.Name)
 	err := r.writeSecret(droptailerSecret)
 	if err != nil {
-		return defaultRequeue, err
+		return requeue, err
 	}
-	log.Info("droptailer-secret", "name", droptailerSecret.Name)
+
 	var droptailerPod corev1.Pod
 	if err := r.Get(ctx, req.NamespacedName, &droptailerPod); err != nil {
-		return ctrl.Result{}, fmt.Errorf("droptailer pod not found:%v", err)
+		return ctrl.Result{}, fmt.Errorf("droptailer-secret not found")
 	}
 
 	podIP := droptailerPod.Status.PodIP
@@ -90,7 +101,7 @@ func (r *DroptailerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 		err := r.hosts.Save()
 		if err != nil {
 			log.Error(err, "could not write droptailer hosts entry")
-			return defaultRequeue, fmt.Errorf("could not write droptailer hosts entry:%v", err)
+			return requeue, fmt.Errorf("could not write droptailer hosts entry:%v", err)
 		}
 		r.oldPodIP = podIP
 	}
