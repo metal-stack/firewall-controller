@@ -79,6 +79,7 @@ docker-push:
 
 # find or download controller-gen
 # download controller-gen if necessary
+.PHONY: controller-gen
 controller-gen:
 ifeq (, $(shell which controller-gen))
 	@{ \
@@ -95,6 +96,7 @@ CONTROLLER_GEN=$(shell which controller-gen)
 endif
 
 # find or download statik
+.PHONY: statik
 statik:
 ifeq (, $(shell which statik))
 	@{ \
@@ -109,4 +111,3 @@ STATIK=$(GOBIN)/statik
 else
 STATIK=$(shell which statik)
 endif
-
