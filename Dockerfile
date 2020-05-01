@@ -10,20 +10,23 @@ COPY go.sum go.sum
 RUN go mod download
 
 # Copy the go source
+COPY .git/ .git/
+COPY Makefile Makefile
 COPY main.go main.go
 COPY api/ api/
 COPY controllers/ controllers/
 COPY pkg/ pkg/
+COPY statik/ statik/
+COPY hack/ hack/
 
 # Build
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -trimpath -a -o firewall-controller main.go \
- && strip firewall-controller
+RUN make
 
 # Use distroless as minimal base image to package the firewall-controller binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /
-COPY --from=builder /workspace/firewall-controller .
+COPY --from=builder /workspace/bin/firewall-controller .
 USER nonroot:nonroot
 
 ENTRYPOINT ["/firewall-controller"]
