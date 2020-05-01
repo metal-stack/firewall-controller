@@ -25,7 +25,6 @@ import (
 	_ "github.com/metal-stack/firewall-builder/statik"
 	"github.com/rakyll/statik/fs"
 
-	firewallv1 "github.com/metal-stack/firewall-builder/api/v1"
 	"github.com/metal-stack/firewall-builder/controllers"
 	"github.com/metal-stack/firewall-builder/controllers/crd"
 	"github.com/metal-stack/v"
@@ -35,6 +34,8 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
+	firewallv1 "github.com/metal-stack/firewall-builder/api/v1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -137,6 +138,23 @@ func main() {
 		os.Exit(1)
 	}
 
+	// ClusterwideNetworkPolicy Reconciler
+	if err = (&controllers.ClusterwideNetworkPolicyReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicy"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "ClusterwideNetworkPolicy")
+		os.Exit(1)
+	}
+	if err = (&controllers.FirewallReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("Firewall"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Firewall")
+		os.Exit(1)
+	}
 	// +kubebuilder:scaffold:builder
 
 	// FIXME howto cope with OS signals ?

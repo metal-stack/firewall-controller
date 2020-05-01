@@ -41,5 +41,7 @@ func init() {
 		&NetworkIDSList{},
 		&NetworkTraffic{},
 		&NetworkTrafficList{},
+		&ClusterwideNetworkPolicy{},
+		&ClusterwideNetworkPolicyList{},
 	)
 }

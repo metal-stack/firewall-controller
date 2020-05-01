@@ -1,0 +1,190 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.3.0
+  creationTimestamp: null
+  name: clusterwidenetworkpolicies.firewall.metal-stack.io
+spec:
+  group: firewall.metal-stack.io
+  names:
+    kind: ClusterwideNetworkPolicy
+    listKind: ClusterwideNetworkPolicyList
+    plural: clusterwidenetworkpolicies
+    singular: clusterwidenetworkpolicy
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: ClusterwideNetworkPolicy contains the desired state for a cluster
+        wide network policy to be applied.
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          properties:
+            description:
+              description: Description is a free form string, it can be used by the
+                creator of the rule to store human readable explanation of the purpose
+                of this rule. Rules cannot be identified by comment.
+              type: string
+            egress:
+              description: List of egress rules to be applied. Outgoing traffic is
+                allowed if there is a ClusterwideNetworkPolicy that allows it. Clusters
+                are isolated by default.
+              items:
+                description: EgressRule describes a particular set of traffic that
+                  is allowed out of the cluster The traffic must match both ports
+                  and to.
+                properties:
+                  ports:
+                    description: List of destination ports for outgoing traffic. Each
+                      item in this list is combined using a logical OR. If this field
+                      is empty or missing, this rule matches all ports (traffic not
+                      restricted by port). If this field is present and contains at
+                      least one item, then this rule allows traffic only if the traffic
+                      matches at least one port in the list.
+                    items:
+                      description: NetworkPolicyPort describes a port to allow traffic
+                        on
+                      properties:
+                        port:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          description: The port on the given protocol. This can either
+                            be a numerical or named port on a pod. If this field is
+                            not provided, this matches all port names and numbers.
+                          x-kubernetes-int-or-string: true
+                        protocol:
+                          description: The protocol (TCP, UDP, or SCTP) which traffic
+                            must match. If not specified, this field defaults to TCP.
+                          type: string
+                      type: object
+                    type: array
+                  to:
+                    description: List of destinations for outgoing traffic of a cluster
+                      for this rule. Items in this list are combined using a logical
+                      OR operation. If this field is empty or missing, this rule matches
+                      all destinations (traffic not restricted by destination). If
+                      this field is present and contains at least one item, this rule
+                      allows traffic only if the traffic matches at least one item
+                      in the to list.
+                    items:
+                      description: IPBlock describes a particular CIDR (Ex. "192.168.1.1/24","2001:db9::/64")
+                        that is allowed to the pods matched by a NetworkPolicySpec's
+                        podSelector. The except entry describes CIDRs that should
+                        not be included within this rule.
+                      properties:
+                        cidr:
+                          description: CIDR is a string representing the IP Block
+                            Valid examples are "192.168.1.1/24" or "2001:db9::/64"
+                          type: string
+                        except:
+                          description: Except is a slice of CIDRs that should not
+                            be included within an IP Block Valid examples are "192.168.1.1/24"
+                            or "2001:db9::/64" Except values will be rejected if they
+                            are outside the CIDR range
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - cidr
+                      type: object
+                    type: array
+                type: object
+              type: array
+            ingress:
+              description: List of ingress rules to be applied. Traffic is allowed
+                to a cluster if there is a ClusterwideNetworkPolicy that allows it,
+                OR there is a service exposed with type Loadbalancer. Clusters are
+                isolated by default.
+              items:
+                description: IngressRule describes a particular set of traffic that
+                  is allowed to the cluster. The traffic must match both ports and
+                  from.
+                properties:
+                  from:
+                    description: List of sources which should be able to access the
+                      cluster for this rule. Items in this list are combined using
+                      a logical OR operation. If this field is empty or missing, this
+                      rule matches all sources (traffic not restricted by source).
+                      If this field is present and contains at least one item, this
+                      rule allows traffic only if the traffic matches at least one
+                      item in the from list.
+                    items:
+                      description: IPBlock describes a particular CIDR (Ex. "192.168.1.1/24","2001:db9::/64")
+                        that is allowed to the pods matched by a NetworkPolicySpec's
+                        podSelector. The except entry describes CIDRs that should
+                        not be included within this rule.
+                      properties:
+                        cidr:
+                          description: CIDR is a string representing the IP Block
+                            Valid examples are "192.168.1.1/24" or "2001:db9::/64"
+                          type: string
+                        except:
+                          description: Except is a slice of CIDRs that should not
+                            be included within an IP Block Valid examples are "192.168.1.1/24"
+                            or "2001:db9::/64" Except values will be rejected if they
+                            are outside the CIDR range
+                          items:
+                            type: string
+                          type: array
+                      required:
+                      - cidr
+                      type: object
+                    type: array
+                  ports:
+                    description: List of ports which should be made accessible on
+                      the cluster for this rule. Each item in this list is combined
+                      using a logical OR. If this field is empty or missing, this
+                      rule matches all ports (traffic not restricted by port). If
+                      this field is present and contains at least one item, then this
+                      rule allows traffic only if the traffic matches at least one
+                      port in the list.
+                    items:
+                      description: NetworkPolicyPort describes a port to allow traffic
+                        on
+                      properties:
+                        port:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          description: The port on the given protocol. This can either
+                            be a numerical or named port on a pod. If this field is
+                            not provided, this matches all port names and numbers.
+                          x-kubernetes-int-or-string: true
+                        protocol:
+                          description: The protocol (TCP, UDP, or SCTP) which traffic
+                            must match. If not specified, this field defaults to TCP.
+                          type: string
+                      type: object
+                    type: array
+                type: object
+              type: array
+          type: object
+      type: object
+  version: v1
+  versions:
+  - name: v1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

@@ -21,12 +21,15 @@ make test
 
 ## Testing locally
 
+1. install nftables_exporter: `go install github.com/Sheridan/nftables_exporter`
+
 ```bash
 # start kind cluster
 kind create cluster
 
-# start node-exporter
+# start exporters
 node_exporter
+nftables_exporter --config ./nftables_exporter.yaml
 
 # deploy manifests and sample crd
 k apply -f config/crd/bases
@@ -37,4 +40,6 @@ bin/firewall-controller
 
 # watch results
 k describe networktraffic
+k describe -n firewall firewall
+cat nftables.v4
 ```

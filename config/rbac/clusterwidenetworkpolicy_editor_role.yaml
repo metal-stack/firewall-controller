@@ -1,0 +1,24 @@
+# permissions for end users to edit clusterwidenetworkpolicies.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: clusterwidenetworkpolicy-editor-role
+rules:
+- apiGroups:
+  - firewall.metal-stack.io
+  resources:
+  - clusterwidenetworkpolicies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - firewall.metal-stack.io
+  resources:
+  - clusterwidenetworkpolicies/status
+  verbs:
+  - get

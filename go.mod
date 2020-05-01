@@ -4,10 +4,12 @@ go 1.14
 
 require (
 	github.com/cespare/xxhash v1.1.0 // indirect
+	github.com/ghodss/yaml v1.0.0
 	github.com/go-logr/logr v0.1.0
 	github.com/metal-stack/v v1.0.2
 	github.com/onsi/ginkgo v1.12.0
 	github.com/onsi/gomega v1.9.0
+	github.com/pkg/errors v0.8.1
 	github.com/prometheus/prometheus v2.5.0+incompatible
 	github.com/rakyll/statik v0.1.7
 	github.com/stretchr/testify v1.5.1
