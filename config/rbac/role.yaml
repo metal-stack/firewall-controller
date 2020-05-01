@@ -7,7 +7,7 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - firewall.metal-stack.io
+  - metal-stack.io
   resources:
   - Droptailers
   verbs:
@@ -19,7 +19,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - firewall.metal-stack.io
+  - metal-stack.io
   resources:
   - Droptailers/status
   verbs:

@@ -29,7 +29,7 @@ import (
 )
 
 // ClusterwideNetworkPolicyReconciler reconciles a ClusterwideNetworkPolicy object
-// +kubebuilder:rbac:groups=firewall.metal-stack.io,resources=events,verbs=create;patch
+// +kubebuilder:rbac:groups=metal-stack.io,resources=events,verbs=create;patch
 type ClusterwideNetworkPolicyReconciler struct {
 	client.Client
 	Log      logr.Logger
@@ -39,8 +39,8 @@ type ClusterwideNetworkPolicyReconciler struct {
 
 const clusterwideNPNamespace = "firewall"
 
-// +kubebuilder:rbac:groups=firewall.metal-stack.io,resources=clusterwidenetworkpolicies,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=firewall.metal-stack.io,resources=clusterwidenetworkpolicies/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=metal-stack.io,resources=clusterwidenetworkpolicies,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=metal-stack.io,resources=clusterwidenetworkpolicies/status,verbs=get;update;patch
 func (r *ClusterwideNetworkPolicyReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 

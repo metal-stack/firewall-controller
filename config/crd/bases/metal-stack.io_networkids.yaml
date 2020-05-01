@@ -6,32 +6,18 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.3.0
   creationTimestamp: null
-  name: networktraffics.firewall.metal-stack.io
+  name: networkids.metal-stack.io
 spec:
-  additionalPrinterColumns:
-  - JSONPath: .spec.nodeexporterurl
-    name: NodeExporter
-    type: string
-  - JSONPath: .spec.enabled
-    name: Enabled
-    type: boolean
-  - JSONPath: .spec.interval
-    name: Interval
-    type: string
-  - JSONPath: .spec.interfaces
-    name: Interfaces
-    type: string
-  group: firewall.metal-stack.io
+  group: metal-stack.io
   names:
-    kind: NetworkTraffic
-    listKind: NetworkTrafficList
-    plural: networktraffics
-    singular: networktraffic
+    kind: NetworkIDS
+    listKind: NetworkIDSList
+    plural: networkids
+    singular: networkids
   scope: Namespaced
-  subresources: {}
   validation:
     openAPIV3Schema:
-      description: NetworkTraffic is the Schema for the networks API
+      description: NetworkIDS is the Schema for the networks API
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -46,49 +32,36 @@ spec:
         metadata:
           type: object
         spec:
-          description: NetworkTrafficSpec defines the desired state of Network
+          description: NetworkIDSSpec defines the desired state of Network
           properties:
             enabled:
               type: boolean
-            interfaces:
-              type: string
             interval:
               type: string
-            nodeexporterurl:
+            statslog:
               type: string
           type: object
         status:
-          description: NetworkTrafficStatus defines the observed state of Network
+          description: NetworkIDSStatus defines the observed state of Network
           properties:
-            devicestatistics:
-              description: DeviceStatistics is a list of statistics of all devices
+            IDSstatistics:
+              description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
+                of cluster Important: Run "make" to regenerate code after modifying
+                this file'
               properties:
-                items:
-                  items:
-                    description: DeviceStatistic contains statistics of a device
-                    properties:
-                      device:
-                        type: string
-                      in:
-                        format: int64
-                        type: integer
-                      out:
-                        format: int64
-                        type: integer
-                    required:
-                    - device
-                    - in
-                    - out
-                    type: object
-                  type: array
+                stats:
+                  additionalProperties:
+                    format: int64
+                    type: integer
+                  type: object
               required:
-              - items
+              - stats
               type: object
             lastRun:
               format: date-time
               type: string
           required:
-          - devicestatistics
+          - IDSstatistics
           type: object
       type: object
   version: v1

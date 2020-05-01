@@ -56,8 +56,8 @@ const (
 // - reading ClusterwideNetworkPolicies and Services of type Loadbalancer
 // - rendering nftables rules
 // - updating the firewall object with nftable rule statistics grouped by action
-// +kubebuilder:rbac:groups=firewall.metal-stack.io,resources=firewalls,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=firewall.metal-stack.io,resources=firewalls/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=metal-stack.io,resources=firewalls,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=metal-stack.io,resources=firewalls/status,verbs=get;update;patch
 func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("firewall", req.NamespacedName)
