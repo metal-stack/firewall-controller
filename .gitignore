@@ -6,6 +6,9 @@
 *.so
 *.dylib
 bin
+ca.crt
+droptailer-client.crt
+droptailer-client.key
 kubeconfig
 .kubeconfig
 nftables.v4

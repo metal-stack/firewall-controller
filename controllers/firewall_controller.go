@@ -27,6 +27,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -42,8 +43,10 @@ import (
 // FirewallReconciler reconciles a Firewall object
 type FirewallReconciler struct {
 	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
+	Log      logr.Logger
+	Scheme   *runtime.Scheme
+	recorder record.EventRecorder
+	tc       *trafficcontrol.Tc
 }
 
 const (
@@ -75,6 +78,7 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	if err := r.validateFirewall(ctx, f); err != nil {
+		r.recorder.Event(&f, "Warning", "Unapplicable", err.Error())
 		// don't requeue invalid firewall objects
 		return ctrl.Result{}, err
 	}
@@ -106,6 +110,7 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	if err = r.updateStatus(ctx, f, log); err != nil {
 		return requeue, err
 	}
+	r.recorder.Event(&f, "Normal", "Reconciled", "nftables rules, traffic control rules and statistics")
 
 	log.Info("reconciled firewall")
 	return requeue, err
@@ -116,17 +121,11 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 // and for the triggered reconcilation requests
 func (r *FirewallReconciler) validateFirewall(ctx context.Context, f firewallv1.Firewall) error {
 	if f.Namespace != firewallNamespace {
-		f.Status.Message = fmt.Sprintf("firewall must be defined in namespace %s otherwise they won't take effect", firewallNamespace)
-		if err := r.Update(ctx, &f); err != nil {
-			return fmt.Errorf("unable to update firewall, namespace: %s, name: %s, err: %w", f.Namespace, f.Name, err)
-		}
+		return fmt.Errorf("firewall must be defined in namespace %s otherwise it won't take effect", firewallNamespace)
 	}
 
 	if f.Name != firewallName {
-		f.Status.Message = fmt.Sprintf("there must be only one object of kind firewall in the namespace %s with name %s", firewallNamespace, firewallName)
-		if err := r.Update(ctx, &f); err != nil {
-			return fmt.Errorf("unable to update firewall, namespace: %s, name: %s, err: %w", f.Namespace, f.Name, err)
-		}
+		return fmt.Errorf("firewall object is a singularity - it must have the name %s", firewallName)
 	}
 
 	return nil
@@ -153,12 +152,9 @@ func (r *FirewallReconciler) reconcileRules(ctx context.Context, f firewallv1.Fi
 
 	return nil
 }
-func (r *FirewallReconciler) reconcileTrafficControl(ctx context.Context, f firewallv1.Firewall, log logr.Logger) error {
-	tc, err := trafficcontrol.New()
-	if err != nil {
-		return err
-	}
 
+// reconcileTrafficControl reconciles the tc rules for this firewall
+func (r *FirewallReconciler) reconcileTrafficControl(ctx context.Context, f firewallv1.Firewall, log logr.Logger) error {
 	tcSpec := f.Spec.TrafficControl
 	for _, t := range tcSpec.Rules {
 		match, err := filepath.Match(tcSpec.Interfaces, t.Interface)
@@ -175,7 +171,7 @@ func (r *FirewallReconciler) reconcileTrafficControl(ctx context.Context, f fire
 			continue
 		}
 
-		hasRate, err := tc.HasRateLimit(t.Interface, t.Rate)
+		hasRate, err := r.tc.HasRateLimit(t.Interface, t.Rate)
 		if err != nil {
 			return err
 		}
@@ -184,12 +180,12 @@ func (r *FirewallReconciler) reconcileTrafficControl(ctx context.Context, f fire
 			continue
 		}
 
-		err = tc.Clear(t.Interface)
+		err = r.tc.Clear(t.Interface)
 		if err != nil {
 			return err
 		}
 
-		err = tc.AddRateLimit(t.Interface, t.Rate)
+		err = r.tc.AddRateLimit(t.Interface, t.Rate)
 		if err != nil {
 			return err
 		}
@@ -207,11 +203,6 @@ func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Fire
 		return err
 	}
 
-	tc, err := trafficcontrol.New()
-	if err != nil {
-		return err
-	}
-
 	tcStats := firewallv1.TrafficControlStatsByIface{}
 	tcSpec := spec.TrafficControl
 	for _, t := range tcSpec.Rules {
@@ -222,7 +213,7 @@ func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Fire
 		if !match {
 			continue
 		}
-		s, err := tc.ShowTbfRule(t.Interface)
+		s, err := r.tc.ShowTbfRule(t.Interface)
 		if err != nil {
 			log.Info("could not get tc rule stats", "err", err)
 			continue
@@ -251,6 +242,12 @@ func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Fire
 }
 
 func (r *FirewallReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.recorder = mgr.GetEventRecorderFor("FirewallController")
+	tc, err := trafficcontrol.New()
+	if err != nil {
+		return err
+	}
+	r.tc = tc
 	mapToFirewallReconcilation := handler.ToRequestsFunc(
 		func(a handler.MapObject) []reconcile.Request {
 			return []reconcile.Request{
