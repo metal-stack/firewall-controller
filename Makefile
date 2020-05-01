@@ -23,7 +23,7 @@ test: generate fmt vet manifests
 	go test ./... -coverprofile cover.out
 
 # Build firewall-controller binary
-firewall-controller: generate fmt vet
+firewall-controller: statik generate fmt vet
 	go build \
 		-tags netgo \
 		-trimpath \
@@ -65,7 +65,8 @@ vet:
 	go vet ./...
 
 # Generate code
-generate: controller-gen
+generate: controller-gen statik manifests
+	$(STATIK) -src=config/crd/bases
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 # Build the docker image
@@ -92,3 +93,20 @@ CONTROLLER_GEN=$(GOBIN)/controller-gen
 else
 CONTROLLER_GEN=$(shell which controller-gen)
 endif
+
+# find or download statik
+statik:
+ifeq (, $(shell which statik))
+	@{ \
+	set -e ;\
+	STATIK_TMP_DIR=$$(mktemp -d) ;\
+	cd $$STATIK_TMP_DIR ;\
+	go mod init tmp ;\
+	go get github.com/rakyll/statik ;\
+	rm -rf $$STATIK_TMP_DIR ;\
+	}
+STATIK=$(GOBIN)/statik
+else
+STATIK=$(shell which statik)
+endif
+

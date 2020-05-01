@@ -9,6 +9,7 @@ bin
 kubeconfig
 .kubeconfig
 nftables.v4
+statik/statik.go
 
 # Test binary, build with `go test -c`
 *.test

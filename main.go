@@ -18,8 +18,15 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
+	"time"
 
+	_ "github.com/metal-stack/firewall-builder/statik"
+	"github.com/rakyll/statik/fs"
+
+	"github.com/metal-stack/firewall-builder/controllers"
+	"github.com/metal-stack/firewall-builder/controllers/crd"
 	"github.com/metal-stack/v"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -29,7 +36,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	firewallv1 "github.com/metal-stack/firewall-builder/api/v1"
-	"github.com/metal-stack/firewall-builder/controllers"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -58,7 +64,8 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	restConfig := ctrl.GetConfigOrDie()
+	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme:             scheme,
 		MetricsBindAddress: metricsAddr,
 		Port:               9443,
@@ -80,6 +87,25 @@ func main() {
 
 	if started := mgr.GetCache().WaitForCacheSync(stopCh); !started {
 		panic("not all started")
+	}
+
+	crdMap, err := readCRDsFromVFS()
+	if err != nil {
+		setupLog.Error(err, "unable to read crds from virtual filesystem")
+		os.Exit(1)
+	}
+	crds, err := crd.InstallCRDs(restConfig, crd.InstallOptions{
+		CRDContents: crdMap,
+	})
+	if err != nil {
+		setupLog.Error(err, "unable to create crds of firewall-controller")
+		os.Exit(1)
+	}
+
+	err = crd.WaitForCRDs(restConfig, crds, crd.InstallOptions{MaxTime: 500 * time.Millisecond, PollInterval: 100 * time.Millisecond})
+	if err != nil {
+		setupLog.Error(err, "unable to wait for created crds of firewall-controller")
+		os.Exit(1)
 	}
 
 	// NetworkTraffic Reconciler
@@ -133,4 +159,30 @@ func main() {
 
 	// FIXME howto cope with OS signals ?
 	<-stopCh
+}
+
+func readCRDsFromVFS() (map[string][]byte, error) {
+	statikFS, err := fs.New()
+	if err != nil {
+		setupLog.Error(err, "unable to create virtual fs")
+		return nil, err
+	}
+	crdMap := make(map[string][]byte)
+	err = fs.Walk(statikFS, "/", func(path string, info os.FileInfo, err error) error {
+		if info.IsDir() {
+			return nil
+		}
+		b, err := fs.ReadFile(statikFS, path)
+		if err != nil {
+			return fmt.Errorf("unable to readfile:%v", err)
+		}
+		crdMap[path] = b
+		setupLog.Info("crd", "path", path, "info", info)
+		return nil
+	})
+	if err != nil {
+		setupLog.Error(err, "unable to read crs from virtual fs")
+		return nil, err
+	}
+	return crdMap, nil
 }
