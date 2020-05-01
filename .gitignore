@@ -7,7 +7,7 @@
 *.dylib
 bin
 kubeconfig
-statik
+statik/statik.go
 
 # Test binary, build with `go test -c`
 *.test
