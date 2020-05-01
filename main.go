@@ -18,8 +18,12 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"time"
+
+	_ "github.com/metal-stack/firewall-builder/statik"
+	"github.com/rakyll/statik/fs"
 
 	firewallv1 "github.com/metal-stack/firewall-builder/api/v1"
 	"github.com/metal-stack/firewall-builder/controllers"
@@ -84,8 +88,13 @@ func main() {
 		panic("not all started")
 	}
 
+	crdMap, err := readCRDsFromVFS()
+	if err != nil {
+		setupLog.Error(err, "unable to read crds from virtual filesystem")
+		os.Exit(1)
+	}
 	crds, err := crd.InstallCRDs(restConfig, crd.InstallOptions{
-		Paths: []string{"config/crd/bases"},
+		CRDContents: crdMap,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to create crds of firewall-controller")
@@ -132,4 +141,30 @@ func main() {
 
 	// FIXME howto cope with OS signals ?
 	<-stopCh
+}
+
+func readCRDsFromVFS() (map[string][]byte, error) {
+	statikFS, err := fs.New()
+	if err != nil {
+		setupLog.Error(err, "unable to create virtual fs")
+		return nil, err
+	}
+	crdMap := make(map[string][]byte)
+	err = fs.Walk(statikFS, "/", func(path string, info os.FileInfo, err error) error {
+		if info.IsDir() {
+			return nil
+		}
+		b, err := fs.ReadFile(statikFS, path)
+		if err != nil {
+			return fmt.Errorf("unable to readfile:%v", err)
+		}
+		crdMap[path] = b
+		setupLog.Info("crd", "path", path, "info", info)
+		return nil
+	})
+	if err != nil {
+		setupLog.Error(err, "unable to read crs from virtual fs")
+		return nil, err
+	}
+	return crdMap, nil
 }

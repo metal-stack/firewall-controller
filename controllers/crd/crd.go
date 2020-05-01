@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// shameless copy from kubernetes-sigs/controller-runtime
+
 package crd
 
 import (
@@ -49,6 +51,9 @@ type InstallOptions struct {
 
 	// CRDs is a list of CRDs to install
 	CRDs []runtime.Object
+
+	// CRDContents is a map of CRDs filename to byte array, e.g. useful for embedded static content
+	CRDContents map[string][]byte
 
 	// ErrorIfPathMissing will cause an error if a Path does not exist
 	ErrorIfPathMissing bool
@@ -92,7 +97,7 @@ func InstallCRDs(config *rest.Config, options InstallOptions) ([]runtime.Object,
 
 // readCRDFiles reads the directories of CRDs in options.Paths and adds the CRD structs to options.CRDs
 func readCRDFiles(options *InstallOptions) error {
-	if len(options.Paths) > 0 {
+	if len(options.Paths) > 0 || len(options.CRDContents) > 0 {
 		crdList, err := renderCRDs(options)
 		if err != nil {
 			return err
@@ -288,7 +293,6 @@ func renderCRDs(options *InstallOptions) ([]runtime.Object, error) {
 		GVK  schema.GroupVersionKind
 		Name string
 	}
-
 	crds := map[GVKN]*unstructured.Unstructured{}
 
 	for _, path := range options.Paths {
@@ -327,12 +331,47 @@ func renderCRDs(options *InstallOptions) ([]runtime.Object, error) {
 		}
 	}
 
+	for name, bytes := range options.CRDContents {
+		log.V(1).Info("reading CRDs from bytes", "name", name)
+		crdList, err := readCRD(name, bytes)
+		if err != nil {
+			return nil, err
+		}
+
+		for i, crd := range crdList {
+			gvkn := GVKN{GVK: crd.GroupVersionKind(), Name: crd.GetName()}
+			if _, found := crds[gvkn]; found {
+				// Currently, we only print a log when there are duplicates. We may want to error out if that makes more sense.
+				log.Info("there are more than one CRD definitions with the same <Group, Version, Kind, Name>", "GVKN", gvkn)
+			}
+			// We always use the CRD definition that we found last.
+			crds[gvkn] = crdList[i]
+		}
+	}
+
 	// Converting map to a list to return
 	var res []runtime.Object
 	for _, obj := range crds {
 		res = append(res, obj)
 	}
 	return res, nil
+}
+
+// readCRDs reads the CRDs from files and Unmarshals them into structs
+func readCRD(name string, b []byte) ([]*unstructured.Unstructured, error) {
+	// Unmarshal CRDs from file into structs
+	docs, err := readDocumentsFromBytes(b)
+	if err != nil {
+		return nil, err
+	}
+
+	crds, err := readToUnstructured(docs)
+	if err != nil {
+		return nil, err
+	}
+
+	log.V(1).Info("read CRDs from file", "file", name)
+	return crds, nil
 }
 
 // readCRDs reads the CRDs from files and Unmarshals them into structs
@@ -354,29 +393,39 @@ func readCRDs(basePath string, files []os.FileInfo) ([]*unstructured.Unstructure
 			return nil, err
 		}
 
-		for _, doc := range docs {
-			crd := &unstructured.Unstructured{}
-			if err = yaml.Unmarshal(doc, crd); err != nil {
-				return nil, err
-			}
-
-			// Check that it is actually a CRD
-			crdKind, _, err := unstructured.NestedString(crd.Object, "spec", "names", "kind")
-			if err != nil {
-				return nil, err
-			}
-			crdGroup, _, err := unstructured.NestedString(crd.Object, "spec", "group")
-			if err != nil {
-				return nil, err
-			}
-
-			if crd.GetKind() != "CustomResourceDefinition" || crdKind == "" || crdGroup == "" {
-				continue
-			}
-			crds = append(crds, crd)
+		cs, err := readToUnstructured(docs)
+		if err != nil {
+			return nil, err
 		}
+		crds = append(crds, cs...)
 
 		log.V(1).Info("read CRDs from file", "file", file.Name())
+	}
+	return crds, nil
+}
+
+func readToUnstructured(docs [][]byte) ([]*unstructured.Unstructured, error) {
+	var crds []*unstructured.Unstructured
+	for _, doc := range docs {
+		crd := &unstructured.Unstructured{}
+		if err := yaml.Unmarshal(doc, crd); err != nil {
+			return nil, err
+		}
+
+		// Check that it is actually a CRD
+		crdKind, _, err := unstructured.NestedString(crd.Object, "spec", "names", "kind")
+		if err != nil {
+			return nil, err
+		}
+		crdGroup, _, err := unstructured.NestedString(crd.Object, "spec", "group")
+		if err != nil {
+			return nil, err
+		}
+
+		if crd.GetKind() != "CustomResourceDefinition" || crdKind == "" || crdGroup == "" {
+			continue
+		}
+		crds = append(crds, crd)
 	}
 	return crds, nil
 }
@@ -387,7 +436,11 @@ func readDocuments(fp string) ([][]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	return readDocumentsFromBytes(b)
+}
 
+// readDocuments reads documents from byte slice
+func readDocumentsFromBytes(b []byte) ([][]byte, error) {
 	docs := [][]byte{}
 	reader := k8syaml.NewYAMLReader(bufio.NewReader(bytes.NewReader(b)))
 	for {
@@ -397,12 +450,9 @@ func readDocuments(fp string) ([][]byte, error) {
 			if err == io.EOF {
 				break
 			}
-
 			return nil, err
 		}
-
 		docs = append(docs, doc)
 	}
-
 	return docs, nil
 }

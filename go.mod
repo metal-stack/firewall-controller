@@ -9,6 +9,7 @@ require (
 	github.com/onsi/ginkgo v1.12.0
 	github.com/onsi/gomega v1.9.0
 	github.com/prometheus/prometheus v2.5.0+incompatible
+	github.com/rakyll/statik v0.1.7
 	github.com/stretchr/testify v1.5.1
 	github.com/txn2/txeh v1.3.0
 	k8s.io/api v0.18.2
