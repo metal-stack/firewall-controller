@@ -1,6 +1,5 @@
 /*
 
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -46,9 +45,9 @@ type DeviceStatistic struct {
 	OutBytes   int64  `json:"out"`
 }
 
-// +kubebuilder:object:root=true
-
 // NetworkTraffic is the Schema for the networks API
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="NodeExporter",type=string,JSONPath=`.spec.nodeexporterurl`
 // +kubebuilder:printcolumn:name="Enabled",type=boolean,JSONPath=`.spec.enabled`
 // +kubebuilder:printcolumn:name="Interval",type=string,JSONPath=`.spec.interval`
@@ -61,9 +60,8 @@ type NetworkTraffic struct {
 	Status NetworkTrafficStatus `json:"status,omitempty"`
 }
 
-// +kubebuilder:object:root=true
-
 // NetworkTrafficList contains a list of Network
+// +kubebuilder:object:root=true
 type NetworkTrafficList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
