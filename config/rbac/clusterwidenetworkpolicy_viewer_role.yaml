@@ -5,7 +5,7 @@ metadata:
   name: clusterwidenetworkpolicy-viewer-role
 rules:
 - apiGroups:
-  - firewall.metal-stack.io
+  - metal-stack.io
   resources:
   - clusterwidenetworkpolicies
   verbs:
@@ -13,7 +13,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - firewall.metal-stack.io
+  - metal-stack.io
   resources:
   - clusterwidenetworkpolicies/status
   verbs:

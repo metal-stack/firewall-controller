@@ -4,7 +4,7 @@ kind: Namespace
 metadata:
   name: firewall
 ---
-apiVersion: firewall.metal-stack.io/v1
+apiVersion: metal-stack.io/v1
 kind: ClusterwideNetworkPolicy
 metadata:
   namespace: firewall
@@ -27,7 +27,7 @@ kind: Namespace
 metadata:
   name: wrong
 ---
-apiVersion: firewall.metal-stack.io/v1
+apiVersion: metal-stack.io/v1
 kind: ClusterwideNetworkPolicy
 metadata:
   namespace: wrong

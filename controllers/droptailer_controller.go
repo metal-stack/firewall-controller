@@ -43,8 +43,8 @@ type DroptailerReconciler struct {
 	hosts           *txeh.Hosts
 }
 
-// +kubebuilder:rbac:groups=firewall.metal-stack.io,resources=Droptailers,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=firewall.metal-stack.io,resources=Droptailers/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=metal-stack.io,resources=Droptailers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=metal-stack.io,resources=Droptailers/status,verbs=get;update;patch
 
 func (r *DroptailerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()

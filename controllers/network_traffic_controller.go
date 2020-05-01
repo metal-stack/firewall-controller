@@ -38,8 +38,8 @@ type NetworkTrafficReconciler struct {
 }
 
 // Reconcile NetworkTraffic
-// +kubebuilder:rbac:groups=firewall.metal-stack.io,resources=networktraffics,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=firewall.metal-stack.io,resources=networktraffics/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=metal-stack.io,resources=networktraffics,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=metal-stack.io,resources=networktraffics/status,verbs=get;update;patch
 func (r *NetworkTrafficReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("networktraffic", req.NamespacedName)

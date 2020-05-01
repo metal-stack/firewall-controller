@@ -1,4 +1,4 @@
-apiVersion: firewall.metal-stack.io/v1
+apiVersion: metal-stack.io/v1
 kind: Firewall
 metadata:
   namespace: firewall
