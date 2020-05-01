@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	firewallv1 "github.com/metal-stack/firewall-builder/api/v1"
 	"github.com/metal-stack/firewall-builder/pkg/suricata"
@@ -36,47 +37,60 @@ type NetworkIDSReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+const (
+	networkIDSReconcileInterval = time.Second * 10
+)
+
 // Reconcile NetworkIDS
 // +kubebuilder:rbac:groups=metal-stack.io,resources=NetworkIDSs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=metal-stack.io,resources=NetworkIDSs/status,verbs=get;update;patch
 func (r *NetworkIDSReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("NetworkIDS", req.NamespacedName)
+	interval := networkIDSReconcileInterval
 
-	var NetworkIDS firewallv1.NetworkIDS
-	if err := r.Get(ctx, req.NamespacedName, &NetworkIDS); err != nil {
-		log.Error(err, "unable to get NetworkIDS")
-		return ctrl.Result{RequeueAfter: 10 * time.Second}, err
+	var ids firewallv1.NetworkIDS
+	if err := r.Get(ctx, req.NamespacedName, &ids); err != nil {
+		// we'll ignore not-found errors, since they can't be fixed by an immediate
+		// requeue (we'll need to wait for a new notification), and we can get them
+		// on deleted requests.
+		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
-	spec := NetworkIDS.Spec
-	interval, err := time.ParseDuration(spec.Interval)
+
+	spec := ids.Spec
+	i, err := time.ParseDuration(spec.Interval)
 	if err != nil {
-		interval = time.Minute
+		interval = i
+	}
+	requeue := ctrl.Result{
+		RequeueAfter: interval,
 	}
 
-	if spec.Enabled {
-		log.Info("NetworkIDS is enabled", "interval", interval)
-		s := suricata.New(spec.StatsLog)
-		ss, err := s.Stats()
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-		NetworkIDS.Status.IDSStatistic.Items = ss
-		NetworkIDS.Status.Updated.Time = time.Now()
-		if err := r.Update(ctx, &NetworkIDS); err != nil {
-			log.Error(err, "unable to update NetworkIDS")
-			return ctrl.Result{}, err
-		}
-		log.Info("ids stats updated")
-		return ctrl.Result{RequeueAfter: interval}, nil
+	if !spec.Enabled {
+		log.Info("NetworkIDS is disabled")
+		return requeue, nil
 	}
-	log.Info("NetworkIDS is disabled")
-	return ctrl.Result{}, nil
+
+	log.Info("reconcile NetworkIDS")
+	s := suricata.New(spec.StatsLog)
+	ss, err := s.Stats()
+	if err != nil {
+		return requeue, err
+	}
+	ids.Status.IDSStatistic.Items = ss
+	ids.Status.Updated.Time = time.Now()
+	if err := r.Status().Update(ctx, &ids); err != nil {
+		log.Error(err, "unable to update NetworkIDS")
+		return ctrl.Result{}, err
+	}
+	log.Info("ids stats updated")
+	return requeue, nil
 }
 
 // SetupWithManager create a new controller to reconcile NetworkIDS
 func (r *NetworkIDSReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&firewallv1.NetworkIDS{}).
+		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Complete(r)
 }

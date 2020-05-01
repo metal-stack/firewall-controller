@@ -172,9 +172,9 @@ func readCRDsFromVFS() (map[string][]byte, error) {
 		if info.IsDir() {
 			return nil
 		}
-		b, err := fs.ReadFile(statikFS, path)
-		if err != nil {
-			return fmt.Errorf("unable to readfile:%v", err)
+		b, readerr := fs.ReadFile(statikFS, path)
+		if readerr != nil {
+			return fmt.Errorf("unable to readfile:%v", readerr)
 		}
 		crdMap[path] = b
 		setupLog.Info("crd", "path", path, "info", info)

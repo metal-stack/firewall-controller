@@ -62,9 +62,6 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("firewall", req.NamespacedName)
 	interval := firewallReconcileInterval
-	requeue := ctrl.Result{
-		RequeueAfter: interval,
-	}
 
 	var f firewallv1.Firewall
 	if err := r.Get(ctx, req.NamespacedName, &f); err != nil {
@@ -84,7 +81,7 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		interval = i
 	}
 
-	requeue = ctrl.Result{
+	requeue := ctrl.Result{
 		RequeueAfter: interval,
 	}
 	if !f.Spec.Enabled {
@@ -108,7 +105,7 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	log.Info("reconciled firewall")
-	return requeue, err
+	return requeue, nil
 }
 
 // validateFirewall validates a firewall object:

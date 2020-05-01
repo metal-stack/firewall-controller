@@ -29,8 +29,6 @@ type NetworkIDSSpec struct {
 
 // NetworkIDSStatus defines the observed state of Network
 type NetworkIDSStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
 	IDSStatistic IDSStatistic `json:"IDSstatistics"`
 	Updated      metav1.Time  `json:"lastRun,omitempty"`
 }
@@ -40,9 +38,11 @@ type IDSStatistic struct {
 	Items map[string]int64 `json:"stats"`
 }
 
-// +kubebuilder:object:root=true
-
 // NetworkIDS is the Schema for the networks API
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Enabled",type=boolean,JSONPath=`.spec.enabled`
+// +kubebuilder:printcolumn:name="Interval",type=string,JSONPath=`.spec.interval`
 type NetworkIDS struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -51,9 +51,8 @@ type NetworkIDS struct {
 	Status NetworkIDSStatus `json:"status,omitempty"`
 }
 
-// +kubebuilder:object:root=true
-
 // NetworkIDSList contains a list of Network
+// +kubebuilder:object:root=true
 type NetworkIDSList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
