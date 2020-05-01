@@ -9,3 +9,8 @@ spec:
   nftablesexporterurl: http://localhost:9630/metrics
   dryrun: true
   ipv4rulefile: nftables.v4
+  trafficcontrol:
+    interfaces: vlan*
+    rules:
+    - interface: vlan104009
+      rate: 1mbit

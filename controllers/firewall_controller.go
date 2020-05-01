@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -35,6 +36,7 @@ import (
 
 	firewallv1 "github.com/metal-stack/firewall-builder/api/v1"
 	"github.com/metal-stack/firewall-builder/pkg/nftables"
+	"github.com/metal-stack/firewall-builder/pkg/trafficcontrol"
 )
 
 // FirewallReconciler reconciles a Firewall object
@@ -95,6 +97,11 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return requeue, err
 	}
 
+	log.Info("reconciling traffic control rules")
+	if err = r.reconcileTrafficControl(ctx, f, log); err != nil {
+		return requeue, err
+	}
+
 	log.Info("updating status field")
 	if err = r.updateStatus(ctx, f, log); err != nil {
 		return requeue, err
@@ -146,18 +153,94 @@ func (r *FirewallReconciler) reconcileRules(ctx context.Context, f firewallv1.Fi
 
 	return nil
 }
+func (r *FirewallReconciler) reconcileTrafficControl(ctx context.Context, f firewallv1.Firewall, log logr.Logger) error {
+	tc, err := trafficcontrol.New()
+	if err != nil {
+		return err
+	}
+
+	tcSpec := f.Spec.TrafficControl
+	for _, t := range tcSpec.Rules {
+		match, err := filepath.Match(tcSpec.Interfaces, t.Interface)
+		if err != nil {
+			return err
+		}
+		if !match {
+			log.Info("skipping interface because it does not match the allowed interfaces pattern in the traffic control spec", "iface", t.Interface, "pattern", tcSpec.Interfaces)
+			continue
+		}
+
+		log.Info("reconcile rate for", "iface", t.Interface, "rate", t.Rate)
+		if f.Spec.DryRun {
+			continue
+		}
+
+		hasRate, err := tc.HasRateLimit(t.Interface, t.Rate)
+		if err != nil {
+			return err
+		}
+
+		if hasRate {
+			continue
+		}
+
+		err = tc.Clear(t.Interface)
+		if err != nil {
+			return err
+		}
+
+		err = tc.AddRateLimit(t.Interface, t.Rate)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 // updateStatus updates the status field for this firewall
 func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Firewall, log logr.Logger) error {
-	c := nftables.NewCollector(&log, f.Spec.NftablesExportURL)
+	spec := f.Spec
+	c := nftables.NewCollector(&log, spec.NftablesExportURL)
 
 	ruleStats, err := c.Collect()
 	if err != nil {
 		return err
 	}
 
+	tc, err := trafficcontrol.New()
+	if err != nil {
+		return err
+	}
+
+	tcStats := firewallv1.TrafficControlStatsByIface{}
+	tcSpec := spec.TrafficControl
+	for _, t := range tcSpec.Rules {
+		match, err := filepath.Match(tcSpec.Interfaces, t.Interface)
+		if err != nil {
+			return err
+		}
+		if !match {
+			continue
+		}
+		s, err := tc.ShowTbfRule(t.Interface)
+		if err != nil {
+			log.Info("could not get tc rule stats", "err", err)
+			continue
+		}
+		tcStats[t.Interface] = firewallv1.TrafficControlStats{
+			Bytes:      s.Bytes,
+			Packets:    s.Packets,
+			Drops:      s.Drops,
+			Overlimits: s.Overlimits,
+			Requeues:   s.Requeues,
+			Backlog:    s.Backlog,
+			Qlen:       s.Qlen,
+		}
+	}
+
 	f.Status.FirewallStats = firewallv1.FirewallStats{
-		RuleStats: ruleStats,
+		RuleStats:           ruleStats,
+		TrafficControlStats: tcStats,
 	}
 	f.Status.Updated.Time = time.Now()
 

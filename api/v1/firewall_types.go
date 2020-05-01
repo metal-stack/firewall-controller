@@ -44,11 +44,12 @@ type FirewallList struct {
 
 // FirewallSpec defines the desired state of Firewall
 type FirewallSpec struct {
-	Enabled           bool   `json:"enabled,omitempty"`
-	Interval          string `json:"interval,omitempty"`
-	NftablesExportURL string `json:"nftablesexporterurl,omitempty"`
-	DryRun            bool   `json:"dryrun,omitempty"`
-	Ipv4RuleFile      string `json:"ipv4rulefile,omitempty"`
+	Enabled           bool           `json:"enabled,omitempty"`
+	Interval          string         `json:"interval,omitempty"`
+	NftablesExportURL string         `json:"nftablesexporterurl,omitempty"`
+	DryRun            bool           `json:"dryrun,omitempty"`
+	Ipv4RuleFile      string         `json:"ipv4rulefile,omitempty"`
+	TrafficControl    TrafficControl `json:"trafficcontrol,omitempty"`
 }
 
 // FirewallStatus defines the observed state of Firewall
@@ -60,7 +61,8 @@ type FirewallStatus struct {
 
 // FirewallStats contains firewall statistics
 type FirewallStats struct {
-	RuleStats RuleStatsByAction `json:"rules"`
+	RuleStats           RuleStatsByAction          `json:"rules"`
+	TrafficControlStats TrafficControlStatsByIface `json:"trafficcontrol"`
 }
 
 // RuleStatsByAction contains firewall rule statistics groups by action: e.g. accept, drop, policy, masquerade
@@ -72,6 +74,32 @@ type RuleStats map[string]RuleStat
 // RuleStat contains the statistics for a single nftables rule
 type RuleStat struct {
 	Counters map[string]int64 `json:"counters"`
+}
+
+// TrafficControl contains the tc settings.
+type TrafficControl struct {
+	Interfaces string               `json:"interfaces,omitempty"`
+	Rules      []TrafficControlRule `json:"rules,omitempty"`
+}
+
+// TrafficControlRule contains the tc settings for a nic.
+type TrafficControlRule struct {
+	Interface string `json:"interface,omitempty"`
+	Rate      string `json:"rate,omitempty"`
+}
+
+// TrafficControlStatsByIface containts statistics about traffic control rules by interface.
+type TrafficControlStatsByIface map[string]TrafficControlStats
+
+// TrafficControlStats contains statistics about traffic control rules.
+type TrafficControlStats struct {
+	Bytes      uint64 `json:"bytes"`
+	Packets    uint64 `json:"packets"`
+	Drops      uint64 `json:"drops"`
+	Overlimits uint64 `json:"overlimits"`
+	Requeues   uint64 `json:"requeues"`
+	Backlog    uint64 `json:"backlog"`
+	Qlen       uint64 `json:"qlen"`
 }
 
 func init() {
