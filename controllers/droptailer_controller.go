@@ -90,10 +90,7 @@ func (r *DroptailerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 
 	var droptailerPod corev1.Pod
 	if err := r.Get(ctx, req.NamespacedName, &droptailerPod); err != nil {
-		// we'll ignore not-found errors, since they can't be fixed by an immediate
-		// requeue (we'll need to wait for a new notification), and we can get them
-		// on deleted requests.
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+		return ctrl.Result{}, fmt.Errorf("droptailer-secret not found")
 	}
 
 	podIP := droptailerPod.Status.PodIP
@@ -109,7 +106,7 @@ func (r *DroptailerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 		r.oldPodIP = podIP
 	}
 
-	return requeue, nil
+	return ctrl.Result{}, nil
 }
 
 func (r *DroptailerReconciler) writeSecret(secret corev1.Secret) error {
