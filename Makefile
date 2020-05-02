@@ -5,7 +5,8 @@ BUILDDATE := $(shell GO111MODULE=off go run ${COMMONDIR}/time.go)
 VERSION := $(or ${VERSION},$(shell git describe --tags --exact-match 2> /dev/null || git symbolic-ref -q --short HEAD || git rev-parse --short HEAD))
 
 # Image URL to use all building/pushing image targets
-IMG ?= metalstack/firewall-controller
+DOCKER_TAG := $(or ${GITHUB_TAG_NAME}, latest)
+DOCKER_IMG ?= metalstack/firewall-controller:${DOCKER_TAG}
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
@@ -49,7 +50,7 @@ uninstall: manifests
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 deploy: manifests
-	cd config/manager && kustomize edit set image controller=${IMG}
+	cd config/manager && kustomize edit set image controller=${DOCKER_IMG}
 	kustomize build config/default | kubectl apply -f -
 
 # Generate manifests e.g. CRD, RBAC etc.
@@ -71,11 +72,11 @@ generate: controller-gen statik manifests
 
 # Build the docker image
 docker-build: test
-	docker build . -t ${IMG}
+	docker build . -t ${DOCKER_IMG}
 
 # Push the docker image
 docker-push:
-	docker push ${IMG}
+	docker push ${DOCKER_IMG}
 
 # find or download controller-gen
 # download controller-gen if necessary
