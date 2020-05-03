@@ -9,10 +9,11 @@ bin
 ca.crt
 droptailer-client.crt
 droptailer-client.key
+hosts
 kubeconfig
 .kubeconfig
 nftables.v4
-statik/statik.go
+**/*/statik.go
 
 # Test binary, build with `go test -c`
 *.test

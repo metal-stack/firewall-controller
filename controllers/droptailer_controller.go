@@ -36,8 +36,9 @@ const (
 // DroptailerReconciler reconciles a Droptailer object
 type DroptailerReconciler struct {
 	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
+	Log       logr.Logger
+	Scheme    *runtime.Scheme
+	HostsFile string
 	// FIXME is not filled properly
 	certificateBase string
 	oldPodIP        string
@@ -79,7 +80,8 @@ func (r *DroptailerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 		}
 	}
 	if !secretFound {
-		return ctrl.Result{}, client.IgnoreNotFound(fmt.Errorf("droptailer-secret not found"))
+		log.Info("droptailer-secret not found")
+		return ctrl.Result{}, nil
 	}
 
 	log.Info("droptailer-secret", "name", droptailerSecret.Name)
@@ -126,7 +128,21 @@ func (r *DroptailerReconciler) writeSecret(secret corev1.Secret) error {
 }
 
 func (r *DroptailerReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	hosts, err := txeh.NewHostsDefault()
+	hc := &txeh.HostsConfig{
+		ReadFilePath:  r.HostsFile,
+		WriteFilePath: r.HostsFile,
+	}
+	_, err := os.Stat(r.HostsFile)
+	if os.IsNotExist(err) {
+		empty, err := os.Create(r.HostsFile)
+		if err != nil {
+			return err
+		}
+		empty.Close()
+	} else {
+		return err
+	}
+	hosts, err := txeh.NewHosts(hc)
 	if err != nil {
 		return fmt.Errorf("unable to create hosts editor:%w", err)
 	}

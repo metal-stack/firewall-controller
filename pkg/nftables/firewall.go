@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"os/exec"
 	"text/template"
 
 	firewallv1 "github.com/metal-stack/firewall-builder/api/v1"
+	_ "github.com/metal-stack/firewall-builder/pkg/nftables/statik"
+	"github.com/rakyll/statik/fs"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -24,6 +27,7 @@ type Firewall struct {
 	Egress       []string
 	Ipv4RuleFile string
 	DryRun       bool
+	statikFS     http.FileSystem
 }
 
 // NewFirewall creates a new nftables firewall object based on k8s entities
@@ -41,55 +45,60 @@ func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.Serv
 	for _, svc := range svcs.Items {
 		ingress = append(ingress, ingressForService(svc)...)
 	}
+	statikFS, err := fs.NewWithNamespace("tpl")
+	if err != nil {
+		panic(err)
+	}
 	return &Firewall{
 		Egress:       uniqueSorted(egress),
 		Ingress:      uniqueSorted(ingress),
 		Ipv4RuleFile: ipv4RuleFile,
 		DryRun:       dryRun,
+		statikFS:     statikFS,
 	}
 }
 
 // Reconcile drives the nftables firewall against the desired state by comparison with the current rule file.
-func (r *Firewall) Reconcile() error {
+func (f *Firewall) Reconcile() error {
 	desired := "/tmp/firewall-controller_nftables.v4"
-	err := r.renderFile(desired)
+	err := f.renderFile(desired)
 	if err != nil {
 		return err
 	}
-	if equal(r.Ipv4RuleFile, desired) {
+	if equal(f.Ipv4RuleFile, desired) {
 		return nil
 	}
-	err = os.Rename(desired, r.Ipv4RuleFile)
+	err = os.Rename(desired, f.Ipv4RuleFile)
 	if err != nil {
 		return err
 	}
-	if r.DryRun {
+	if f.DryRun {
 		return nil
 	}
-	err = r.reload()
+	err = f.reload()
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (r *Firewall) renderFile(file string) error {
-	err := r.write(file)
+func (f *Firewall) renderFile(file string) error {
+	err := f.write(file)
 	if err != nil {
 		return err
 	}
-	if r.DryRun {
+	if f.DryRun {
 		return nil
 	}
-	err = r.validate(file)
+	err = f.validate(file)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (r *Firewall) write(file string) error {
-	c, err := r.renderString()
+func (f *Firewall) write(file string) error {
+	c, err := f.renderString()
 	if err != nil {
 		return err
 	}
@@ -100,17 +109,38 @@ func (r *Firewall) write(file string) error {
 	return nil
 }
 
-func (r *Firewall) renderString() (string, error) {
+func (f *Firewall) renderString() (string, error) {
 	var b bytes.Buffer
-	tpl := template.Must(template.New("v4").Parse(nftableTemplateIpv4))
-	err := tpl.Execute(&b, r)
+
+	tplString, err := f.readTpl()
 	if err != nil {
 		return "", err
 	}
+
+	tpl := template.Must(template.New("v4").Parse(tplString))
+
+	err = tpl.Execute(&b, f)
+	if err != nil {
+		return "", err
+	}
+
 	return b.String(), nil
 }
 
-func (r *Firewall) validate(file string) error {
+func (f *Firewall) readTpl() (string, error) {
+	r, err := f.statikFS.Open("/nftables.tpl")
+	if err != nil {
+		return "", err
+	}
+	defer r.Close()
+	bytes, err := ioutil.ReadAll(r)
+	if err != nil {
+		return "", err
+	}
+	return string(bytes), nil
+}
+
+func (f *Firewall) validate(file string) error {
 	c := exec.Command(nftBin, "-c", "-f", file)
 	out, err := c.Output()
 	if err != nil {
@@ -119,7 +149,7 @@ func (r *Firewall) validate(file string) error {
 	return nil
 }
 
-func (r *Firewall) reload() error {
+func (f *Firewall) reload() error {
 	c := exec.Command(systemctlBin, "reload", nftablesService)
 	err := c.Run()
 	if err != nil {

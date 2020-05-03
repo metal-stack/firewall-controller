@@ -56,10 +56,12 @@ func init() {
 func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
+	var hostsFile string
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+	flag.StringVar(&hostsFile, "hosts-file", "/etc/hosts", "The hosts file to manipulate for the droptailer.")
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
@@ -130,9 +132,10 @@ func main() {
 
 	// Droptailer Reconciler
 	if err = (&controllers.DroptailerReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Droptailer"),
-		Scheme: mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		Log:       ctrl.Log.WithName("controllers").WithName("Droptailer"),
+		Scheme:    mgr.GetScheme(),
+		HostsFile: hostsFile,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Droptailer")
 		os.Exit(1)
@@ -162,13 +165,14 @@ func main() {
 }
 
 func readCRDsFromVFS() (map[string][]byte, error) {
-	statikFS, err := fs.New()
+	statikFS, err := fs.NewWithNamespace("crd")
 	if err != nil {
 		setupLog.Error(err, "unable to create virtual fs")
 		return nil, err
 	}
 	crdMap := make(map[string][]byte)
 	err = fs.Walk(statikFS, "/", func(path string, info os.FileInfo, err error) error {
+		setupLog.Info("p", "path", path)
 		if info.IsDir() {
 			return nil
 		}

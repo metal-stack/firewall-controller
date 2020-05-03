@@ -1,6 +1,4 @@
-package nftables
-
-const nftableTemplateIpv4 = `table ip firewall {
+table ip firewall {
 	chain forward {
 		type filter hook forward priority 1; policy drop;
 
@@ -25,4 +23,4 @@ const nftableTemplateIpv4 = `table ip firewall {
 		counter comment "count dropped packets"
 		limit rate 10/second counter packets 1 bytes 40 log prefix "nftables-firewall-dropped: "
 	}
-}`
+}

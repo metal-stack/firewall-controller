@@ -28,18 +28,18 @@ make test
 kind create cluster
 
 # start exporters
-node_exporter
-nftables_exporter --config ./nftables_exporter.yaml
+node_exporter &
+nftables_exporter --config ./nftables_exporter.yaml &
 
-# deploy manifests and sample crd
-k apply -f config/crd/bases
-k apply -f config/samples
+# deploy manifests
+k apply -f deploy
 
 # start the controller
-bin/firewall-controller
+bin/firewall-controller --hosts-file ./hosts
 
 # watch results
 k describe networktraffic
 k describe -n firewall firewall
 cat nftables.v4
+cat hosts
 ```
