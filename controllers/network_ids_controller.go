@@ -26,8 +26,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	firewallv1 "github.com/metal-stack/firewall-builder/api/v1"
-	"github.com/metal-stack/firewall-builder/pkg/suricata"
+	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	"github.com/metal-stack/firewall-controller/pkg/suricata"
 )
 
 // NetworkIDSReconciler reconciles a NetworkIDS object

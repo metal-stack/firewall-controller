@@ -1,4 +1,4 @@
-module github.com/metal-stack/firewall-builder
+module github.com/metal-stack/firewall-controller
 
 go 1.14
 

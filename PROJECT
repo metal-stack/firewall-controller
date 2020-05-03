@@ -1,5 +1,5 @@
 domain: metal-stack.io
-repo: github.com/metal-stack/firewall-builder
+repo: github.com/metal-stack/firewall-controller
 resources:
 - group: firewall
   kind: Network

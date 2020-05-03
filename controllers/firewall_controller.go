@@ -35,9 +35,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	firewallv1 "github.com/metal-stack/firewall-builder/api/v1"
-	"github.com/metal-stack/firewall-builder/pkg/nftables"
-	"github.com/metal-stack/firewall-builder/pkg/trafficcontrol"
+	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	"github.com/metal-stack/firewall-controller/pkg/nftables"
+	"github.com/metal-stack/firewall-controller/pkg/trafficcontrol"
 )
 
 // FirewallReconciler reconciles a Firewall object

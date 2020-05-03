@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	firewallv1 "github.com/metal-stack/firewall-builder/api/v1"
+	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 )
 
 func ingressForNetworkPolicy(np firewallv1.ClusterwideNetworkPolicy) []string {

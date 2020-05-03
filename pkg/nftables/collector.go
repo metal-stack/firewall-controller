@@ -9,7 +9,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/go-logr/logr"
-	firewallv1 "github.com/metal-stack/firewall-builder/api/v1"
+	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/prometheus/prometheus/pkg/labels"
 	"github.com/prometheus/prometheus/pkg/textparse"
 )

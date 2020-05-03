@@ -22,11 +22,11 @@ import (
 	"os"
 	"time"
 
-	_ "github.com/metal-stack/firewall-builder/statik"
+	_ "github.com/metal-stack/firewall-controller/statik"
 	"github.com/rakyll/statik/fs"
 
-	"github.com/metal-stack/firewall-builder/controllers"
-	"github.com/metal-stack/firewall-builder/controllers/crd"
+	"github.com/metal-stack/firewall-controller/controllers"
+	"github.com/metal-stack/firewall-controller/controllers/crd"
 	"github.com/metal-stack/v"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -35,7 +35,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	firewallv1 "github.com/metal-stack/firewall-builder/api/v1"
+	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	// +kubebuilder:scaffold:imports
 )
 

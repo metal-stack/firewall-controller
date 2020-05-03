@@ -9,8 +9,8 @@ import (
 	"os/exec"
 	"text/template"
 
-	firewallv1 "github.com/metal-stack/firewall-builder/api/v1"
-	_ "github.com/metal-stack/firewall-builder/pkg/nftables/statik"
+	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	_ "github.com/metal-stack/firewall-controller/pkg/nftables/statik"
 	"github.com/rakyll/statik/fs"
 	corev1 "k8s.io/api/core/v1"
 )
