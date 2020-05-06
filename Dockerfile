@@ -33,9 +33,7 @@ RUN make test all
 
 # Use distroless as minimal base image to package the firewall-controller binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM gcr.io/distroless/static:nonroot
+FROM debian:buster
 WORKDIR /
 COPY --from=builder /workspace/bin/firewall-controller .
-USER nonroot:nonroot
-
 ENTRYPOINT ["/firewall-controller"]
