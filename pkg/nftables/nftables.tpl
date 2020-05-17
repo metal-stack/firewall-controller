@@ -10,8 +10,8 @@ table ip firewall {
 		ct state invalid counter drop comment "drop packets with invalid ct state"
 
 		# network traffic accounting
-		ip saddr != $local_prefixes counter comment "count ingress ip traffic no from local prefixes"
-		ip daddr != $local_prefixes counter comment "count egress ip traffic no to local prefixes"
+		ip saddr != $local_prefixes counter comment "count ingress ip traffic not from local prefixes"
+		ip daddr != $local_prefixes counter comment "count egress ip traffic not to local prefixes"
 
 		# icmp
 		ip protocol icmp icmp type echo-request limit rate over 10/second burst 4 packets counter drop comment "drop ping floods"
