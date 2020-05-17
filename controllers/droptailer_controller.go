@@ -113,12 +113,16 @@ func (r *DroptailerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 
 func (r *DroptailerReconciler) writeSecret(secret corev1.Secret) error {
 	keys := []string{secretKeyCaCertificate, secretKeyCertificate, secretKeyCertificateKey}
+	certificateBase := defaultCertificateBase
+	if r.certificateBase != "" {
+		certificateBase = r.certificateBase
+	}
 	for _, k := range keys {
 		v, ok := secret.Data[k]
 		if !ok {
 			return fmt.Errorf("could not find key in secret key:%s", k)
 		}
-		f := path.Join(r.certificateBase, k)
+		f := path.Join(certificateBase, k)
 		err := ioutil.WriteFile(f, v, 0640)
 		if err != nil {
 			return fmt.Errorf("could not write secret to certificate base folder:%v", err)
@@ -127,6 +131,7 @@ func (r *DroptailerReconciler) writeSecret(secret corev1.Secret) error {
 	return nil
 }
 
+// SetupWithManager configure this controller with required defaults
 func (r *DroptailerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	hc := &txeh.HostsConfig{
 		ReadFilePath:  r.HostsFile,
@@ -154,10 +159,7 @@ func (r *DroptailerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	genericPredicate := predicate.Funcs{
 		GenericFunc: func(e event.GenericEvent) bool {
-			if e.Meta.GetNamespace() == namespace {
-				return true
-			}
-			return false
+			return e.Meta.GetNamespace() == namespace
 		},
 	}
 

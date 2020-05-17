@@ -238,6 +238,7 @@ func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Fire
 	return nil
 }
 
+// SetupWithManager configures this controller to watch for the CRDs in a specific namespace
 func (r *FirewallReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.recorder = mgr.GetEventRecorderFor("FirewallController")
 	tc, err := trafficcontrol.New()

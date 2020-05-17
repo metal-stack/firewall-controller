@@ -39,6 +39,7 @@ type ClusterwideNetworkPolicyReconciler struct {
 
 const clusterwideNPNamespace = "firewall"
 
+// Reconcile ClusterwideNetworkPolicy and creates nftables rules accordingly
 // +kubebuilder:rbac:groups=metal-stack.io,resources=clusterwidenetworkpolicies,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=metal-stack.io,resources=clusterwidenetworkpolicies/status,verbs=get;update;patch
 func (r *ClusterwideNetworkPolicyReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
@@ -59,6 +60,7 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(req ctrl.Request) (ctrl.R
 	return ctrl.Result{}, nil
 }
 
+// SetupWithManager configures this controller to watch for ClusterwideNetworkPolicy CRD
 func (r *ClusterwideNetworkPolicyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.recorder = mgr.GetEventRecorderFor("FirewallController")
 	return ctrl.NewControllerManagedBy(mgr).
