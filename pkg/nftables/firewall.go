@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 	"text/template"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
@@ -23,11 +24,12 @@ const (
 
 // Firewall assembles nftable rules based on k8s entities
 type Firewall struct {
-	Ingress      []string
-	Egress       []string
-	Ipv4RuleFile string
-	DryRun       bool
-	statikFS     http.FileSystem
+	Ingress       []string
+	Egress        []string
+	Ipv4RuleFile  string
+	DryRun        bool
+	statikFS      http.FileSystem
+	LocalPrefixes string
 }
 
 // NewFirewall creates a new nftables firewall object based on k8s entities
@@ -45,18 +47,17 @@ func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.Serv
 	for _, svc := range svcs.Items {
 		ingress = append(ingress, ingressForService(svc)...)
 	}
-	ingress = append(ingress, ingressForAccounting(t)...)
-	egress = append(egress, egressForAccounting(t)...)
 	statikFS, err := fs.NewWithNamespace("tpl")
 	if err != nil {
 		panic(err)
 	}
 	return &Firewall{
-		Egress:       uniqueSorted(egress),
-		Ingress:      uniqueSorted(ingress),
-		Ipv4RuleFile: ipv4RuleFile,
-		DryRun:       dryRun,
-		statikFS:     statikFS,
+		Egress:        uniqueSorted(egress),
+		Ingress:       uniqueSorted(ingress),
+		Ipv4RuleFile:  ipv4RuleFile,
+		DryRun:        dryRun,
+		statikFS:      statikFS,
+		LocalPrefixes: strings.Join(t.LocalPrefixes, ", "),
 	}
 }
 

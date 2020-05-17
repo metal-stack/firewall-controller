@@ -88,25 +88,3 @@ func egressForNetworkPolicy(np firewallv1.ClusterwideNetworkPolicy) []string {
 	}
 	return rules
 }
-func ingressForAccounting(t firewallv1.NetworkTrafficSpec) []string {
-	var rules []string
-
-	rules = append(rules, "add set ip filter ingress_local_prefixes { type ipv4_addr;}")
-	for _, prefix := range t.LocalPrefixes {
-		// FIXME validate prefix
-		rules = append(rules, fmt.Sprintf("add element ip filter ingress_local_prefixes { %s }", prefix))
-	}
-	rules = append(rules, "add rule ip filter input ingress_local_prefixes counter")
-	return rules
-}
-
-func egressForAccounting(t firewallv1.NetworkTrafficSpec) []string {
-	var rules []string
-	rules = append(rules, "add set ip filter egress_local_prefixes { type ipv4_addr;}")
-	for _, prefix := range t.LocalPrefixes {
-		// FIXME validate prefix
-		rules = append(rules, fmt.Sprintf("add element ip filter egress_local_prefixes { %s }", prefix))
-	}
-	rules = append(rules, "add rule ip filter output egress_local_prefixes counter")
-	return rules
-}

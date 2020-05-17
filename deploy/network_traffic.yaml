@@ -9,3 +9,4 @@ spec:
   nftablesexporterurl: http://localhost:9630/metrics
   localprefixes:
     - "127.0.0.1"
+    - "100.64.0.0/8"
