@@ -14,40 +14,36 @@ import (
 )
 
 type (
-	// Collector scrapes the node-exporter
-	Collector struct {
+	// nfCollector scrapes the node-exporter
+	nfCollector struct {
 		logger logr.Logger
 		url    string
 	}
-	// DeviceStat maps series to value
-	DeviceStat map[string]int64
-	// DeviceStats is grouped by ethernet device
-	DeviceStats map[string]DeviceStat
 )
 
 var (
-	seriesToCollect = map[string]string{
+	nfSeriesToCollect = map[string]string{
 		"node_network_transmit_packets_total": "out",
 		"node_network_receive_packets_total":  "in",
 	}
 )
 
-// NewCollector create a new Collector
-func NewCollector(logger *logr.Logger, url string) Collector {
+// NewNFTablesExporterCollector create a new Collector for nftables exporter
+func NewNFTablesExporterCollector(logger *logr.Logger, url string) nfCollector {
 	var log logr.Logger
 	if logger == nil {
 		log = ctrl.Log.WithName("collector")
 	} else {
 		log = *logger
 	}
-	return Collector{
+	return nfCollector{
 		logger: log,
 		url:    url,
 	}
 }
 
 // Collect metrics from node-exporter
-func (c Collector) Collect() (*DeviceStats, error) {
+func (c nfCollector) Collect() (*DeviceStats, error) {
 	resp, err := http.Get(c.url)
 	if err != nil {
 		c.logger.Error(err, "unable to get metrics from node-exporter")

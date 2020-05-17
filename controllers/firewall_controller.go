@@ -65,6 +65,7 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("firewall", req.NamespacedName)
 	interval := firewallReconcileInterval
+	log.Info("firewall controller", "intervall", interval)
 
 	var f firewallv1.Firewall
 	if err := r.Get(ctx, req.NamespacedName, &f); err != nil {
@@ -80,6 +81,16 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
+	var t firewallv1.NetworkTraffic
+	if err := r.Get(ctx, types.NamespacedName{Name: "cluster-networktraffic", Namespace: "default"}, &t); err != nil {
+		// we'll ignore not-found errors, since they can't be fixed by an immediate
+		// requeue (we'll need to wait for a new notification), and we can get them
+		// on deleted requests.
+		log.Error(err, "networktraffic not found")
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+	log.Info("networktraffic", "local_prefixes", t.Spec.LocalPrefixes)
+
 	i, err := time.ParseDuration(f.Spec.Interval)
 	if err != nil {
 		interval = i
@@ -94,7 +105,7 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	log.Info("reconciling nftables rules")
-	if err = r.reconcileRules(ctx, f, log); err != nil {
+	if err = r.reconcileRules(ctx, f, t.Spec, log); err != nil {
 		return requeue, err
 	}
 
@@ -129,7 +140,7 @@ func (r *FirewallReconciler) validateFirewall(ctx context.Context, f firewallv1.
 }
 
 // reconcileRules reconciles the nftable rules for this firewall
-func (r *FirewallReconciler) reconcileRules(ctx context.Context, f firewallv1.Firewall, log logr.Logger) error {
+func (r *FirewallReconciler) reconcileRules(ctx context.Context, f firewallv1.Firewall, t firewallv1.NetworkTrafficSpec, log logr.Logger) error {
 	var clusterNPs firewallv1.ClusterwideNetworkPolicyList
 	if err := r.List(ctx, &clusterNPs, client.InNamespace(f.Namespace)); err != nil {
 		return err
@@ -140,7 +151,7 @@ func (r *FirewallReconciler) reconcileRules(ctx context.Context, f firewallv1.Fi
 		return err
 	}
 
-	nftablesFirewall := nftables.NewFirewall(&clusterNPs, &services, f.Spec.Ipv4RuleFile, f.Spec.DryRun)
+	nftablesFirewall := nftables.NewFirewall(&clusterNPs, &services, t, f.Spec.Ipv4RuleFile, f.Spec.DryRun)
 	log.Info("loaded rules", "ingress", len(nftablesFirewall.Ingress), "egress", len(nftablesFirewall.Egress))
 
 	if err := nftablesFirewall.Reconcile(); err != nil {
@@ -263,6 +274,7 @@ func (r *FirewallReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		// don't trigger a reconcilation for status updates
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Watches(&source.Kind{Type: &firewallv1.ClusterwideNetworkPolicy{}}, triggerFirewallReconcilation).
+		Watches(&source.Kind{Type: &firewallv1.NetworkTraffic{}}, triggerFirewallReconcilation).
 		Watches(&source.Kind{Type: &corev1.Service{}}, triggerFirewallReconcilation).
 		Complete(r)
 }

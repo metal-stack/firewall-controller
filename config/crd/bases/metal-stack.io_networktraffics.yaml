@@ -50,12 +50,27 @@ spec:
           description: NetworkTrafficSpec defines the desired state of Network
           properties:
             enabled:
+              description: Enabled if set to true networktraffic is collected and
+                reported.
               type: boolean
             interfaces:
+              description: Interfaces is a glob pattern which defines from which interfaces
+                network traffic should be collected.
               type: string
             interval:
+              description: Intervall at which networktraffic should be accounted,
+                go duration format allowed.
               type: string
-            nodeexporterurl:
+            localprefixes:
+              description: LocalPrefixes specify prefixes which are considered local
+                to the partition or all regions. Traffix to/from these prefixes is
+                not accounted
+              items:
+                type: string
+              type: array
+            nftablesexporterurl:
+              description: NFTablesExportURL is the url where the nftables exporter
+                exposes the metrics.
               type: string
           type: object
         status:

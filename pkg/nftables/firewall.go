@@ -31,7 +31,7 @@ type Firewall struct {
 }
 
 // NewFirewall creates a new nftables firewall object based on k8s entities
-func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.ServiceList, ipv4RuleFile string, dryRun bool) *Firewall {
+func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.ServiceList, t firewallv1.NetworkTrafficSpec, ipv4RuleFile string, dryRun bool) *Firewall {
 	ingress := []string{}
 	egress := []string{}
 	for _, np := range nps.Items {
@@ -45,6 +45,8 @@ func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.Serv
 	for _, svc := range svcs.Items {
 		ingress = append(ingress, ingressForService(svc)...)
 	}
+	ingress = append(ingress, ingressForAccounting(t)...)
+	egress = append(egress, egressForAccounting(t)...)
 	statikFS, err := fs.NewWithNamespace("tpl")
 	if err != nil {
 		panic(err)
