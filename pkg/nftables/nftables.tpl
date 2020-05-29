@@ -7,7 +7,7 @@ table ip firewall {
 		elements = { {{ .InternalPrefixes }} }
 	}
 	# Prefixes in the cluster, typically 10.x.x.x
-	# Should be filled with nodeCidr
+	# FIXME Should be filled with nodeCidr
 	set cluster_prefixes {
 		type ipv4_addr
 		flags interval
@@ -23,13 +23,12 @@ table ip firewall {
 	chain forward {
 		type filter hook forward priority 1; policy drop;
 
-		# network traffic accounting for local traffic
-		ip saddr == @local_prefixes ip saddr != cluster_prefixes counter name "internal_in"
-		ip daddr == @local_prefixes ip daddr != cluster_prefixes counter name "internal_out"
-		# network traffic accounting for local traffic
-		ip saddr != @local_prefixes ip saddr != cluster_prefixes counter name "external_in"
-		ip daddr != @local_prefixes ip daddr != cluster_prefixes counter name "external_out"
-
+		# network traffic accounting for internal traffic
+		ip saddr == @internal_prefixes ip saddr != cluster_prefixes counter name "internal_in"
+		ip daddr == @internal_prefixes ip daddr != cluster_prefixes counter name "internal_out"
+		# network traffic accounting for external traffic
+		ip saddr != @internal_prefixes ip saddr != cluster_prefixes counter name "external_in"
+		ip daddr != @internal_prefixes ip daddr != cluster_prefixes counter name "external_out"
 
 		# state dependent rules
 		ct state established,related counter accept comment "accept established connections"
