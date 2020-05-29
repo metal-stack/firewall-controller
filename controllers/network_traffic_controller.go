@@ -71,7 +71,7 @@ func (r *NetworkTrafficReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		log.Info("NetworkTraffic is disabled")
 	}
 
-	c := collector.NewNFTablesExporterCollector(&r.Log, spec.NFTablesExportURL)
+	c := collector.NewNFTablesCollector(&r.Log)
 	ds, err := c.Collect()
 	if err != nil {
 		return requeue, err

@@ -7,6 +7,6 @@ spec:
   interval: 10s
   interfaces: "w*"
   nftablesexporterurl: http://localhost:9630/metrics
-  localprefixes:
+  internalprefixes:
     - "127.0.0.1"
     - "100.64.0.0/8"

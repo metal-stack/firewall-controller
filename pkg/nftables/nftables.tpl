@@ -1,18 +1,35 @@
 table ip firewall {
-	# local prefixes set
-	set local_prefixes {
+	# internal prefixes, which are not leaving the partition or the partition interconnect
+	set internal_prefixes {
 		type ipv4_addr
 		flags interval
 		auto-merge
-		elements = { {{ .LocalPrefixes }} }
+		elements = { {{ .InternalPrefixes }} }
 	}
+	# Prefixes in the cluster, typically 10.x.x.x
+	# Should be filled with nodeCidr
+	set cluster_prefixes {
+		type ipv4_addr
+		flags interval
+		auto-merge
+		elements = { 10.0.0.0/8 }
+	}
+
+	counter internal_in { }
+	counter internal_out { }
+	counter external_in { }
+	counter external_out { }
 
 	chain forward {
 		type filter hook forward priority 1; policy drop;
 
-		# network traffic accounting
-		ip saddr != @local_prefixes counter comment "in_bytes"
-		ip daddr != @local_prefixes counter comment "out_bytes"
+		# network traffic accounting for local traffic
+		ip saddr == @local_prefixes ip saddr != cluster_prefixes counter name "internal_in"
+		ip daddr == @local_prefixes ip daddr != cluster_prefixes counter name "internal_out"
+		# network traffic accounting for local traffic
+		ip saddr != @local_prefixes ip saddr != cluster_prefixes counter name "external_in"
+		ip daddr != @local_prefixes ip daddr != cluster_prefixes counter name "external_out"
+
 
 		# state dependent rules
 		ct state established,related counter accept comment "accept established connections"

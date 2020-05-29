@@ -25,13 +25,11 @@ type NetworkTrafficSpec struct {
 	Enabled bool `json:"enabled,omitempty"`
 	// Intervall at which networktraffic should be accounted, go duration format allowed.
 	Interval string `json:"interval,omitempty"`
-	// NFTablesExportURL is the url where the nftables exporter exposes the metrics.
-	NFTablesExportURL string `json:"nftablesexporterurl,omitempty"`
 	// Interfaces is a glob pattern which defines from which interfaces network traffic should be collected.
 	Interfaces string `json:"interfaces,omitempty"`
-	// LocalPrefixes specify prefixes which are considered local to the partition or all regions.
-	// Traffix to/from these prefixes is not accounted
-	LocalPrefixes []string `json:"localprefixes,omitempty"`
+	// InternalPrefixes specify prefixes which are considered local to the partition or all regions.
+	// Traffic to/from these prefixes is not accounted
+	InternalPrefixes []string `json:"internalprefixes,omitempty"`
 }
 
 // NetworkTrafficStatus defines the observed state of Network
@@ -48,8 +46,8 @@ type DeviceStatistics struct {
 // DeviceStatistic contains statistics of a device
 type DeviceStatistic struct {
 	DeviceName string `json:"device"`
-	InBytes    int64  `json:"in"`
-	OutBytes   int64  `json:"out"`
+	InBytes    uint64 `json:"in"`
+	OutBytes   uint64 `json:"out"`
 }
 
 // NetworkTraffic is the Schema for the networks API

@@ -89,7 +89,7 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		log.Error(err, "networktraffic not found")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
-	log.Info("networktraffic", "local_prefixes", t.Spec.LocalPrefixes)
+	log.Info("networktraffic", "local_prefixes", t.Spec.InternalPrefixes)
 
 	i, err := time.ParseDuration(f.Spec.Interval)
 	if err != nil {

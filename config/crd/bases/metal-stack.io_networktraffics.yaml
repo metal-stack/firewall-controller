@@ -57,20 +57,16 @@ spec:
               description: Interfaces is a glob pattern which defines from which interfaces
                 network traffic should be collected.
               type: string
-            interval:
-              description: Intervall at which networktraffic should be accounted,
-                go duration format allowed.
-              type: string
-            localprefixes:
-              description: LocalPrefixes specify prefixes which are considered local
-                to the partition or all regions. Traffix to/from these prefixes is
-                not accounted
+            internalprefixes:
+              description: InternalPrefixes specify prefixes which are considered
+                local to the partition or all regions. Traffic to/from these prefixes
+                is not accounted
               items:
                 type: string
               type: array
-            nftablesexporterurl:
-              description: NFTablesExportURL is the url where the nftables exporter
-                exposes the metrics.
+            interval:
+              description: Intervall at which networktraffic should be accounted,
+                go duration format allowed.
               type: string
           type: object
         status:

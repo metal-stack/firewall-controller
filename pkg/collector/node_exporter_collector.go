@@ -97,7 +97,7 @@ func (c nodeCollector) Collect() (*DeviceStats, error) {
 			} else {
 				stat = ds
 			}
-			stat[seriesName] = int64(v)
+			stat[seriesName] = uint64(v)
 			stats[deviceName] = stat
 		}
 	}
