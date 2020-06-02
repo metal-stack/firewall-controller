@@ -88,9 +88,20 @@ func (r *NetworkTrafficReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		}
 		deviceStatistic := firewallv1.DeviceStatistic{
 			DeviceName: name,
-			InBytes:    v["in"],
-			OutBytes:   v["out"],
 		}
+		in, ok := v["in"]
+		if ok {
+			deviceStatistic.InBytes = in
+		}
+		out, ok := v["out"]
+		if ok {
+			deviceStatistic.OutBytes = out
+		}
+		total, ok := v["total"]
+		if ok {
+			deviceStatistic.TotalBytes = total
+		}
+		log.Info("deviceStatistic:%v", deviceStatistic)
 		deviceStatistics = append(deviceStatistics, deviceStatistic)
 	}
 	traffic.Status.DeviceStatistics.Items = deviceStatistics

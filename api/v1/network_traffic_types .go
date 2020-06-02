@@ -48,6 +48,7 @@ type DeviceStatistic struct {
 	DeviceName string `json:"device"`
 	InBytes    uint64 `json:"in"`
 	OutBytes   uint64 `json:"out"`
+	TotalBytes uint64 `json:"total"`
 }
 
 // NetworkTraffic is the Schema for the networks API

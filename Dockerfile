@@ -35,4 +35,6 @@ RUN make test all
 FROM debian:10
 WORKDIR /
 COPY --from=builder /workspace/bin/firewall-controller .
+RUN apt update \
+ && apt install -y --no-install-recommends nftables
 ENTRYPOINT ["/firewall-controller"]
