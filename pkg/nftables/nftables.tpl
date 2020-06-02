@@ -10,6 +10,13 @@ table ip firewall {
 		ip protocol icmp icmp type echo-request limit rate over 10/second burst 4 packets counter drop comment "drop ping floods"
 		ip protocol icmp icmp type { destination-unreachable, router-solicitation, router-advertisement, time-exceeded, parameter-problem } counter accept comment "accept icmp"
 
+		# static egress rules
+		ip daddr tcp dport { 80 } counter accept comment "allow egress http"
+		ip daddr tcp dport { 443 } counter accept comment "allow egress https"
+		ip daddr tcp dport { 53 } counter accept comment "allow egress dns tcp"
+		ip daddr udp dport { 53 } counter accept comment "allow egress dns udp"
+		ip daddr udp dport { 123 } counter accept comment "allow egress ntp"
+
 		# dynamic ingress rules
 		{{- range .Ingress }}
 		{{ . }}
