@@ -15,20 +15,18 @@ table ip firewall {
 		elements = { 10.0.0.0/8 }
 	}
 
-	counter internal_in { }
-	counter internal_out { }
+	counter internal_total { }
 	counter external_in { }
 	counter external_out { }
 
 	chain forward {
 		type filter hook forward priority 1; policy drop;
 
-		# network traffic accounting for internal traffic
-		ip saddr == @internal_prefixes ip saddr != cluster_prefixes counter name "internal_in"
-		ip daddr == @internal_prefixes ip daddr != cluster_prefixes counter name "internal_out"
 		# network traffic accounting for external traffic
-		ip saddr != @internal_prefixes ip saddr != cluster_prefixes counter name "external_in"
-		ip daddr != @internal_prefixes ip daddr != cluster_prefixes counter name "external_out"
+		ip daddr != @internal_prefixes ip daddr != cluster_prefixes counter name "external_in"
+		ip saddr != @internal_prefixes ip saddr != cluster_prefixes counter name "external_out"
+		# network traffic accounting for internal traffic
+		ip daddr == @internal_prefixes ip saddr == @internal_prefixes counter name "internal_total"
 
 		# state dependent rules
 		ct state established,related counter accept comment "accept established connections"

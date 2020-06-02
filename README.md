@@ -1,6 +1,5 @@
 # Firewall Controller
 
-
 ## Initial Setup
 
 1. download kubebuilder

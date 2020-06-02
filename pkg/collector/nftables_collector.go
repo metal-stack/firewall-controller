@@ -18,7 +18,7 @@ type (
 
 var (
 	countersToCollect = map[string][]string{
-		"internal": {"in", "out"},
+		"internal": {"total"},
 		"external": {"in", "out"},
 	}
 	tableName = "firewall"
