@@ -25,6 +25,7 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -137,6 +138,8 @@ func (r *FirewallReconciler) validateFirewall(ctx context.Context, f firewallv1.
 
 // migrateToClusterwideNetworkPolicy migrates old network policy objects to the new kind ClusterwideNetworkPolicy
 func (r *FirewallReconciler) migrateToClusterwideNetworkPolicy(ctx context.Context, f firewallv1.Firewall, log logr.Logger) error {
+	npsToIgnore := []string{"egress-allow-http", "egress-allow-https", "egress-allow-any", "egress-allow-dns", "egress-allow-ntp"}
+
 	var nps networking.NetworkPolicyList
 	if err := r.Client.List(ctx, &nps); err != nil {
 		return err
@@ -149,11 +152,8 @@ func (r *FirewallReconciler) migrateToClusterwideNetworkPolicy(ctx context.Conte
 			continue
 		}
 
-		// is one of the old network policy objects like egress-allow-http that are replaced with a ClusterwideNetworkPolicy installed by
-		if np.Namespace == "kube-system" {
-			if err := r.Client.Delete(ctx, &np); err != nil {
-				return fmt.Errorf("could not delete network policy that is now superfluous: %w", err)
-			}
+		// is one of the old network policy objects like egress-allow-http that are replaced by cluster wide ones installed by gepm
+		if contains(npsToIgnore, np.Name) {
 			continue
 		}
 
@@ -162,23 +162,41 @@ func (r *FirewallReconciler) migrateToClusterwideNetworkPolicy(ctx context.Conte
 			return fmt.Errorf("could not migrate network policy to a cluster-wide np: %w", err)
 		}
 
-		if cwnp != nil {
-			if err := r.Client.Create(ctx, cwnp); err != nil {
-				return fmt.Errorf("could not create cluster-wide network policy: %w", err)
-			}
+		if cwnp == nil {
+			// nothing to do here because network policy translates to an empty cwnp
+			continue
 		}
 
-		if err := r.Client.Delete(ctx, &np); err != nil {
-			return fmt.Errorf("could not delete network policy that should be migrated to a cluster-wide np: %w", err)
+		var current firewallv1.ClusterwideNetworkPolicy
+		err = r.Get(ctx, types.NamespacedName{Name: cwnp.Name, Namespace: firewallNamespace}, &current)
+
+		// cwnp already exists: don't try to merge or update - just ignore
+		if err == nil {
+			continue
+		}
+
+		if errors.IsNotFound(err) {
+			err = r.Client.Create(ctx, cwnp)
+		}
+
+		if err != nil {
+			return fmt.Errorf("could not migrate to cluster-wide network policy: %w", err)
 		}
 		n++
 	}
 
-	if n > 0 {
-		log.Info("migrated network policies to cluster-wide network policies", "n", n)
-	}
+	log.Info("migrated network policies to cluster-wide network policies", "n", n)
 
 	return nil
+}
+
+func contains(l []string, e string) bool {
+	for _, elem := range l {
+		if elem == e {
+			return true
+		}
+	}
+	return false
 }
 
 // converts a network-policy object that was used before in a cluster-wide manner to the new CRD
