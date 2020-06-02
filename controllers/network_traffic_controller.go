@@ -101,7 +101,7 @@ func (r *NetworkTrafficReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		if ok {
 			deviceStatistic.TotalBytes = total
 		}
-		log.Info("deviceStatistic:%v", deviceStatistic)
+		log.Info("networktraffic", "deviceStatistic", deviceStatistic)
 		deviceStatistics = append(deviceStatistics, deviceStatistic)
 	}
 	traffic.Status.DeviceStatistics.Items = deviceStatistics

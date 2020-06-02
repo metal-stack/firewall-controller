@@ -5,7 +5,7 @@ metadata:
 spec:
   enabled: true
   interval: 10s
-  interfaces: "w*"
+  interfaces: "*"
   nftablesexporterurl: http://localhost:9630/metrics
   internalprefixes:
     - "127.0.0.1"
