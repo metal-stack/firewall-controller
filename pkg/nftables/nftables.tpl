@@ -18,6 +18,7 @@ table ip firewall {
 	counter internal_total { }
 	counter external_in { }
 	counter external_out { }
+	counter drop_total { }
 
 	chain forward {
 		type filter hook forward priority 1; policy drop;
@@ -46,7 +47,7 @@ table ip firewall {
 		{{ . }}
 		{{- end }}
 
-		counter comment "count dropped packets"
-		limit rate 10/second counter packets 1 bytes 40 log prefix "nftables-firewall-dropped: "
+		counter comment "count and log dropped packets"
+		limit rate 10/second counter name drop_total log prefix "nftables-firewall-dropped: "
 	}
 }
