@@ -8,7 +8,7 @@ require (
 	github.com/go-logr/logr v0.1.0
 	github.com/google/nftables v0.0.0-20200316075819-7127d9d22474
 	github.com/metal-stack/v v1.0.2
-	github.com/onsi/ginkgo v1.12.2
+	github.com/onsi/ginkgo v1.12.3
 	github.com/onsi/gomega v1.10.1
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/prometheus v2.5.0+incompatible

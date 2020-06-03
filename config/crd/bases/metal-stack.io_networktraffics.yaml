@@ -18,9 +18,9 @@ spec:
   - JSONPath: .spec.interval
     name: Interval
     type: string
-  - JSONPath: .spec.interfaces
-    name: Interfaces
-    type: string
+  - JSONPath: .spec.internalprefixes
+    name: InternalPrefixes
+    type: '[]string'
   group: metal-stack.io
   names:
     kind: NetworkTraffic
@@ -53,10 +53,6 @@ spec:
               description: Enabled if set to true networktraffic is collected and
                 reported.
               type: boolean
-            interfaces:
-              description: Interfaces is a glob pattern which defines from which interfaces
-                network traffic should be collected.
-              type: string
             internalprefixes:
               description: InternalPrefixes specify prefixes which are considered
                 local to the partition or all regions. Traffic to/from these prefixes
