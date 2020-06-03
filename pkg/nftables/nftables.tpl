@@ -15,6 +15,10 @@ table ip firewall {
 		elements = { 10.0.0.0/8 }
 	}
 
+	# counters can be modified like this
+	# nft add counter ip firewall internal_total packets 697173 bytes 850761603
+	# nft list counter ip firewall internal_total
+	# nft reset counter ip firewall internal_total
 	counter internal_total { }
 	counter external_in { }
 	counter external_out { }

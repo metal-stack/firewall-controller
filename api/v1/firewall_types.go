@@ -26,6 +26,10 @@ import (
 // Firewall is the Schema for the firewalls API
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Enabled",type=boolean,JSONPath=`.spec.enabled`
+// +kubebuilder:printcolumn:name="Interval",type=string,JSONPath=`.spec.interval`
+// +kubebuilder:printcolumn:name="DryRun",type=boolean,JSONPath=`.spec.dryrun`
+// +kubebuilder:printcolumn:name="InternalPrefixes",type=string,JSONPath=`.spec.internalprefixes`
 type Firewall struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -50,6 +54,9 @@ type FirewallSpec struct {
 	DryRun            bool           `json:"dryrun,omitempty"`
 	Ipv4RuleFile      string         `json:"ipv4rulefile,omitempty"`
 	TrafficControl    TrafficControl `json:"trafficcontrol,omitempty"`
+	// InternalPrefixes specify prefixes which are considered local to the partition or all regions.
+	// Traffic to/from these prefixes is accounted as internal traffic
+	InternalPrefixes []string `json:"internalprefixes,omitempty"`
 }
 
 // FirewallStatus defines the observed state of Firewall

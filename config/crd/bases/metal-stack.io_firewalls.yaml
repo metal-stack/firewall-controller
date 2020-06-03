@@ -8,6 +8,19 @@ metadata:
   creationTimestamp: null
   name: firewalls.metal-stack.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.enabled
+    name: Enabled
+    type: boolean
+  - JSONPath: .spec.interval
+    name: Interval
+    type: string
+  - JSONPath: .spec.dryrun
+    name: DryRun
+    type: boolean
+  - JSONPath: .spec.internalprefixes
+    name: InternalPrefixes
+    type: string
   group: metal-stack.io
   names:
     kind: Firewall
@@ -40,6 +53,13 @@ spec:
               type: boolean
             enabled:
               type: boolean
+            internalprefixes:
+              description: InternalPrefixes specify prefixes which are considered
+                local to the partition or all regions. Traffic to/from these prefixes
+                is accounted as internal traffic
+              items:
+                type: string
+              type: array
             interval:
               type: string
             ipv4rulefile:

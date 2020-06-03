@@ -25,9 +25,6 @@ type NetworkTrafficSpec struct {
 	Enabled bool `json:"enabled,omitempty"`
 	// Intervall at which networktraffic should be accounted, go duration format allowed.
 	Interval string `json:"interval,omitempty"`
-	// InternalPrefixes specify prefixes which are considered local to the partition or all regions.
-	// Traffic to/from these prefixes is not accounted
-	InternalPrefixes []string `json:"internalprefixes,omitempty"`
 }
 
 // NetworkTrafficStatus defines the observed state of Network
@@ -54,7 +51,6 @@ type DeviceStatistic struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Enabled",type=boolean,JSONPath=`.spec.enabled`
 // +kubebuilder:printcolumn:name="Interval",type=string,JSONPath=`.spec.interval`
-// +kubebuilder:printcolumn:name="InternalPrefixes",type=string,JSONPath=`.spec.internalprefixes`
 type NetworkTraffic struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

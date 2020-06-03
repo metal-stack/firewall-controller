@@ -5,6 +5,4 @@ metadata:
 spec:
   enabled: true
   interval: 10s
-  internalprefixes:
-    - "127.0.0.1"
-    - "100.64.0.0/8"
+
