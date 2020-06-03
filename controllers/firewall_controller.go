@@ -196,12 +196,6 @@ func (r *FirewallReconciler) reconcileTrafficControl(ctx context.Context, f fire
 // updateStatus updates the status field for this firewall
 func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Firewall, log logr.Logger) error {
 	spec := f.Spec
-	c := nftables.NewCollector(&log, spec.NftablesExportURL)
-
-	ruleStats, err := c.Collect()
-	if err != nil {
-		return err
-	}
 
 	tcStats := firewallv1.TrafficControlStatsByIface{}
 	tcSpec := spec.TrafficControl
@@ -228,11 +222,21 @@ func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Fire
 			Qlen:       s.Qlen,
 		}
 	}
-
-	f.Status.FirewallStats = firewallv1.FirewallStats{
-		RuleStats:           ruleStats,
+	firewallStats := firewallv1.FirewallStats{
 		TrafficControlStats: tcStats,
 	}
+
+	if spec.NftablesExportURL != "" {
+		c := nftables.NewCollector(&log, spec.NftablesExportURL)
+
+		ruleStats, err := c.Collect()
+		if err != nil {
+			return err
+		}
+		firewallStats.RuleStats = ruleStats
+	}
+
+	f.Status.FirewallStats = firewallStats
 	f.Status.Updated.Time = time.Now()
 
 	if err := r.Status().Update(ctx, &f); err != nil {
