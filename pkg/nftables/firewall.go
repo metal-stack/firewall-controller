@@ -17,9 +17,7 @@ import (
 )
 
 const (
-	nftablesService = "nftables.service"
-	nftBin          = "/usr/sbin/nft"
-	systemctlBin    = "/bin/systemctl"
+	nftBin = "/usr/sbin/nft"
 )
 
 // Firewall assembles nftable rules based on k8s entities
@@ -78,7 +76,7 @@ func (f *Firewall) Reconcile() error {
 	if f.DryRun {
 		return nil
 	}
-	err = f.reload()
+	err = f.reload(f.Ipv4RuleFile)
 	if err != nil {
 		return err
 	}
@@ -152,11 +150,11 @@ func (f *Firewall) validate(file string) error {
 	return nil
 }
 
-func (f *Firewall) reload() error {
-	c := exec.Command(systemctlBin, "reload", nftablesService)
+func (f *Firewall) reload(file string) error {
+	c := exec.Command(nftBin, "-f", file)
 	err := c.Run()
 	if err != nil {
-		return fmt.Errorf("%s could not be reloaded, err: %w", nftablesService, err)
+		return fmt.Errorf("%s could not be applied, err: %w", file, err)
 	}
 	return nil
 }
