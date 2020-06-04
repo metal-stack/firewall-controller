@@ -63,8 +63,14 @@ func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.Serv
 
 // Reconcile drives the nftables firewall against the desired state by comparison with the current rule file.
 func (f *Firewall) Reconcile() error {
-	desired := "/tmp/firewall-controller_nftables.v4"
-	err := f.renderFile(desired)
+	tmpFile, err := ioutil.TempFile("/var/tmp", "firewall-controller_nftables.v4")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmpFile.Name())
+
+	desired := tmpFile.Name()
+	err = f.renderFile(desired)
 	if err != nil {
 		return err
 	}
