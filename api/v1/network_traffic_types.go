@@ -23,7 +23,7 @@ import (
 type NetworkTrafficSpec struct {
 	// Enabled if set to true networktraffic is collected and reported.
 	Enabled bool `json:"enabled,omitempty"`
-	// Intervall at which networktraffic should be accounted, go duration format allowed.
+	// Interval at which networktraffic should be accounted, go duration format allowed.
 	Interval string `json:"interval,omitempty"`
 }
 

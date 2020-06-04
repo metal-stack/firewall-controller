@@ -65,7 +65,6 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("firewall", req.NamespacedName)
 	interval := firewallReconcileInterval
-	log.Info("firewall controller", "intervall", interval)
 
 	var f firewallv1.Firewall
 	if err := r.Get(ctx, req.NamespacedName, &f); err != nil {
@@ -80,8 +79,6 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		// don't requeue invalid firewall objects
 		return ctrl.Result{}, err
 	}
-
-	log.Info("networktraffic", "local_prefixes", f.Spec.InternalPrefixes)
 
 	i, err := time.ParseDuration(f.Spec.Interval)
 	if err != nil {
