@@ -25,6 +25,8 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
@@ -38,6 +40,7 @@ import (
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/pkg/nftables"
 	"github.com/metal-stack/firewall-controller/pkg/trafficcontrol"
+	networking "k8s.io/api/networking/v1"
 )
 
 // FirewallReconciler reconciles a Firewall object
@@ -93,6 +96,11 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return requeue, nil
 	}
 
+	log.Info("migrating old global network policies to kind ClusterwideNetworkPolicy")
+	if err = r.migrateToClusterwideNetworkPolicy(ctx, f, log); err != nil {
+		return requeue, err
+	}
+
 	log.Info("reconciling nftables rules")
 	if err = r.reconcileRules(ctx, f, log); err != nil {
 		return requeue, err
@@ -126,6 +134,109 @@ func (r *FirewallReconciler) validateFirewall(ctx context.Context, f firewallv1.
 	}
 
 	return nil
+}
+
+// migrateToClusterwideNetworkPolicy migrates old network policy objects to the new kind ClusterwideNetworkPolicy
+func (r *FirewallReconciler) migrateToClusterwideNetworkPolicy(ctx context.Context, f firewallv1.Firewall, log logr.Logger) error {
+	npsToIgnore := []string{"egress-allow-http", "egress-allow-https", "egress-allow-any", "egress-allow-dns", "egress-allow-ntp"}
+
+	var nps networking.NetworkPolicyList
+	if err := r.Client.List(ctx, &nps); err != nil {
+		return err
+	}
+
+	n := 0
+	for _, np := range nps.Items {
+		s := np.Spec
+		if len(s.PodSelector.MatchExpressions) != 0 || len(s.PodSelector.MatchLabels) != 0 {
+			continue
+		}
+
+		// is one of the old network policy objects like egress-allow-http that are replaced by cluster wide ones installed by gepm
+		if contains(npsToIgnore, np.Name) {
+			continue
+		}
+
+		cwnp, err := convert(np)
+		if err != nil {
+			return fmt.Errorf("could not migrate network policy to a cluster-wide np: %w", err)
+		}
+
+		if cwnp == nil {
+			// nothing to do here because network policy translates to an empty cwnp
+			continue
+		}
+
+		var current firewallv1.ClusterwideNetworkPolicy
+		err = r.Get(ctx, types.NamespacedName{Name: cwnp.Name, Namespace: firewallNamespace}, &current)
+
+		// cwnp already exists: don't try to merge or update - just ignore
+		if err == nil {
+			continue
+		}
+
+		if errors.IsNotFound(err) {
+			err = r.Client.Create(ctx, cwnp)
+		}
+
+		if err != nil {
+			return fmt.Errorf("could not migrate to cluster-wide network policy: %w", err)
+		}
+		n++
+	}
+
+	log.Info("migrated network policies to cluster-wide network policies", "n", n)
+
+	return nil
+}
+
+func contains(l []string, e string) bool {
+	for _, elem := range l {
+		if elem == e {
+			return true
+		}
+	}
+	return false
+}
+
+// converts a network-policy object that was used before in a cluster-wide manner to the new CRD
+func convert(np networking.NetworkPolicy) (*firewallv1.ClusterwideNetworkPolicy, error) {
+	cwnp := firewallv1.ClusterwideNetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      np.Name,
+			Namespace: firewallNamespace,
+		},
+	}
+	newEgresses := []firewallv1.EgressRule{}
+	for _, egress := range np.Spec.Egress {
+		newTos := []networking.IPBlock{}
+		for _, to := range egress.To {
+			if to.NamespaceSelector != nil {
+				return nil, fmt.Errorf("np %v contains a namespace selector and is not applicable for a conversion to a cluster-wide network policy", np.ObjectMeta)
+			}
+			if to.PodSelector != nil {
+				return nil, fmt.Errorf("np %v contains a pod selector and is not applicable for a conversion to a cluster-wide network policy", np.ObjectMeta)
+			}
+			if to.IPBlock == nil {
+				continue
+			}
+			newTos = append(newTos, *to.IPBlock)
+		}
+		if len(newTos) == 0 {
+			continue
+		}
+		newEgresses = append(newEgresses, firewallv1.EgressRule{
+			Ports: egress.Ports,
+			To:    newTos,
+		})
+	}
+	if len(newEgresses) == 0 {
+		return nil, nil
+	}
+	cwnp.Spec = firewallv1.PolicySpec{
+		Egress: newEgresses,
+	}
+	return &cwnp, nil
 }
 
 // reconcileRules reconciles the nftable rules for this firewall
@@ -268,6 +379,7 @@ func (r *FirewallReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Watches(&source.Kind{Type: &firewallv1.ClusterwideNetworkPolicy{}}, triggerFirewallReconcilation).
 		Watches(&source.Kind{Type: &firewallv1.NetworkTraffic{}}, triggerFirewallReconcilation).
+		Watches(&source.Kind{Type: &networking.NetworkPolicy{}}, triggerFirewallReconcilation).
 		Watches(&source.Kind{Type: &corev1.Service{}}, triggerFirewallReconcilation).
 		Complete(r)
 }
