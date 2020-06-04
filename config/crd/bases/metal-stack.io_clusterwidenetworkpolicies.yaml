@@ -10,8 +10,8 @@ metadata:
 spec:
   group: metal-stack.io
   names:
-    kind: ClusterwideNetworkPolicy
-    listKind: ClusterwideNetworkPolicyList
+    kind: ClusterWideNetworkPolicy
+    listKind: ClusterWideNetworkPolicyList
     plural: clusterwidenetworkpolicies
     singular: clusterwidenetworkpolicy
   scope: Namespaced
@@ -19,7 +19,7 @@ spec:
     status: {}
   validation:
     openAPIV3Schema:
-      description: ClusterwideNetworkPolicy contains the desired state for a cluster
+      description: ClusterWideNetworkPolicy contains the desired state for a cluster
         wide network policy to be applied.
       properties:
         apiVersion:
@@ -43,7 +43,7 @@ spec:
               type: string
             egress:
               description: List of egress rules to be applied. Outgoing traffic is
-                allowed if there is a ClusterwideNetworkPolicy that allows it. Clusters
+                allowed if there is a ClusterWideNetworkPolicy that allows it. Clusters
                 are isolated by default.
               items:
                 description: EgressRule describes a particular set of traffic that
@@ -109,7 +109,7 @@ spec:
               type: array
             ingress:
               description: List of ingress rules to be applied. Traffic is allowed
-                to a cluster if there is a ClusterwideNetworkPolicy that allows it,
+                to a cluster if there is a ClusterWideNetworkPolicy that allows it,
                 OR there is a service exposed with type Loadbalancer. Clusters are
                 isolated by default.
               items:

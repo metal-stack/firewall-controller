@@ -21,22 +21,22 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// ClusterwideNetworkPolicy contains the desired state for a cluster wide network policy to be applied.
+// ClusterWideNetworkPolicy contains the desired state for a cluster wide network policy to be applied.
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-type ClusterwideNetworkPolicy struct {
+type ClusterWideNetworkPolicy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec PolicySpec `json:"spec,omitempty"`
 }
 
-// ClusterwideNetworkPolicyList contains a list of ClusterwideNetworkPolicy
+// ClusterWideNetworkPolicyList contains a list of ClusterWideNetworkPolicy
 // +kubebuilder:object:root=true
-type ClusterwideNetworkPolicyList struct {
+type ClusterWideNetworkPolicyList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []ClusterwideNetworkPolicy `json:"items"`
+	Items           []ClusterWideNetworkPolicy `json:"items"`
 }
 
 type PolicySpec struct {
@@ -48,13 +48,13 @@ type PolicySpec struct {
 	Description string `json:"description,omitempty"`
 
 	// List of ingress rules to be applied. Traffic is allowed to
-	// a cluster if there is a ClusterwideNetworkPolicy that allows it, OR there is a service
+	// a cluster if there is a ClusterWideNetworkPolicy that allows it, OR there is a service
 	// exposed with type Loadbalancer. Clusters are isolated by default.
 	// +optional
 	Ingress []IngressRule `json:"ingress,omitempty"`
 
 	// List of egress rules to be applied. Outgoing traffic is
-	// allowed if there is a ClusterwideNetworkPolicy that allows it.
+	// allowed if there is a ClusterWideNetworkPolicy that allows it.
 	// Clusters are isolated by default.
 	// +optional
 	Egress []EgressRule `json:"egress,omitempty"`
@@ -101,5 +101,5 @@ type EgressRule struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&ClusterwideNetworkPolicy{}, &ClusterwideNetworkPolicyList{})
+	SchemeBuilder.Register(&ClusterWideNetworkPolicy{}, &ClusterWideNetworkPolicyList{})
 }

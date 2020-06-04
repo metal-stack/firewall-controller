@@ -130,7 +130,7 @@ func (r *FirewallReconciler) validateFirewall(ctx context.Context, f firewallv1.
 
 // reconcileRules reconciles the nftable rules for this firewall
 func (r *FirewallReconciler) reconcileRules(ctx context.Context, f firewallv1.Firewall, log logr.Logger) error {
-	var clusterNPs firewallv1.ClusterwideNetworkPolicyList
+	var clusterNPs firewallv1.ClusterWideNetworkPolicyList
 	if err := r.List(ctx, &clusterNPs, client.InNamespace(f.Namespace)); err != nil {
 		return err
 	}
@@ -262,7 +262,7 @@ func (r *FirewallReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&firewallv1.Firewall{}).
 		// don't trigger a reconcilation for status updates
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
-		Watches(&source.Kind{Type: &firewallv1.ClusterwideNetworkPolicy{}}, triggerFirewallReconcilation).
+		Watches(&source.Kind{Type: &firewallv1.ClusterWideNetworkPolicy{}}, triggerFirewallReconcilation).
 		Watches(&source.Kind{Type: &corev1.Service{}}, triggerFirewallReconcilation).
 		Complete(r)
 }

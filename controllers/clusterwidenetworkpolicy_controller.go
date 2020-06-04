@@ -28,9 +28,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// ClusterwideNetworkPolicyReconciler reconciles a ClusterwideNetworkPolicy object
+// ClusterWideNetworkPolicyReconciler reconciles a ClusterWideNetworkPolicy object
 // +kubebuilder:rbac:groups=metal-stack.io,resources=events,verbs=create;patch
-type ClusterwideNetworkPolicyReconciler struct {
+type ClusterWideNetworkPolicyReconciler struct {
 	client.Client
 	Log      logr.Logger
 	Scheme   *runtime.Scheme
@@ -39,16 +39,16 @@ type ClusterwideNetworkPolicyReconciler struct {
 
 const clusterwideNPNamespace = "firewall"
 
-// Reconcile ClusterwideNetworkPolicy and creates nftables rules accordingly
+// Reconcile ClusterWideNetworkPolicy and creates nftables rules accordingly
 // +kubebuilder:rbac:groups=metal-stack.io,resources=clusterwidenetworkpolicies,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=metal-stack.io,resources=clusterwidenetworkpolicies/status,verbs=get;update;patch
-func (r *ClusterwideNetworkPolicyReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (r *ClusterWideNetworkPolicyReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 
 	// if network policy does not belong to the namespace where clusterwide network policies are stored:
 	// update status with error message
 	if req.Namespace != clusterwideNPNamespace {
-		var clusterNP firewallv1.ClusterwideNetworkPolicy
+		var clusterNP firewallv1.ClusterWideNetworkPolicy
 		if err := r.Get(ctx, req.NamespacedName, &clusterNP); err != nil {
 			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
@@ -60,10 +60,10 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(req ctrl.Request) (ctrl.R
 	return ctrl.Result{}, nil
 }
 
-// SetupWithManager configures this controller to watch for ClusterwideNetworkPolicy CRD
-func (r *ClusterwideNetworkPolicyReconciler) SetupWithManager(mgr ctrl.Manager) error {
+// SetupWithManager configures this controller to watch for ClusterWideNetworkPolicy CRD
+func (r *ClusterWideNetworkPolicyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.recorder = mgr.GetEventRecorderFor("FirewallController")
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&firewallv1.ClusterwideNetworkPolicy{}).
+		For(&firewallv1.ClusterWideNetworkPolicy{}).
 		Complete(r)
 }

@@ -7,7 +7,7 @@ import (
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 )
 
-func ingressForNetworkPolicy(np firewallv1.ClusterwideNetworkPolicy) []string {
+func ingressForNetworkPolicy(np firewallv1.ClusterWideNetworkPolicy) []string {
 	ingress := np.Spec.Ingress
 	if ingress == nil {
 		return nil
@@ -48,7 +48,7 @@ func ingressForNetworkPolicy(np firewallv1.ClusterwideNetworkPolicy) []string {
 	return rules
 }
 
-func egressForNetworkPolicy(np firewallv1.ClusterwideNetworkPolicy) []string {
+func egressForNetworkPolicy(np firewallv1.ClusterWideNetworkPolicy) []string {
 	egress := np.Spec.Egress
 	if egress == nil {
 		return nil
