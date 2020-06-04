@@ -48,8 +48,8 @@ spec:
                 reported.
               type: boolean
             interval:
-              description: Intervall at which networktraffic should be accounted,
-                go duration format allowed.
+              description: Interval at which networktraffic should be accounted, go
+                duration format allowed.
               type: string
           type: object
         status:
