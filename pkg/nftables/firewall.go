@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 	"text/template"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
@@ -23,15 +24,16 @@ const (
 
 // Firewall assembles nftable rules based on k8s entities
 type Firewall struct {
-	Ingress      []string
-	Egress       []string
-	Ipv4RuleFile string
-	DryRun       bool
-	statikFS     http.FileSystem
+	Ingress          []string
+	Egress           []string
+	Ipv4RuleFile     string
+	DryRun           bool
+	statikFS         http.FileSystem
+	InternalPrefixes string
 }
 
 // NewFirewall creates a new nftables firewall object based on k8s entities
-func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.ServiceList, ipv4RuleFile string, dryRun bool) *Firewall {
+func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.ServiceList, internalPrefixes []string, ipv4RuleFile string, dryRun bool) *Firewall {
 	ingress := []string{}
 	egress := []string{}
 	for _, np := range nps.Items {
@@ -50,11 +52,12 @@ func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.Serv
 		panic(err)
 	}
 	return &Firewall{
-		Egress:       uniqueSorted(egress),
-		Ingress:      uniqueSorted(ingress),
-		Ipv4RuleFile: ipv4RuleFile,
-		DryRun:       dryRun,
-		statikFS:     statikFS,
+		Egress:           uniqueSorted(egress),
+		Ingress:          uniqueSorted(ingress),
+		Ipv4RuleFile:     ipv4RuleFile,
+		DryRun:           dryRun,
+		statikFS:         statikFS,
+		InternalPrefixes: strings.Join(internalPrefixes, ", "),
 	}
 }
 
@@ -75,7 +78,7 @@ func (f *Firewall) Reconcile() error {
 	if f.DryRun {
 		return nil
 	}
-	err = f.reload()
+	err = f.reload(f.Ipv4RuleFile)
 	if err != nil {
 		return err
 	}
@@ -149,11 +152,11 @@ func (f *Firewall) validate(file string) error {
 	return nil
 }
 
-func (f *Firewall) reload() error {
+func (f *Firewall) reload(file string) error {
 	c := exec.Command(systemctlBin, "reload", nftablesService)
 	err := c.Run()
 	if err != nil {
-		return fmt.Errorf("%s could not be reloaded, err: %w", nftablesService, err)
+		return fmt.Errorf("%s could not be applied, err: %w", file, err)
 	}
 	return nil
 }

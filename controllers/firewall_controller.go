@@ -251,7 +251,7 @@ func (r *FirewallReconciler) reconcileRules(ctx context.Context, f firewallv1.Fi
 		return err
 	}
 
-	nftablesFirewall := nftables.NewFirewall(&clusterNPs, &services, f.Spec.Ipv4RuleFile, f.Spec.DryRun)
+	nftablesFirewall := nftables.NewFirewall(&clusterNPs, &services, f.Spec.InternalPrefixes, f.Spec.Ipv4RuleFile, f.Spec.DryRun)
 	log.Info("loaded rules", "ingress", len(nftablesFirewall.Ingress), "egress", len(nftablesFirewall.Egress))
 
 	if err := nftablesFirewall.Reconcile(); err != nil {
@@ -304,12 +304,6 @@ func (r *FirewallReconciler) reconcileTrafficControl(ctx context.Context, f fire
 // updateStatus updates the status field for this firewall
 func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Firewall, log logr.Logger) error {
 	spec := f.Spec
-	c := nftables.NewCollector(&log, spec.NftablesExportURL)
-
-	ruleStats, err := c.Collect()
-	if err != nil {
-		return err
-	}
 
 	tcStats := firewallv1.TrafficControlStatsByIface{}
 	tcSpec := spec.TrafficControl
@@ -336,11 +330,21 @@ func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Fire
 			Qlen:       s.Qlen,
 		}
 	}
-
-	f.Status.FirewallStats = firewallv1.FirewallStats{
-		RuleStats:           ruleStats,
+	firewallStats := firewallv1.FirewallStats{
 		TrafficControlStats: tcStats,
 	}
+
+	if spec.NftablesExportURL != "" {
+		c := nftables.NewCollector(&log, spec.NftablesExportURL)
+
+		ruleStats, err := c.Collect()
+		if err != nil {
+			return err
+		}
+		firewallStats.RuleStats = ruleStats
+	}
+
+	f.Status.FirewallStats = firewallStats
 	f.Status.Updated.Time = time.Now()
 
 	if err := r.Status().Update(ctx, &f); err != nil {
@@ -374,6 +378,7 @@ func (r *FirewallReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		// don't trigger a reconcilation for status updates
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Watches(&source.Kind{Type: &firewallv1.ClusterwideNetworkPolicy{}}, triggerFirewallReconcilation).
+		Watches(&source.Kind{Type: &firewallv1.NetworkTraffic{}}, triggerFirewallReconcilation).
 		Watches(&source.Kind{Type: &networking.NetworkPolicy{}}, triggerFirewallReconcilation).
 		Watches(&source.Kind{Type: &corev1.Service{}}, triggerFirewallReconcilation).
 		Complete(r)

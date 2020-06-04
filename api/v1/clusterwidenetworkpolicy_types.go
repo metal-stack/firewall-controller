@@ -39,6 +39,7 @@ type ClusterwideNetworkPolicyList struct {
 	Items           []ClusterwideNetworkPolicy `json:"items"`
 }
 
+// PolicySpec defines the rules to create for ingress and egress
 type PolicySpec struct {
 	// Description is a free form string, it can be used by the creator of
 	// the rule to store human readable explanation of the purpose of this

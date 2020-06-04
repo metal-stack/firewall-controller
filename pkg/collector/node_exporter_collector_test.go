@@ -15,7 +15,7 @@ func TestCollect(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	c := NewCollector(nil, ts.URL)
+	c := NewNodeExporterCollector(nil, ts.URL)
 
 	ds, err := c.Collect()
 	require.Nil(t, err)

@@ -35,6 +35,7 @@ spec:
         metadata:
           type: object
         spec:
+          description: PolicySpec defines the rules to create for ingress and egress
           properties:
             description:
               description: Description is a free form string, it can be used by the

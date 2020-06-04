@@ -31,9 +31,10 @@ COPY hack/ hack/
 # Build
 RUN make test all
 
-# Use distroless as minimal base image to package the firewall-controller binary
-# Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM debian:buster
+# Final Image
+FROM debian:10
 WORKDIR /
 COPY --from=builder /workspace/bin/firewall-controller .
+RUN apt update \
+ && apt install -y --no-install-recommends nftables
 ENTRYPOINT ["/firewall-controller"]

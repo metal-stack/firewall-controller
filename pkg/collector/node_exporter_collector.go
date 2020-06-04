@@ -14,15 +14,11 @@ import (
 )
 
 type (
-	// Collector scrapes the node-exporter
-	Collector struct {
+	// nodeCollector scrapes the node-exporter
+	nodeCollector struct {
 		logger logr.Logger
 		url    string
 	}
-	// DeviceStat maps series to value
-	DeviceStat map[string]int64
-	// DeviceStats is grouped by ethernet device
-	DeviceStats map[string]DeviceStat
 )
 
 var (
@@ -32,22 +28,22 @@ var (
 	}
 )
 
-// NewCollector create a new Collector
-func NewCollector(logger *logr.Logger, url string) Collector {
+// NewNodeExporterCollector create a new Collector for node exporter
+func NewNodeExporterCollector(logger *logr.Logger, url string) nodeCollector {
 	var log logr.Logger
 	if logger == nil {
 		log = ctrl.Log.WithName("collector")
 	} else {
 		log = *logger
 	}
-	return Collector{
+	return nodeCollector{
 		logger: log,
 		url:    url,
 	}
 }
 
 // Collect metrics from node-exporter
-func (c Collector) Collect() (*DeviceStats, error) {
+func (c nodeCollector) Collect() (*DeviceStats, error) {
 	resp, err := http.Get(c.url)
 	if err != nil {
 		c.logger.Error(err, "unable to get metrics from node-exporter")
@@ -101,7 +97,7 @@ func (c Collector) Collect() (*DeviceStats, error) {
 			} else {
 				stat = ds
 			}
-			stat[seriesName] = int64(v)
+			stat[seriesName] = uint64(v)
 			stats[deviceName] = stat
 		}
 	}

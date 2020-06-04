@@ -26,6 +26,10 @@ import (
 // Firewall is the Schema for the firewalls API
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Enabled",type=boolean,JSONPath=`.spec.enabled`
+// +kubebuilder:printcolumn:name="Interval",type=string,JSONPath=`.spec.interval`
+// +kubebuilder:printcolumn:name="DryRun",type=boolean,JSONPath=`.spec.dryrun`
+// +kubebuilder:printcolumn:name="InternalPrefixes",type=string,JSONPath=`.spec.internalprefixes`
 type Firewall struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -44,12 +48,21 @@ type FirewallList struct {
 
 // FirewallSpec defines the desired state of Firewall
 type FirewallSpec struct {
-	Enabled           bool           `json:"enabled,omitempty"`
-	Interval          string         `json:"interval,omitempty"`
-	NftablesExportURL string         `json:"nftablesexporterurl,omitempty"`
-	DryRun            bool           `json:"dryrun,omitempty"`
-	Ipv4RuleFile      string         `json:"ipv4rulefile,omitempty"`
-	TrafficControl    TrafficControl `json:"trafficcontrol,omitempty"`
+	// Enabled if set to false, firewall generation is disabled
+	Enabled bool `json:"enabled,omitempty"`
+	// Interval on which rule reconciliation should happen
+	Interval string `json:"interval,omitempty"`
+	// NftablesExportURL specifies the url where the nftables-exporter can be reached to gather nftables metrics
+	NftablesExportURL string `json:"nftablesexporterurl,omitempty"`
+	// DryRun if set to true, firewall rules are not applied
+	DryRun bool `json:"dryrun,omitempty"`
+	// TrafficControl defines where to store the generated ipv4 firewall rules on disk
+	Ipv4RuleFile string `json:"ipv4rulefile,omitempty"`
+	// TrafficControl allows configuration of traffic shaping in terms of packets or bytes per second
+	TrafficControl TrafficControl `json:"trafficcontrol,omitempty"`
+	// InternalPrefixes specify prefixes which are considered local to the partition or all regions.
+	// Traffic to/from these prefixes is accounted as internal traffic
+	InternalPrefixes []string `json:"internalprefixes,omitempty"`
 }
 
 // FirewallStatus defines the observed state of Firewall

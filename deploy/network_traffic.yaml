@@ -5,5 +5,4 @@ metadata:
 spec:
   enabled: true
   interval: 10s
-  nodeexporterurl: http://localhost:9100/metrics
-  interfaces: "w*"
+

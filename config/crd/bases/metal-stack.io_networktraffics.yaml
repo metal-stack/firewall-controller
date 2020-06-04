@@ -9,17 +9,11 @@ metadata:
   name: networktraffics.metal-stack.io
 spec:
   additionalPrinterColumns:
-  - JSONPath: .spec.nodeexporterurl
-    name: NodeExporter
-    type: string
   - JSONPath: .spec.enabled
     name: Enabled
     type: boolean
   - JSONPath: .spec.interval
     name: Interval
-    type: string
-  - JSONPath: .spec.interfaces
-    name: Interfaces
     type: string
   group: metal-stack.io
   names:
@@ -50,12 +44,12 @@ spec:
           description: NetworkTrafficSpec defines the desired state of Network
           properties:
             enabled:
+              description: Enabled if set to true networktraffic is collected and
+                reported.
               type: boolean
-            interfaces:
-              type: string
             interval:
-              type: string
-            nodeexporterurl:
+              description: Interval at which networktraffic should be accounted, go
+                duration format allowed.
               type: string
           type: object
         status:
@@ -76,10 +70,14 @@ spec:
                       out:
                         format: int64
                         type: integer
+                      total:
+                        format: int64
+                        type: integer
                     required:
                     - device
                     - in
                     - out
+                    - total
                     type: object
                   type: array
               required:

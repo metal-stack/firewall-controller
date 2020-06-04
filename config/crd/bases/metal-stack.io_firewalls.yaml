@@ -8,6 +8,19 @@ metadata:
   creationTimestamp: null
   name: firewalls.metal-stack.io
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.enabled
+    name: Enabled
+    type: boolean
+  - JSONPath: .spec.interval
+    name: Interval
+    type: string
+  - JSONPath: .spec.dryrun
+    name: DryRun
+    type: boolean
+  - JSONPath: .spec.internalprefixes
+    name: InternalPrefixes
+    type: string
   group: metal-stack.io
   names:
     kind: Firewall
@@ -37,17 +50,32 @@ spec:
           description: FirewallSpec defines the desired state of Firewall
           properties:
             dryrun:
+              description: DryRun if set to true, firewall rules are not applied
               type: boolean
             enabled:
+              description: Enabled if set to false, firewall generation is disabled
               type: boolean
+            internalprefixes:
+              description: InternalPrefixes specify prefixes which are considered
+                local to the partition or all regions. Traffic to/from these prefixes
+                is accounted as internal traffic
+              items:
+                type: string
+              type: array
             interval:
+              description: Interval on which rule reconciliation should happen
               type: string
             ipv4rulefile:
+              description: TrafficControl defines where to store the generated ipv4
+                firewall rules on disk
               type: string
             nftablesexporterurl:
+              description: NftablesExportURL specifies the url where the nftables-exporter
+                can be reached to gather nftables metrics
               type: string
             trafficcontrol:
-              description: TrafficControl contains the tc settings.
+              description: TrafficControl allows configuration of traffic shaping
+                in terms of packets or bytes per second
               properties:
                 interfaces:
                   type: string

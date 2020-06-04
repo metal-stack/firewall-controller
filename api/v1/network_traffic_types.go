@@ -21,10 +21,10 @@ import (
 
 // NetworkTrafficSpec defines the desired state of Network
 type NetworkTrafficSpec struct {
-	Enabled       bool   `json:"enabled,omitempty"`
-	Interval      string `json:"interval,omitempty"`
-	NodeExportURL string `json:"nodeexporterurl,omitempty"`
-	Interfaces    string `json:"interfaces,omitempty"`
+	// Enabled if set to true networktraffic is collected and reported.
+	Enabled bool `json:"enabled,omitempty"`
+	// Interval at which networktraffic should be accounted, go duration format allowed.
+	Interval string `json:"interval,omitempty"`
 }
 
 // NetworkTrafficStatus defines the observed state of Network
@@ -41,17 +41,16 @@ type DeviceStatistics struct {
 // DeviceStatistic contains statistics of a device
 type DeviceStatistic struct {
 	DeviceName string `json:"device"`
-	InBytes    int64  `json:"in"`
-	OutBytes   int64  `json:"out"`
+	InBytes    uint64 `json:"in"`
+	OutBytes   uint64 `json:"out"`
+	TotalBytes uint64 `json:"total"`
 }
 
 // NetworkTraffic is the Schema for the networks API
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="NodeExporter",type=string,JSONPath=`.spec.nodeexporterurl`
 // +kubebuilder:printcolumn:name="Enabled",type=boolean,JSONPath=`.spec.enabled`
 // +kubebuilder:printcolumn:name="Interval",type=string,JSONPath=`.spec.interval`
-// +kubebuilder:printcolumn:name="Interfaces",type=string,JSONPath=`.spec.interfaces`
 type NetworkTraffic struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

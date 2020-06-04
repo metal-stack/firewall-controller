@@ -1,6 +1,37 @@
 table ip firewall {
+	# internal prefixes, which are not leaving the partition or the partition interconnect
+	set internal_prefixes {
+		type ipv4_addr
+		flags interval
+		auto-merge
+		elements = { {{ .InternalPrefixes }} }
+	}
+	# Prefixes in the cluster, typically 10.x.x.x
+	# FIXME Should be filled with nodeCidr
+	set cluster_prefixes {
+		type ipv4_addr
+		flags interval
+		auto-merge
+		elements = { 10.0.0.0/8 }
+	}
+
+	# counters can be modified like this
+	# nft add counter ip firewall internal_total packets 697173 bytes 850761603
+	# nft list counter ip firewall internal_total
+	# nft reset counter ip firewall internal_total
+	counter internal_total { }
+	counter external_in { }
+	counter external_out { }
+	counter drop_total { }
+
 	chain forward {
 		type filter hook forward priority 1; policy drop;
+
+		# network traffic accounting for external traffic
+		ip daddr != @internal_prefixes ip daddr != @cluster_prefixes counter name external_in
+		ip saddr != @internal_prefixes ip saddr != @cluster_prefixes counter name external_out
+		# network traffic accounting for internal traffic
+		ip daddr == @internal_prefixes ip saddr == @internal_prefixes counter name internal_total
 
 		# state dependent rules
 		ct state established,related counter accept comment "accept established connections"
@@ -20,7 +51,7 @@ table ip firewall {
 		{{ . }}
 		{{- end }}
 
-		counter comment "count dropped packets"
-		limit rate 10/second counter packets 1 bytes 40 log prefix "nftables-firewall-dropped: "
+		counter comment "count and log dropped packets"
+		limit rate 10/second counter name drop_total log prefix "nftables-firewall-dropped: "
 	}
 }

@@ -18,11 +18,11 @@ package controllers
 
 import (
 	"context"
-	"path/filepath"
 	"time"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -34,8 +34,9 @@ import (
 // NetworkTrafficReconciler reconciles a NetworkTraffic object
 type NetworkTrafficReconciler struct {
 	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
+	Log      logr.Logger
+	recorder record.EventRecorder
+	Scheme   *runtime.Scheme
 }
 
 const (
@@ -71,26 +72,31 @@ func (r *NetworkTrafficReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		log.Info("NetworkTraffic is disabled")
 	}
 
-	c := collector.NewCollector(&r.Log, spec.NodeExportURL)
+	c := collector.NewNFTablesCollector(&r.Log)
 	ds, err := c.Collect()
 	if err != nil {
+		r.recorder.Event(&traffic, "Warning", "Unapplicable", err.Error())
 		return requeue, err
 	}
 
 	deviceStatistics := []firewallv1.DeviceStatistic{}
 	for name, v := range *ds {
-		match, err := filepath.Match(spec.Interfaces, name)
-		if err != nil {
-			return requeue, err
-		}
-		if !match {
-			continue
-		}
 		deviceStatistic := firewallv1.DeviceStatistic{
 			DeviceName: name,
-			InBytes:    v["in"],
-			OutBytes:   v["out"],
 		}
+		in, ok := v["in"]
+		if ok {
+			deviceStatistic.InBytes = in
+		}
+		out, ok := v["out"]
+		if ok {
+			deviceStatistic.OutBytes = out
+		}
+		total, ok := v["total"]
+		if ok {
+			deviceStatistic.TotalBytes = total
+		}
+		log.Info("networktraffic", "deviceStatistic", deviceStatistic)
 		deviceStatistics = append(deviceStatistics, deviceStatistic)
 	}
 	traffic.Status.DeviceStatistics.Items = deviceStatistics
@@ -105,6 +111,8 @@ func (r *NetworkTrafficReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 
 // SetupWithManager create a new controller to reconcile NetworkTraffic
 func (r *NetworkTrafficReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.recorder = mgr.GetEventRecorderFor("FirewallController")
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&firewallv1.NetworkTraffic{}).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).

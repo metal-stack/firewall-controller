@@ -14,3 +14,6 @@ spec:
     rules:
     - interface: vlan104009
       rate: 1mbit
+  internalprefixes:
+  - "127.0.0.1"
+  - "100.64.0.0/8"
