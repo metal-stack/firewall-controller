@@ -17,7 +17,9 @@ import (
 )
 
 const (
-	nftBin = "/usr/sbin/nft"
+	nftablesService = "nftables.service"
+	nftBin          = "/usr/sbin/nft"
+	systemctlBin    = "/bin/systemctl"
 )
 
 // Firewall assembles nftable rules based on k8s entities
@@ -151,7 +153,7 @@ func (f *Firewall) validate(file string) error {
 }
 
 func (f *Firewall) reload(file string) error {
-	c := exec.Command(nftBin, "-f", file)
+	c := exec.Command(systemctlBin, "reload", nftablesService)
 	err := c.Run()
 	if err != nil {
 		return fmt.Errorf("%s could not be applied, err: %w", file, err)
