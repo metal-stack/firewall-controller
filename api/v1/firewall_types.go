@@ -56,8 +56,8 @@ type FirewallSpec struct {
 	DryRun bool `json:"dryrun,omitempty"`
 	// TrafficControl defines where to store the generated ipv4 firewall rules on disk
 	Ipv4RuleFile string `json:"ipv4rulefile,omitempty"`
-	// TrafficControl allows configuration of traffic shaping in terms of packets or bytes per second
-	TrafficControl TrafficControl `json:"trafficcontrol,omitempty"`
+	// RateLimits allows configuration of rate limit rules for interfaces.
+	RateLimits []RateLimit `json:"ratelimits,omitempty"`
 	// InternalPrefixes specify prefixes which are considered local to the partition or all regions.
 	// Traffic to/from these prefixes is accounted as internal traffic
 	InternalPrefixes []string `json:"internalprefixes,omitempty"`
@@ -72,8 +72,7 @@ type FirewallStatus struct {
 
 // FirewallStats contains firewall statistics
 type FirewallStats struct {
-	RuleStats           RuleStatsByAction          `json:"rules"`
-	TrafficControlStats TrafficControlStatsByIface `json:"trafficcontrol"`
+	RuleStats RuleStatsByAction `json:"rules"`
 }
 
 // RuleStatsByAction contains firewall rule statistics groups by action: e.g. accept, drop, policy, masquerade
@@ -93,30 +92,12 @@ type Counter struct {
 	Packets uint64 `json:"packets"`
 }
 
-// TrafficControl contains the tc settings.
-type TrafficControl struct {
-	Interfaces string               `json:"interfaces,omitempty"`
-	Rules      []TrafficControlRule `json:"rules,omitempty"`
-}
-
-// TrafficControlRule contains the tc settings for a nic.
-type TrafficControlRule struct {
+// RateLimit contains the rate limit rule for a interface.
+type RateLimit struct {
+	// Interface specifies the interface which should be rate limited
 	Interface string `json:"interface,omitempty"`
-	Rate      string `json:"rate,omitempty"`
-}
-
-// TrafficControlStatsByIface containts statistics about traffic control rules by interface.
-type TrafficControlStatsByIface map[string]TrafficControlStats
-
-// TrafficControlStats contains statistics about traffic control rules.
-type TrafficControlStats struct {
-	Bytes      uint64 `json:"bytes"`
-	Packets    uint64 `json:"packets"`
-	Drops      uint64 `json:"drops"`
-	Overlimits uint64 `json:"overlimits"`
-	Requeues   uint64 `json:"requeues"`
-	Backlog    uint64 `json:"backlog"`
-	Qlen       uint64 `json:"qlen"`
+	// Rate is the input rate in MiB/s
+	Rate uint32 `json:"rate,omitempty"`
 }
 
 func init() {

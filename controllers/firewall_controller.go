@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -40,7 +39,6 @@ import (
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/pkg/collector"
 	"github.com/metal-stack/firewall-controller/pkg/nftables"
-	"github.com/metal-stack/firewall-controller/pkg/trafficcontrol"
 	networking "k8s.io/api/networking/v1"
 )
 
@@ -50,7 +48,6 @@ type FirewallReconciler struct {
 	Log      logr.Logger
 	Scheme   *runtime.Scheme
 	recorder record.EventRecorder
-	tc       *trafficcontrol.Tc
 }
 
 const (
@@ -107,16 +104,11 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return requeue, err
 	}
 
-	log.Info("reconciling traffic control rules")
-	if err = r.reconcileTrafficControl(ctx, f, log); err != nil {
-		return requeue, err
-	}
-
 	log.Info("updating status field")
 	if err = r.updateStatus(ctx, f, log); err != nil {
 		return requeue, err
 	}
-	r.recorder.Event(&f, "Normal", "Reconciled", "nftables rules, traffic control rules and statistics")
+	r.recorder.Event(&f, "Normal", "Reconciled", "nftables rules and statistics")
 
 	log.Info("reconciled firewall")
 	return requeue, nil
@@ -252,7 +244,7 @@ func (r *FirewallReconciler) reconcileRules(ctx context.Context, f firewallv1.Fi
 		return err
 	}
 
-	nftablesFirewall := nftables.NewFirewall(&clusterNPs, &services, f.Spec.InternalPrefixes, f.Spec.Ipv4RuleFile, f.Spec.DryRun)
+	nftablesFirewall := nftables.NewFirewall(&clusterNPs, &services, f.Spec)
 	log.Info("loaded rules", "ingress", len(nftablesFirewall.Ingress), "egress", len(nftablesFirewall.Egress))
 
 	if err := nftablesFirewall.Reconcile(); err != nil {
@@ -262,82 +254,13 @@ func (r *FirewallReconciler) reconcileRules(ctx context.Context, f firewallv1.Fi
 	return nil
 }
 
-// reconcileTrafficControl reconciles the tc rules for this firewall
-func (r *FirewallReconciler) reconcileTrafficControl(ctx context.Context, f firewallv1.Firewall, log logr.Logger) error {
-	tcSpec := f.Spec.TrafficControl
-	for _, t := range tcSpec.Rules {
-		match, err := filepath.Match(tcSpec.Interfaces, t.Interface)
-		if err != nil {
-			return err
-		}
-		if !match {
-			log.Info("skipping interface because it does not match the allowed interfaces pattern in the traffic control spec", "iface", t.Interface, "pattern", tcSpec.Interfaces)
-			continue
-		}
-
-		log.Info("reconcile rate for", "iface", t.Interface, "rate", t.Rate)
-		if f.Spec.DryRun {
-			continue
-		}
-
-		hasRate, err := r.tc.HasRateLimit(t.Interface, t.Rate)
-		if err != nil {
-			return err
-		}
-
-		if hasRate {
-			continue
-		}
-
-		err = r.tc.Clear(t.Interface)
-		if err != nil {
-			return err
-		}
-
-		err = r.tc.AddRateLimit(t.Interface, t.Rate)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // updateStatus updates the status field for this firewall
 func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Firewall, log logr.Logger) error {
-	spec := f.Spec
-
-	tcStats := firewallv1.TrafficControlStatsByIface{}
-	tcSpec := spec.TrafficControl
-	for _, t := range tcSpec.Rules {
-		match, err := filepath.Match(tcSpec.Interfaces, t.Interface)
-		if err != nil {
-			return err
-		}
-		if !match {
-			continue
-		}
-		s, err := r.tc.ShowTbfRule(t.Interface)
-		if err != nil {
-			log.Info("could not get tc rule stats", "err", err)
-			continue
-		}
-		tcStats[t.Interface] = firewallv1.TrafficControlStats{
-			Bytes:      s.Bytes,
-			Packets:    s.Packets,
-			Drops:      s.Drops,
-			Overlimits: s.Overlimits,
-			Requeues:   s.Requeues,
-			Backlog:    s.Backlog,
-			Qlen:       s.Qlen,
-		}
-	}
-
 	c := collector.NewNFTablesCollector(&r.Log)
 	ruleStats := c.CollectRuleStats()
 
 	f.Status.FirewallStats = firewallv1.FirewallStats{
-		TrafficControlStats: tcStats,
-		RuleStats:           ruleStats,
+		RuleStats: ruleStats,
 	}
 	f.Status.Updated.Time = time.Now()
 
@@ -350,11 +273,6 @@ func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Fire
 // SetupWithManager configures this controller to watch for the CRDs in a specific namespace
 func (r *FirewallReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.recorder = mgr.GetEventRecorderFor("FirewallController")
-	tc, err := trafficcontrol.New()
-	if err != nil {
-		return err
-	}
-	r.tc = tc
 	mapToFirewallReconcilation := handler.ToRequestsFunc(
 		func(a handler.MapObject) []reconcile.Request {
 			return []reconcile.Request{

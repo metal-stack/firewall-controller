@@ -6,14 +6,11 @@ metadata:
 spec:
   enabled: true
   interval: 10s
-  nftablesexporterurl: http://localhost:9630/metrics
   dryrun: true
   ipv4rulefile: nftables.v4
-  trafficcontrol:
-    interfaces: vlan*
-    rules:
-    - interface: vlan104009
-      rate: 1mbit
+  ratelimits:
+  - interface: vrf104009
+    rate: 10
   internalprefixes:
   - "127.0.0.1"
   - "100.64.0.0/8"
