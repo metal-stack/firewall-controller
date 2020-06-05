@@ -15,14 +15,12 @@ table ip firewall {
 		elements = { 10.0.0.0/8 }
 	}
 
-	# counters can be modified like this
-	# nft add counter ip firewall internal_total packets 697173 bytes 850761603
-	# nft list counter ip firewall internal_total
-	# nft reset counter ip firewall internal_total
+	# counters
 	counter internal_total { }
 	counter external_in { }
 	counter external_out { }
 	counter drop_total { }
+	counter drop_ratelimit { }
 
 	chain forward {
 		type filter hook forward priority 1; policy drop;
@@ -30,8 +28,14 @@ table ip firewall {
 		# network traffic accounting for external traffic
 		ip saddr != @internal_prefixes ip saddr != @cluster_prefixes counter name external_in
 		ip daddr != @internal_prefixes ip daddr != @cluster_prefixes counter name external_out
+
 		# network traffic accounting for internal traffic
 		ip daddr == @internal_prefixes ip saddr == @internal_prefixes counter name internal_total
+
+		# rate limits
+		{{- range .RateLimits }}
+		meta iifname "{{ .Interface }}" limit rate over {{ .Rate }} mbytes/second counter name drop_ratelimit drop
+		{{- end }}
 
 		# state dependent rules
 		ct state established,related counter accept comment "accept established connections"

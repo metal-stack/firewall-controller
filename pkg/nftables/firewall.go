@@ -26,6 +26,7 @@ const (
 type Firewall struct {
 	Ingress          []string
 	Egress           []string
+	RateLimits       []firewallv1.RateLimit
 	Ipv4RuleFile     string
 	DryRun           bool
 	statikFS         http.FileSystem
@@ -33,7 +34,7 @@ type Firewall struct {
 }
 
 // NewFirewall creates a new nftables firewall object based on k8s entities
-func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.ServiceList, internalPrefixes []string, ipv4RuleFile string, dryRun bool) *Firewall {
+func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.ServiceList, spec firewallv1.FirewallSpec) *Firewall {
 	ingress := []string{}
 	egress := []string{}
 	for _, np := range nps.Items {
@@ -54,10 +55,11 @@ func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.Serv
 	return &Firewall{
 		Egress:           uniqueSorted(egress),
 		Ingress:          uniqueSorted(ingress),
-		Ipv4RuleFile:     ipv4RuleFile,
-		DryRun:           dryRun,
+		RateLimits:       spec.RateLimits,
+		Ipv4RuleFile:     spec.Ipv4RuleFile,
+		DryRun:           spec.DryRun,
 		statikFS:         statikFS,
-		InternalPrefixes: strings.Join(internalPrefixes, ", "),
+		InternalPrefixes: strings.Join(spec.InternalPrefixes, ", "),
 	}
 }
 

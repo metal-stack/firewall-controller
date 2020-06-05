@@ -69,24 +69,22 @@ spec:
               description: TrafficControl defines where to store the generated ipv4
                 firewall rules on disk
               type: string
-            trafficcontrol:
-              description: TrafficControl allows configuration of traffic shaping
-                in terms of packets or bytes per second
-              properties:
-                interfaces:
-                  type: string
-                rules:
-                  items:
-                    description: TrafficControlRule contains the tc settings for a
-                      nic.
-                    properties:
-                      interface:
-                        type: string
-                      rate:
-                        type: string
-                    type: object
-                  type: array
-              type: object
+            ratelimits:
+              description: RateLimits allows configuration of rate limit rules for
+                interfaces.
+              items:
+                description: RateLimit contains the rate limit rule for a interface.
+                properties:
+                  interface:
+                    description: Interface specifies the interface which should be
+                      rate limited
+                    type: string
+                  rate:
+                    description: Rate is the input rate in MiB/s
+                    format: int32
+                    type: integer
+                type: object
+              type: array
           type: object
         status:
           description: FirewallStatus defines the observed state of Firewall
@@ -128,47 +126,8 @@ spec:
                   description: 'RuleStatsByAction contains firewall rule statistics
                     groups by action: e.g. accept, drop, policy, masquerade'
                   type: object
-                trafficcontrol:
-                  additionalProperties:
-                    description: TrafficControlStats contains statistics about traffic
-                      control rules.
-                    properties:
-                      backlog:
-                        format: int64
-                        type: integer
-                      bytes:
-                        format: int64
-                        type: integer
-                      drops:
-                        format: int64
-                        type: integer
-                      overlimits:
-                        format: int64
-                        type: integer
-                      packets:
-                        format: int64
-                        type: integer
-                      qlen:
-                        format: int64
-                        type: integer
-                      requeues:
-                        format: int64
-                        type: integer
-                    required:
-                    - backlog
-                    - bytes
-                    - drops
-                    - overlimits
-                    - packets
-                    - qlen
-                    - requeues
-                    type: object
-                  description: TrafficControlStatsByIface containts statistics about
-                    traffic control rules by interface.
-                  type: object
               required:
               - rules
-              - trafficcontrol
               type: object
           required:
           - stats
