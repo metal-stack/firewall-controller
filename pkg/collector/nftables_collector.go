@@ -7,6 +7,9 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/google/nftables"
+
+	"github.com/google/nftables/expr"
+	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 )
 
 type (
@@ -38,8 +41,8 @@ func NewNFTablesCollector(logger *logr.Logger) nfCollector {
 	}
 }
 
-// Collect metrics from node-exporter
-func (c nfCollector) Collect() (*DeviceStats, error) {
+// Collect nftables counters with netlink
+func (n nfCollector) Collect() (*DeviceStats, error) {
 	stats := DeviceStats{}
 	for device, directions := range countersToCollect {
 		stat := DeviceStat{}
@@ -47,7 +50,7 @@ func (c nfCollector) Collect() (*DeviceStats, error) {
 			countername := device + "_" + direction
 			counter, err := getCounter(countername, tableName)
 			if err != nil {
-				c.logger.Error(err, "unable to gather nftables counter")
+				n.logger.Error(err, "unable to gather nftables counter")
 				continue
 			}
 			stat[countername] = counter.Bytes
@@ -58,17 +61,10 @@ func (c nfCollector) Collect() (*DeviceStats, error) {
 	return &stats, nil
 }
 
-// Counter holds values of a nftables counter object
-type Counter struct {
-	Bytes   uint64
-	Packets uint64
-}
-
 // getCounter queries nftables via netlink and read the a named counter in the given table
 // this is equivalent to the cli call
 // nft list counter ip tablename countername
-func getCounter(countername, tablename string) (*Counter, error) {
-
+func getCounter(countername, tablename string) (*firewallv1.Counter, error) {
 	c := nftables.Conn{}
 	table := &nftables.Table{
 		Family: nftables.TableFamilyIPv4,
@@ -87,5 +83,94 @@ func getCounter(countername, tablename string) (*Counter, error) {
 	if !ok {
 		return nil, fmt.Errorf("unable to read bytes from counter")
 	}
-	return &Counter{Bytes: counter.Bytes, Packets: counter.Packets}, nil
+	return &firewallv1.Counter{Bytes: counter.Bytes, Packets: counter.Packets}, nil
+}
+
+func (n nfCollector) CollectRuleStats() firewallv1.RuleStatsByAction {
+	c := nftables.Conn{}
+	statsByAction := firewallv1.RuleStatsByAction{}
+	chains, _ := c.ListChains()
+	for _, chain := range chains {
+		rules, _ := c.GetRule(chain.Table, chain)
+		for _, r := range rules {
+			ri := extractRuleInfo(r)
+			if ri == nil {
+				continue
+			}
+
+			stats, ok := statsByAction[ri.action]
+			if !ok {
+				stats = firewallv1.RuleStats{}
+			}
+
+			stat, ok := stats[ri.comment]
+			if !ok {
+				stat = firewallv1.RuleStat{
+					Counter: firewallv1.Counter{},
+				}
+			}
+
+			stat.Counter = ri.counter
+			stats[ri.comment] = stat
+			statsByAction[ri.action] = stats
+		}
+	}
+	return statsByAction
+}
+
+type ruleInfo struct {
+	comment string
+	counter firewallv1.Counter
+	action  string
+}
+
+// extractRuleInfo extracts the rule comment, action and counter from a nftables rule object
+func extractRuleInfo(r *nftables.Rule) *ruleInfo {
+	if len(r.UserData) < 3 {
+		return nil
+	}
+
+	comment := string(r.UserData[2:])
+	var counter *expr.Counter
+	var verdict *expr.Verdict
+
+	for _, e := range r.Exprs {
+		if v, ok := e.(*expr.Verdict); ok {
+			verdict = v
+		}
+		if c, ok := e.(*expr.Counter); ok {
+			counter = c
+		}
+	}
+
+	if counter == nil {
+		return nil
+	}
+
+	action := getAction(verdict)
+	if action == "" {
+		return nil
+	}
+
+	return &ruleInfo{
+		comment: comment,
+		counter: firewallv1.Counter{
+			Bytes:   counter.Bytes,
+			Packets: counter.Packets,
+		},
+		action: action,
+	}
+}
+
+// getAction translates a nftables verdict
+func getAction(v *expr.Verdict) string {
+	if v == nil {
+		return ""
+	}
+	if v.Kind == expr.VerdictAccept {
+		return "accept"
+	} else if v.Kind == expr.VerdictDrop {
+		return "drop"
+	}
+	return ""
 }

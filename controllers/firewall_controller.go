@@ -38,6 +38,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	"github.com/metal-stack/firewall-controller/pkg/collector"
 	"github.com/metal-stack/firewall-controller/pkg/nftables"
 	"github.com/metal-stack/firewall-controller/pkg/trafficcontrol"
 	networking "k8s.io/api/networking/v1"
@@ -330,21 +331,14 @@ func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Fire
 			Qlen:       s.Qlen,
 		}
 	}
-	firewallStats := firewallv1.FirewallStats{
+
+	c := collector.NewNFTablesCollector(&r.Log)
+	ruleStats := c.CollectRuleStats()
+
+	f.Status.FirewallStats = firewallv1.FirewallStats{
 		TrafficControlStats: tcStats,
+		RuleStats:           ruleStats,
 	}
-
-	if spec.NftablesExportURL != "" {
-		c := nftables.NewCollector(&log, spec.NftablesExportURL)
-
-		ruleStats, err := c.Collect()
-		if err != nil {
-			return err
-		}
-		firewallStats.RuleStats = ruleStats
-	}
-
-	f.Status.FirewallStats = firewallStats
 	f.Status.Updated.Time = time.Now()
 
 	if err := r.Status().Update(ctx, &f); err != nil {
