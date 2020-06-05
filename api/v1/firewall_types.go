@@ -52,8 +52,6 @@ type FirewallSpec struct {
 	Enabled bool `json:"enabled,omitempty"`
 	// Interval on which rule reconciliation should happen
 	Interval string `json:"interval,omitempty"`
-	// NftablesExportURL specifies the url where the nftables-exporter can be reached to gather nftables metrics
-	NftablesExportURL string `json:"nftablesexporterurl,omitempty"`
 	// DryRun if set to true, firewall rules are not applied
 	DryRun bool `json:"dryrun,omitempty"`
 	// TrafficControl defines where to store the generated ipv4 firewall rules on disk
@@ -86,7 +84,13 @@ type RuleStats map[string]RuleStat
 
 // RuleStat contains the statistics for a single nftables rule
 type RuleStat struct {
-	Counters map[string]int64 `json:"counters"`
+	Counter Counter `json:"counter"`
+}
+
+// Counter holds values of a nftables counter object
+type Counter struct {
+	Bytes   uint64 `json:"bytes"`
+	Packets uint64 `json:"packets"`
 }
 
 // TrafficControl contains the tc settings.

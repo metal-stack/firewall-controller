@@ -69,10 +69,6 @@ spec:
               description: TrafficControl defines where to store the generated ipv4
                 firewall rules on disk
               type: string
-            nftablesexporterurl:
-              description: NftablesExportURL specifies the url where the nftables-exporter
-                can be reached to gather nftables metrics
-              type: string
             trafficcontrol:
               description: TrafficControl allows configuration of traffic shaping
                 in terms of packets or bytes per second
@@ -109,13 +105,22 @@ spec:
                       description: RuleStat contains the statistics for a single nftables
                         rule
                       properties:
-                        counters:
-                          additionalProperties:
-                            format: int64
-                            type: integer
+                        counter:
+                          description: Counter holds values of a nftables counter
+                            object
+                          properties:
+                            bytes:
+                              format: int64
+                              type: integer
+                            packets:
+                              format: int64
+                              type: integer
+                          required:
+                          - bytes
+                          - packets
                           type: object
                       required:
-                      - counters
+                      - counter
                       type: object
                     description: RuleStats contains firewall rule statistics of all
                       rules of an action
