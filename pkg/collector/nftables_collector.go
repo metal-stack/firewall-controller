@@ -42,7 +42,7 @@ func NewNFTablesCollector(logger *logr.Logger) nfCollector {
 }
 
 // Collect nftables counters with netlink
-func (n nfCollector) Collect() (*DeviceStats, error) {
+func (n nfCollector) CollectDeviceStats() ([]firewallv1.DeviceStatistic, error) {
 	stats := DeviceStats{}
 	for device, directions := range countersToCollect {
 		stat := DeviceStat{}
@@ -58,7 +58,27 @@ func (n nfCollector) Collect() (*DeviceStats, error) {
 		stats[device] = stat
 	}
 
-	return &stats, nil
+	deviceStatistics := []firewallv1.DeviceStatistic{}
+	for name, v := range stats {
+		deviceStatistic := firewallv1.DeviceStatistic{
+			DeviceName: name,
+		}
+		in, ok := v["in"]
+		if ok {
+			deviceStatistic.InBytes = in
+		}
+		out, ok := v["out"]
+		if ok {
+			deviceStatistic.OutBytes = out
+		}
+		total, ok := v["total"]
+		if ok {
+			deviceStatistic.TotalBytes = total
+		}
+		deviceStatistics = append(deviceStatistics, deviceStatistic)
+	}
+
+	return deviceStatistics, nil
 }
 
 // getCounter queries nftables via netlink and read the a named counter in the given table

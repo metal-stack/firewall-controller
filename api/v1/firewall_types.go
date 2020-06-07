@@ -65,9 +65,10 @@ type FirewallSpec struct {
 
 // FirewallStatus defines the observed state of Firewall
 type FirewallStatus struct {
-	Message       string        `json:"message,omitempty"`
-	FirewallStats FirewallStats `json:"stats"`
-	Updated       metav1.Time   `json:"lastRun,omitempty"`
+	Message          string           `json:"message,omitempty"`
+	FirewallStats    FirewallStats    `json:"stats"`
+	DeviceStatistics DeviceStatistics `json:"devicestatistics"`
+	Updated          metav1.Time      `json:"lastRun,omitempty"`
 }
 
 // FirewallStats contains firewall statistics
@@ -98,6 +99,19 @@ type RateLimit struct {
 	Interface string `json:"interface,omitempty"`
 	// Rate is the input rate in MiB/s
 	Rate uint32 `json:"rate,omitempty"`
+}
+
+// DeviceStatistics is a list of statistics of all devices
+type DeviceStatistics struct {
+	Items []DeviceStatistic `json:"items"`
+}
+
+// DeviceStatistic contains statistics of a device
+type DeviceStatistic struct {
+	DeviceName string `json:"device"`
+	InBytes    uint64 `json:"in"`
+	OutBytes   uint64 `json:"out"`
+	TotalBytes uint64 `json:"total"`
 }
 
 func init() {
