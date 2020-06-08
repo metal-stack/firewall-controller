@@ -39,8 +39,6 @@ func init() {
 	SchemeBuilder.Register(
 		&NetworkIDS{},
 		&NetworkIDSList{},
-		&NetworkTraffic{},
-		&NetworkTrafficList{},
 		&ClusterwideNetworkPolicy{},
 		&ClusterwideNetworkPolicyList{},
 	)

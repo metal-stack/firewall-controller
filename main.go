@@ -110,16 +110,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// NetworkTraffic Reconciler
-	if err = (&controllers.NetworkTrafficReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("NetworkTraffic"),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "NetworkTraffic")
-		os.Exit(1)
-	}
-
 	// NetworkIDS Reconciler
 	if err = (&controllers.NetworkIDSReconciler{
 		Client: mgr.GetClient(),

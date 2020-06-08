@@ -72,7 +72,8 @@ type FirewallStatus struct {
 
 // FirewallStats contains firewall statistics
 type FirewallStats struct {
-	RuleStats RuleStatsByAction `json:"rules"`
+	RuleStats   RuleStatsByAction   `json:"rules"`
+	DeviceStats DeviceStatsByDevice `json:"devices"`
 }
 
 // RuleStatsByAction contains firewall rule statistics groups by action: e.g. accept, drop, policy, masquerade
@@ -98,6 +99,16 @@ type RateLimit struct {
 	Interface string `json:"interface,omitempty"`
 	// Rate is the input rate in MiB/s
 	Rate uint32 `json:"rate,omitempty"`
+}
+
+// DeviceStatsByDevice contains DeviceStatistics grouped by device name
+type DeviceStatsByDevice map[string]DeviceStat
+
+// DeviceStat contains statistics of a device
+type DeviceStat struct {
+	InBytes    uint64 `json:"in"`
+	OutBytes   uint64 `json:"out"`
+	TotalBytes uint64 `json:"total"`
 }
 
 func init() {

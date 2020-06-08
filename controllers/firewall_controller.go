@@ -262,6 +262,13 @@ func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Fire
 	f.Status.FirewallStats = firewallv1.FirewallStats{
 		RuleStats: ruleStats,
 	}
+	deviceStats, err := c.CollectDeviceStats()
+	if err != nil {
+		return err
+	}
+
+	f.Status.FirewallStats.DeviceStats = deviceStats
+
 	f.Status.Updated.Time = time.Now()
 
 	if err := r.Status().Update(ctx, &f); err != nil {
@@ -290,7 +297,6 @@ func (r *FirewallReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		// don't trigger a reconcilation for status updates
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Watches(&source.Kind{Type: &firewallv1.ClusterwideNetworkPolicy{}}, triggerFirewallReconcilation).
-		Watches(&source.Kind{Type: &firewallv1.NetworkTraffic{}}, triggerFirewallReconcilation).
 		Watches(&source.Kind{Type: &networking.NetworkPolicy{}}, triggerFirewallReconcilation).
 		Watches(&source.Kind{Type: &corev1.Service{}}, triggerFirewallReconcilation).
 		Complete(r)
