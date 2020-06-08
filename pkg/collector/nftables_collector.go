@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"bytes"
 	"fmt"
 
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -130,7 +131,7 @@ func extractRuleInfo(r *nftables.Rule) *ruleInfo {
 		return nil
 	}
 
-	comment := string(r.UserData[2:])
+	comment := string(bytes.Trim(r.UserData[2:], "\x00"))
 	var counter *expr.Counter
 	var verdict *expr.Verdict
 
