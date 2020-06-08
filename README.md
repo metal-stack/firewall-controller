@@ -38,7 +38,7 @@ cat hosts
 
 ## Suricata
 
-By default only basic statistics are reported via the firewall crd, but id ids is enabled all events can be forwarded to a specified destination.
+By default only basic statistics are reported via the firewall crd, but if ids is enabled all events can be forwarded to a specified destination.
 
 - The basic statistics a gathered via the unix-command socket of suricata and the `iface-stat <vrf10409>` command sent to the controlling socket.
   There is a go library available to make calls to the unix-command socket of suricata: [go-suricata](https://github.com/ks2211/go-suricata)
