@@ -39,6 +39,7 @@ import (
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/pkg/collector"
 	"github.com/metal-stack/firewall-controller/pkg/nftables"
+	"github.com/metal-stack/firewall-controller/pkg/suricata"
 	networking "k8s.io/api/networking/v1"
 )
 
@@ -266,8 +267,22 @@ func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Fire
 	if err != nil {
 		return err
 	}
-
 	f.Status.FirewallStats.DeviceStats = deviceStats
+
+	s := suricata.New()
+	ss, err := s.InterfaceStats()
+	if err != nil {
+		return err
+	}
+	idsStats := firewallv1.IDSStatsByDevice{}
+	for iface, stat := range *ss {
+		idsStats[iface] = firewallv1.InterfaceStat{
+			Drop:             stat.Drop,
+			InvalidChecksums: stat.InvalidChecksums,
+			Packets:          stat.Pkts,
+		}
+	}
+	f.Status.FirewallStats.IDSStats = idsStats
 
 	f.Status.Updated.Time = time.Now()
 

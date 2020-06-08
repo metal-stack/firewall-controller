@@ -45,30 +45,13 @@ spec:
           properties:
             enabled:
               type: boolean
-            interval:
-              type: string
-            statslog:
-              type: string
           type: object
         status:
           description: NetworkIDSStatus defines the observed state of Network
           properties:
-            IDSstatistics:
-              description: IDSStatistic contains ids statistics
-              properties:
-                stats:
-                  additionalProperties:
-                    format: int64
-                    type: integer
-                  type: object
-              required:
-              - stats
-              type: object
             lastRun:
               format: date-time
               type: string
-          required:
-          - IDSstatistics
           type: object
       type: object
   version: v1

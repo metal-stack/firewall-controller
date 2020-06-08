@@ -74,6 +74,7 @@ type FirewallStatus struct {
 type FirewallStats struct {
 	RuleStats   RuleStatsByAction   `json:"rules"`
 	DeviceStats DeviceStatsByDevice `json:"devices"`
+	IDSStats    IDSStatsByDevice    `json:"idsstats"`
 }
 
 // RuleStatsByAction contains firewall rule statistics groups by action: e.g. accept, drop, policy, masquerade
@@ -109,6 +110,14 @@ type DeviceStat struct {
 	InBytes    uint64 `json:"in"`
 	OutBytes   uint64 `json:"out"`
 	TotalBytes uint64 `json:"total"`
+}
+
+type IDSStatsByDevice map[string]InterfaceStat
+
+type InterfaceStat struct {
+	Drop             int `json:"drop"`
+	InvalidChecksums int `json:"invalidchecksums"`
+	Packets          int `json:"packets"`
 }
 
 func init() {

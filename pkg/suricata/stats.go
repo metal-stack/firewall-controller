@@ -1,53 +1,51 @@
 package suricata
 
 import (
-	"bufio"
-	"io/ioutil"
-	"strconv"
-	"strings"
+	"github.com/ks2211/go-suricata/client"
 )
 
+// defaultSocket to communicate with suricata
+const defaultSocket = "/var/run/suricata/suricata-command.socket"
+
 type Suricata struct {
-	stats string
+	socket string
 }
 
-type Stats map[string]int64
+type InterfaceStats map[string]InterFaceStat
 
-func New(stats string) Suricata {
-	return Suricata{stats: stats}
+type InterFaceStat struct {
+	Drop             int
+	InvalidChecksums int
+	Pkts             int
 }
 
-func (s *Suricata) Stats() (Stats, error) {
-	content, err := ioutil.ReadFile(s.stats)
+func New() Suricata {
+	return Suricata{socket: defaultSocket}
+}
+
+func (s *Suricata) InterfaceStats() (*InterfaceStats, error) {
+	suricata, err := client.CreateSocket(s.socket)
 	if err != nil {
 		return nil, err
 	}
-	return parseStats(string(content)), nil
-}
+	defer suricata.Close()
 
-func parseStats(stats string) Stats {
-	result := Stats{}
-	scanner := bufio.NewScanner(strings.NewReader(stats))
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.HasPrefix(line, "-") {
-			continue
-		}
-		parts := strings.Split(line, "|")
-		if len(parts) != 3 {
-			continue
-		}
-		// Counter                                       | TM Name                   | Value
-		// ------------------------------------------------------------------------------------
-		// capture.kernel_packets                        | Total                     | 2
-		if strings.TrimSpace(parts[1]) != "Total" {
-			continue
-		}
-		value, err := strconv.ParseInt(strings.TrimSpace(parts[2]), 10, 64)
-		if err != nil {
-			continue
-		}
-		result[strings.TrimSpace(parts[0])] = value
+	ifaces, err := suricata.IFaceListCommand()
+	if err != nil {
+		return nil, err
 	}
-	return result
+	result := InterfaceStats{}
+	for _, iface := range ifaces.Ifaces {
+		stat, err := suricata.IFaceStatCommand(client.IFaceStatRequest{IFace: iface})
+		if err != nil {
+			return nil, err
+		}
+		result[iface] = InterFaceStat{
+			Drop:             stat.Drop,
+			InvalidChecksums: stat.InvalidChecksums,
+			Pkts:             stat.Pkts,
+		}
+	}
+
+	return &result, nil
 }
