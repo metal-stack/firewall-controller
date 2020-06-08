@@ -65,15 +65,15 @@ type FirewallSpec struct {
 
 // FirewallStatus defines the observed state of Firewall
 type FirewallStatus struct {
-	Message          string           `json:"message,omitempty"`
-	FirewallStats    FirewallStats    `json:"stats"`
-	DeviceStatistics DeviceStatistics `json:"devicestatistics"`
-	Updated          metav1.Time      `json:"lastRun,omitempty"`
+	Message       string        `json:"message,omitempty"`
+	FirewallStats FirewallStats `json:"stats"`
+	Updated       metav1.Time   `json:"lastRun,omitempty"`
 }
 
 // FirewallStats contains firewall statistics
 type FirewallStats struct {
-	RuleStats RuleStatsByAction `json:"rules"`
+	RuleStats   RuleStatsByAction   `json:"rules"`
+	DeviceStats DeviceStatsByDevice `json:"devices"`
 }
 
 // RuleStatsByAction contains firewall rule statistics groups by action: e.g. accept, drop, policy, masquerade
@@ -101,14 +101,11 @@ type RateLimit struct {
 	Rate uint32 `json:"rate,omitempty"`
 }
 
-// DeviceStatistics is a list of statistics of all devices
-type DeviceStatistics struct {
-	Items []DeviceStatistic `json:"items"`
-}
+// DeviceStatsByDevice contains DeviceStatistics grouped by device name
+type DeviceStatsByDevice map[string]DeviceStat
 
-// DeviceStatistic contains statistics of a device
-type DeviceStatistic struct {
-	DeviceName string `json:"device"`
+// DeviceStat contains statistics of a device
+type DeviceStat struct {
 	InBytes    uint64 `json:"in"`
 	OutBytes   uint64 `json:"out"`
 	TotalBytes uint64 `json:"total"`

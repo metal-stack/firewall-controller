@@ -267,7 +267,7 @@ func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Fire
 		return err
 	}
 
-	f.Status.DeviceStatistics.Items = deviceStats
+	f.Status.FirewallStats.DeviceStats = deviceStats
 
 	f.Status.Updated.Time = time.Now()
 
