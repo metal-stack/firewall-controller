@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -73,7 +74,7 @@ func (r *DroptailerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 	var droptailerSecret corev1.Secret
 	secretFound := false
 	for _, s := range secrets.Items {
-		if s.ObjectMeta.Name == secretName {
+		if s.Name == secretName {
 			droptailerSecret = s
 			secretFound = true
 			break
@@ -90,9 +91,20 @@ func (r *DroptailerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 		return requeue, err
 	}
 
-	var droptailerPod corev1.Pod
-	if err := r.Get(ctx, req.NamespacedName, &droptailerPod); err != nil {
-		return ctrl.Result{}, fmt.Errorf("droptailer-secret not found")
+	var pods corev1.PodList
+	if err := r.List(ctx, &pods, &client.ListOptions{Namespace: namespace}); err != nil {
+		return ctrl.Result{}, fmt.Errorf("no pod running in namespace %v", namespace)
+	}
+
+	var droptailerPod *corev1.Pod
+	for _, p := range pods.Items {
+		if strings.HasPrefix(p.Name, "droptailer") && p.Status.Phase == corev1.PodRunning {
+			droptailerPod = &p
+			break
+		}
+	}
+	if droptailerPod == nil {
+		return ctrl.Result{}, fmt.Errorf("droptailer server pod not found")
 	}
 
 	podIP := droptailerPod.Status.PodIP
@@ -137,6 +149,7 @@ func (r *DroptailerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		ReadFilePath:  r.HostsFile,
 		WriteFilePath: r.HostsFile,
 	}
+
 	_, err := os.Stat(r.HostsFile)
 	if os.IsNotExist(err) {
 		empty, err := os.Create(r.HostsFile)
@@ -144,15 +157,16 @@ func (r *DroptailerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			return err
 		}
 		empty.Close()
-	} else {
-		return err
 	}
+
 	hosts, err := txeh.NewHosts(hc)
 	if err != nil {
 		return fmt.Errorf("unable to create hosts editor:%w", err)
 	}
+
 	r.hosts = hosts
 	certificateBase := os.Getenv("DROPTAILER_CLIENT_CERTIFICATE_BASE")
+
 	if certificateBase == "" {
 		r.certificateBase = certificateBase
 	}
