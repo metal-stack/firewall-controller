@@ -22,20 +22,12 @@ import (
 
 // NetworkIDSSpec defines the desired state of Network
 type NetworkIDSSpec struct {
-	Enabled  bool   `json:"enabled,omitempty"`
-	Interval string `json:"interval,omitempty"`
-	StatsLog string `json:"statslog,omitempty"`
+	Enabled bool `json:"enabled,omitempty"`
 }
 
 // NetworkIDSStatus defines the observed state of Network
 type NetworkIDSStatus struct {
-	IDSStatistic IDSStatistic `json:"IDSstatistics"`
-	Updated      metav1.Time  `json:"lastRun,omitempty"`
-}
-
-// IDSStatistic contains ids statistics
-type IDSStatistic struct {
-	Items map[string]int64 `json:"stats"`
+	Updated metav1.Time `json:"lastRun,omitempty"`
 }
 
 // NetworkIDS is the Schema for the networks API

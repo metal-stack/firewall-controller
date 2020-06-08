@@ -118,6 +118,21 @@ spec:
                   description: DeviceStatsByDevice contains DeviceStatistics grouped
                     by device name
                   type: object
+                idsstats:
+                  additionalProperties:
+                    properties:
+                      drop:
+                        type: integer
+                      invalidchecksums:
+                        type: integer
+                      packets:
+                        type: integer
+                    required:
+                    - drop
+                    - invalidchecksums
+                    - packets
+                    type: object
+                  type: object
                 rules:
                   additionalProperties:
                     additionalProperties:
@@ -149,6 +164,7 @@ spec:
                   type: object
               required:
               - devices
+              - idsstats
               - rules
               type: object
           required:

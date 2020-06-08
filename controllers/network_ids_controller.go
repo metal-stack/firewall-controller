@@ -27,7 +27,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
-	"github.com/metal-stack/firewall-controller/pkg/suricata"
 )
 
 // NetworkIDSReconciler reconciles a NetworkIDS object
@@ -58,10 +57,6 @@ func (r *NetworkIDSReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 	}
 
 	spec := ids.Spec
-	i, err := time.ParseDuration(spec.Interval)
-	if err != nil {
-		interval = i
-	}
 	requeue := ctrl.Result{
 		RequeueAfter: interval,
 	}
@@ -72,12 +67,9 @@ func (r *NetworkIDSReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 	}
 
 	log.Info("reconcile NetworkIDS")
-	s := suricata.New(spec.StatsLog)
-	ss, err := s.Stats()
-	if err != nil {
-		return requeue, err
-	}
-	ids.Status.IDSStatistic.Items = ss
+
+	// FIXME if enabled configure to forward to a user specified Target
+
 	ids.Status.Updated.Time = time.Now()
 	if err := r.Status().Update(ctx, &ids); err != nil {
 		log.Error(err, "unable to update NetworkIDS")

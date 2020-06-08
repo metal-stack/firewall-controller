@@ -4,5 +4,3 @@ metadata:
   name: cluster-networkids
 spec:
   enabled: true
-  interval: 10s
-  statslog: stats.log
