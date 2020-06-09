@@ -71,19 +71,21 @@ func egressForNetworkPolicy(np firewallv1.ClusterwideNetworkPolicy) []string {
 			allow = append(allow, ipBlock.CIDR)
 			except = append(except, ipBlock.Except...)
 		}
-		common := []string{}
+		ruleBase := []string{"ip saddr == @cluster_prefixes"}
 		if len(except) > 0 {
-			common = append(common, fmt.Sprintf("ip daddr != { %s }", strings.Join(except, ", ")))
+			ruleBase = append(ruleBase, fmt.Sprintf("ip daddr != { %s }", strings.Join(except, ", ")))
 		}
 		if len(allow) > 0 {
-			common = append(common, fmt.Sprintf("ip daddr { %s }", strings.Join(allow, ", ")))
+			if allow[0] != "0.0.0.0/0" {
+				ruleBase = append(ruleBase, fmt.Sprintf("ip daddr { %s }", strings.Join(allow, ", ")))
+			}
 		}
 		comment := fmt.Sprintf("accept traffic for np %s", np.ObjectMeta.Name)
 		if len(tcpPorts) > 0 {
-			rules = append(rules, assembleDestinationPortRule(common, "tcp", tcpPorts, comment+" tcp"))
+			rules = append(rules, assembleDestinationPortRule(ruleBase, "tcp", tcpPorts, comment+" tcp"))
 		}
 		if len(udpPorts) > 0 {
-			rules = append(rules, assembleDestinationPortRule(common, "udp", udpPorts, comment+" udp"))
+			rules = append(rules, assembleDestinationPortRule(ruleBase, "udp", udpPorts, comment+" udp"))
 		}
 	}
 	return rules

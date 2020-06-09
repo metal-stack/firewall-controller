@@ -12,7 +12,8 @@ func ingressForService(svc corev1.Service) []string {
 		return nil
 	}
 
-	from := []string{svc.Spec.LoadBalancerSourceRanges}
+	from := []string{}
+	from = append(from, svc.Spec.LoadBalancerSourceRanges...)
 	to := []string{}
 	if svc.Spec.Type == corev1.ServiceTypeLoadBalancer {
 		if svc.Spec.LoadBalancerIP != "" {
@@ -24,7 +25,7 @@ func ingressForService(svc corev1.Service) []string {
 	}
 
 	// avoid empty rules
-	if len(from) == 0 and len(to) == 0 {
+	if len(from) == 0 && len(to) == 0 {
 		return nil
 	}
 
