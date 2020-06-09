@@ -11,23 +11,32 @@ func ingressForService(svc corev1.Service) []string {
 	if svc.Spec.Type != corev1.ServiceTypeLoadBalancer && svc.Spec.Type != corev1.ServiceTypeNodePort {
 		return nil
 	}
-	allow := []string{}
-	if len(svc.Spec.LoadBalancerSourceRanges) == 0 {
-		allow = append(allow, "0.0.0.0/0")
+
+	from := []string{svc.Spec.LoadBalancerSourceRanges}
+	to := []string{}
+	if svc.Spec.Type == corev1.ServiceTypeLoadBalancer {
+		if svc.Spec.LoadBalancerIP != "" {
+			to = append(to, svc.Spec.LoadBalancerIP)
+		}
+		for _, e := range svc.Status.LoadBalancer.Ingress {
+			to = append(to, e.IP)
+		}
 	}
-	allow = append(allow, svc.Spec.LoadBalancerSourceRanges...)
-	common := []string{}
-	if len(allow) > 0 {
-		common = append(common, fmt.Sprintf("ip saddr { %s }", strings.Join(allow, ", ")))
+
+	// avoid empty rules
+	if len(from) == 0 and len(to) == 0 {
+		return nil
 	}
-	ips := []string{}
-	if svc.Spec.LoadBalancerIP != "" {
-		ips = append(ips, svc.Spec.LoadBalancerIP)
+
+	ruleBase := []string{}
+	if len(from) > 0 {
+		ruleBase = append(ruleBase, fmt.Sprintf("ip saddr { %s }", strings.Join(from, ", ")))
 	}
-	for _, e := range svc.Status.LoadBalancer.Ingress {
-		ips = append(ips, e.IP)
+
+	if len(to) > 0 {
+		ruleBase = append(ruleBase, fmt.Sprintf("ip daddr { %s }", strings.Join(to, ", ")))
 	}
-	common = append(common, fmt.Sprintf("ip daddr { %s }", strings.Join(ips, ", ")))
+
 	tcpPorts := []string{}
 	udpPorts := []string{}
 	for _, p := range svc.Spec.Ports {
@@ -41,10 +50,10 @@ func ingressForService(svc corev1.Service) []string {
 	comment := fmt.Sprintf("accept traffic for k8s service %s/%s", svc.ObjectMeta.Namespace, svc.ObjectMeta.Name)
 	rules := []string{}
 	if len(tcpPorts) > 0 {
-		rules = append(rules, assembleDestinationPortRule(common, "tcp", tcpPorts, comment))
+		rules = append(rules, assembleDestinationPortRule(ruleBase, "tcp", tcpPorts, comment))
 	}
 	if len(udpPorts) > 0 {
-		rules = append(rules, assembleDestinationPortRule(common, "udp", udpPorts, comment))
+		rules = append(rules, assembleDestinationPortRule(ruleBase, "udp", udpPorts, comment))
 	}
 	return rules
 }

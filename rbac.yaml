@@ -1,41 +1,8 @@
 ---
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  labels:
-    app: firewall-controller
-  name: firewall-controller
-  namespace: firewall-controller
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: firewall-controller
-  template:
-    metadata:
-      labels:
-        app: firewall-controller
-    spec:
-      containers:
-      - image: metal-stack.io/firewall-controller
-        imagePullPolicy: IfNotPresent
-        name: firewall-controller
-        resources:
-            requests:
-              cpu: 100m
-              memory: 50m
-            limits:
-              cpu: 200m
-              memory: 1G
-        securityContext:
-          capabilities:
-            add: 
-            - "NET_ADMIN"
----
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: firewall-controller
+  name: system:firewall-policy-controller
 rules:
 - apiGroups:
   - ""
@@ -88,11 +55,11 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: firewall-controller
+  name: firewall-policy-controller
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: firewall-controller
+  name: firewall-policy-controller
 subjects:
 - kind: User
-  name: system:serviceaccount:firewall-controller:default
+  name: system:serviceaccount:firewall-policy-controller:default
