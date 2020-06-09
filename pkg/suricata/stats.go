@@ -5,7 +5,7 @@ import (
 )
 
 // defaultSocket to communicate with suricata
-const defaultSocket = "/var/suricata-command.socket"
+const defaultSocket = "/run/suricata-command.socket"
 
 type Suricata struct {
 	socket string
