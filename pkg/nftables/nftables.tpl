@@ -4,7 +4,9 @@ table ip firewall {
 		type ipv4_addr
 		flags interval
 		auto-merge
+		{{ if gt (len .InternalPrefixes) 0 }}
 		elements = { {{ .InternalPrefixes }} }
+		{{ end }}
 	}
 	# Prefixes in the cluster, typically 10.x.x.x
 	# FIXME Should be filled with nodeCidr

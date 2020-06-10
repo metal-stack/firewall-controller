@@ -52,11 +52,16 @@ func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.Serv
 	if err != nil {
 		panic(err)
 	}
+
+	ipv4File := "/etc/nftables/firewall-controller.v4"
+	if spec.Ipv4RuleFile != "" {
+		ipv4File = spec.Ipv4RuleFile
+	}
 	return &Firewall{
 		Egress:           uniqueSorted(egress),
 		Ingress:          uniqueSorted(ingress),
 		RateLimits:       spec.RateLimits,
-		Ipv4RuleFile:     spec.Ipv4RuleFile,
+		Ipv4RuleFile:     ipv4File,
 		DryRun:           spec.DryRun,
 		statikFS:         statikFS,
 		InternalPrefixes: strings.Join(spec.InternalPrefixes, ", "),
