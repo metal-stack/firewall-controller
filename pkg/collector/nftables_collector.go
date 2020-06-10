@@ -22,7 +22,6 @@ type (
 
 var (
 	countersToCollect = map[string][]string{
-		"drop":     {"total"},
 		"internal": {"total"},
 		"external": {"in", "out"},
 	}
