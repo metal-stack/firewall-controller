@@ -4,7 +4,6 @@ metadata:
   namespace: firewall
   name: firewall
 spec:
-  enabled: true
   interval: 10s
   dryrun: true
   ipv4rulefile: nftables.v4
