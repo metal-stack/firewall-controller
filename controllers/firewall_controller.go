@@ -36,6 +36,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/hashicorp/go-multierror"
+
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/pkg/collector"
 	"github.com/metal-stack/firewall-controller/pkg/nftables"
@@ -91,22 +93,26 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		RequeueAfter: interval,
 	}
 
+	var errors *multierror.Error
 	log.Info("migrating old global network policies to kind ClusterwideNetworkPolicy")
 	if err = r.migrateToClusterwideNetworkPolicy(ctx, f, log); err != nil {
-		return requeue, err
+		errors = multierror.Append(errors, err)
 	}
 
 	log.Info("reconciling nftables rules")
 	if err = r.reconcileRules(ctx, f, log); err != nil {
-		return requeue, err
+		errors = multierror.Append(errors, err)
 	}
 
 	log.Info("updating status field")
 	if err = r.updateStatus(ctx, f, log); err != nil {
-		return requeue, err
+		errors = multierror.Append(errors, err)
 	}
 	r.recorder.Event(&f, "Normal", "Reconciled", "nftables rules and statistics")
 
+	if errors.ErrorOrNil() != nil {
+		return requeue, errors
+	}
 	log.Info("reconciled firewall")
 	return requeue, nil
 }
