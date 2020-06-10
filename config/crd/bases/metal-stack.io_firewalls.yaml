@@ -52,9 +52,6 @@ spec:
             dryrun:
               description: DryRun if set to true, firewall rules are not applied
               type: boolean
-            enabled:
-              description: Enabled if set to false, firewall generation is disabled
-              type: boolean
             internalprefixes:
               description: InternalPrefixes specify prefixes which are considered
                 local to the partition or all regions. Traffic to/from these prefixes
