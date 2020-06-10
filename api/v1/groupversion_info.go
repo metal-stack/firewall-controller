@@ -37,8 +37,6 @@ var (
 
 func init() {
 	SchemeBuilder.Register(
-		&NetworkIDS{},
-		&NetworkIDSList{},
 		&ClusterwideNetworkPolicy{},
 		&ClusterwideNetworkPolicyList{},
 	)

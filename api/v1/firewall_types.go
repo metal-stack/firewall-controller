@@ -48,8 +48,6 @@ type FirewallList struct {
 
 // FirewallSpec defines the desired state of Firewall
 type FirewallSpec struct {
-	// Enabled if set to false, firewall generation is disabled
-	Enabled bool `json:"enabled,omitempty"`
 	// Interval on which rule reconciliation should happen
 	Interval string `json:"interval,omitempty"`
 	// DryRun if set to true, firewall rules are not applied

@@ -90,10 +90,6 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	requeue := ctrl.Result{
 		RequeueAfter: interval,
 	}
-	if !f.Spec.Enabled {
-		log.Info("reconciling firewall is disabled")
-		return requeue, nil
-	}
 
 	log.Info("migrating old global network policies to kind ClusterwideNetworkPolicy")
 	if err = r.migrateToClusterwideNetworkPolicy(ctx, f, log); err != nil {

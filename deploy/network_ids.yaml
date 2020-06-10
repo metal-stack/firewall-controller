@@ -1,6 +1,0 @@
-apiVersion: metal-stack.io/v1
-kind: NetworkIDS
-metadata:
-  name: cluster-networkids
-spec:
-  enabled: true
