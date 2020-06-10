@@ -9,15 +9,9 @@ metadata:
   name: firewalls.metal-stack.io
 spec:
   additionalPrinterColumns:
-  - JSONPath: .spec.enabled
-    name: Enabled
-    type: boolean
   - JSONPath: .spec.interval
     name: Interval
     type: string
-  - JSONPath: .spec.dryrun
-    name: DryRun
-    type: boolean
   - JSONPath: .spec.internalprefixes
     name: InternalPrefixes
     type: string
