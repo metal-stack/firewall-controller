@@ -99,7 +99,11 @@ func getCounter(countername, tablename string) (*firewallv1.Counter, error) {
 
 func (n nfCollector) CollectRuleStats() firewallv1.RuleStatsByAction {
 	c := nftables.Conn{}
-	statsByAction := firewallv1.RuleStatsByAction{}
+	statsByAction := firewallv1.RuleStatsByAction{
+		"accept": firewallv1.RuleStats{},
+		"drop":   firewallv1.RuleStats{},
+		"other":  firewallv1.RuleStats{},
+	}
 	chains, _ := c.ListChains()
 	for _, chain := range chains {
 		rules, _ := c.GetRule(chain.Table, chain)
@@ -109,11 +113,7 @@ func (n nfCollector) CollectRuleStats() firewallv1.RuleStatsByAction {
 				continue
 			}
 
-			stats, ok := statsByAction[ri.action]
-			if !ok {
-				stats = firewallv1.RuleStats{}
-			}
-
+			stats, _ := statsByAction[ri.action]
 			stat, ok := stats[ri.comment]
 			if !ok {
 				stat = firewallv1.RuleStat{
@@ -126,6 +126,7 @@ func (n nfCollector) CollectRuleStats() firewallv1.RuleStatsByAction {
 			statsByAction[ri.action] = stats
 		}
 	}
+
 	return statsByAction
 }
 
@@ -176,12 +177,12 @@ func extractRuleInfo(r *nftables.Rule) *ruleInfo {
 // getAction translates a nftables verdict
 func getAction(v *expr.Verdict) string {
 	if v == nil {
-		return ""
+		return "other"
 	}
 	if v.Kind == expr.VerdictAccept {
 		return "accept"
 	} else if v.Kind == expr.VerdictDrop {
 		return "drop"
 	}
-	return ""
+	return "other"
 }
