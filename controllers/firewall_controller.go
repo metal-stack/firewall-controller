@@ -61,9 +61,6 @@ const (
 	firewallNamespace         = "firewall"
 	firewallName              = "firewall"
 
-	firewallExporterService   = "firewall-exporter"
-	firewallExporterNamedPort = "fwexporter"
-	firewallExporterPort      = 9000
 	nftablesExporterService   = "node-exporter"
 	nftablesExporterNamedPort = "nodeexporter"
 	nftablesExporterPort      = 9100
@@ -286,11 +283,6 @@ type firewallService struct {
 // reconcileFirewallServices reconciles the services and endpoints exposed by the firewall
 func (r *FirewallReconciler) reconcileFirewallServices(ctx context.Context, log logr.Logger) error {
 	services := []firewallService{
-		{
-			name:      firewallExporterService,
-			port:      firewallExporterPort,
-			namedPort: firewallExporterNamedPort,
-		},
 		{
 			name:      nodeExporterService,
 			port:      nodeExporterPort,
