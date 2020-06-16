@@ -66,10 +66,10 @@ const (
 	firewallExporterPort      = 9000
 	nftablesExporterService   = "node-exporter"
 	nftablesExporterNamedPort = "nodeexporter"
-	nftablesExporterPort      = 9001
+	nftablesExporterPort      = 9100
 	nodeExporterService       = "nftables-exporter"
 	nodeExporterNamedPort     = "nftexporter"
-	nodeExporterPort          = 9002
+	nodeExporterPort          = 9630
 )
 
 // Reconcile reconciles a firewall by:
