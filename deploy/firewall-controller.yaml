@@ -1,4 +1,9 @@
 ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: firewall-controller
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -53,8 +58,11 @@ rules:
   verbs: ["*"]
 - apiGroups:
   - apiextensions.k8s.io
+  - ""
   resources:
   - customresourcedefinitions
+  - services
+  - endpoints
   verbs:
   - get
   - create

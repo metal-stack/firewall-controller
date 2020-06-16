@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -28,6 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -48,15 +50,22 @@ import (
 // FirewallReconciler reconciles a Firewall object
 type FirewallReconciler struct {
 	client.Client
-	Log      logr.Logger
-	Scheme   *runtime.Scheme
-	recorder record.EventRecorder
+	recorder  record.EventRecorder
+	Log       logr.Logger
+	Scheme    *runtime.Scheme
+	ServiceIP string
 }
 
 const (
 	firewallReconcileInterval = time.Second * 10
 	firewallNamespace         = "firewall"
 	firewallName              = "firewall"
+	firewallExporterService   = "firewall-exporter"
+	firewallExporterNamedPort = "fwexporter"
+	firewallExporterPort      = 9000
+	nftablesExporterService   = "nftables-exporter"
+	nftablesExporterNamedPort = "nftexporter"
+	nftablesExporterPort      = 9630
 )
 
 // Reconcile reconciles a firewall by:
@@ -104,15 +113,22 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		errors = multierror.Append(errors, err)
 	}
 
+	log.Info("reconciling firewall services")
+	if err = r.reconcileFirewallServices(ctx, log); err != nil {
+		errors = multierror.Append(errors, err)
+	}
+
 	log.Info("updating status field")
 	if err = r.updateStatus(ctx, f, log); err != nil {
 		errors = multierror.Append(errors, err)
 	}
-	r.recorder.Event(&f, "Normal", "Reconciled", "nftables rules and statistics")
 
 	if errors.ErrorOrNil() != nil {
+		r.recorder.Event(&f, "Warning", "Error", multierror.Flatten(errors).Error())
 		return requeue, errors
 	}
+
+	r.recorder.Event(&f, "Normal", "Reconciled", "nftables rules and statistics successfully")
 	log.Info("reconciled firewall")
 	return requeue, nil
 }
@@ -252,6 +268,124 @@ func (r *FirewallReconciler) reconcileRules(ctx context.Context, f firewallv1.Fi
 
 	if err := nftablesFirewall.Reconcile(); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+type firewallService struct {
+	name      string
+	port      int32
+	namedPort string
+}
+
+// reconcileFirewallServices reconciles the services and endpoints exposed by the firewall
+func (r *FirewallReconciler) reconcileFirewallServices(ctx context.Context, log logr.Logger) error {
+	services := []firewallService{
+		{
+			name:      firewallExporterService,
+			port:      firewallExporterPort,
+			namedPort: firewallExporterNamedPort,
+		},
+		{
+			name:      nftablesExporterService,
+			port:      nftablesExporterPort,
+			namedPort: nftablesExporterNamedPort,
+		},
+	}
+
+	var errors *multierror.Error
+	for _, s := range services {
+		err := r.reconcileFirewallService(ctx, s, log)
+		if err != nil {
+			errors = multierror.Append(errors, err)
+		}
+	}
+	return errors
+}
+
+// reconcileFirewallService reconciles a single service that is to be exposed at the firewall.
+func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s firewallService, log logr.Logger) error {
+	nn := types.NamespacedName{Name: s.name, Namespace: firewallNamespace}
+	meta := metav1.ObjectMeta{
+		Name:      s.name,
+		Namespace: firewallNamespace,
+	}
+
+	var currentSvc v1.Service
+	err := r.Get(ctx, nn, &currentSvc)
+
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	svc := v1.Service{
+		ObjectMeta: meta,
+		Spec: corev1.ServiceSpec{
+			Type:      corev1.ServiceTypeClusterIP,
+			ClusterIP: "None", // needed for headless services!
+			Ports: []corev1.ServicePort{
+				{
+					Protocol:   corev1.ProtocolTCP,
+					Port:       s.port,
+					TargetPort: intstr.FromString(s.namedPort),
+				},
+			},
+		},
+	}
+
+	if errors.IsNotFound(err) {
+		err = r.Create(ctx, &svc)
+		if err != nil {
+			return err
+		}
+	}
+
+	if !reflect.DeepEqual(currentSvc.Spec, svc.Spec) {
+		currentSvc.Spec = svc.Spec
+		err = r.Update(ctx, &currentSvc)
+		if err != nil {
+			return err
+		}
+	}
+
+	endpoints := v1.Endpoints{
+		ObjectMeta: meta,
+		Subsets: []v1.EndpointSubset{
+			{
+				Addresses: []corev1.EndpointAddress{
+					{
+						IP: r.ServiceIP,
+					},
+				},
+				Ports: []v1.EndpointPort{
+					{
+						Name:     s.namedPort,
+						Port:     s.port,
+						Protocol: corev1.ProtocolTCP,
+					},
+				},
+			},
+		},
+	}
+
+	var currentEndpoints v1.Endpoints
+	err = r.Get(ctx, nn, &currentEndpoints)
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	if errors.IsNotFound(err) {
+		err = r.Create(ctx, &endpoints)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if !reflect.DeepEqual(currentEndpoints.Subsets, endpoints.Subsets) {
+		currentEndpoints.Subsets = endpoints.Subsets
+		return r.Update(ctx, &currentEndpoints)
 	}
 
 	return nil
