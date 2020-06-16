@@ -60,12 +60,16 @@ const (
 	firewallReconcileInterval = time.Second * 10
 	firewallNamespace         = "firewall"
 	firewallName              = "firewall"
+
 	firewallExporterService   = "firewall-exporter"
 	firewallExporterNamedPort = "fwexporter"
 	firewallExporterPort      = 9000
-	nftablesExporterService   = "nftables-exporter"
-	nftablesExporterNamedPort = "nftexporter"
-	nftablesExporterPort      = 9630
+	nftablesExporterService   = "node-exporter"
+	nftablesExporterNamedPort = "nodeexporter"
+	nftablesExporterPort      = 9001
+	nodeExporterService       = "nftables-exporter"
+	nodeExporterNamedPort     = "nftexporter"
+	nodeExporterPort          = 9002
 )
 
 // Reconcile reconciles a firewall by:
@@ -286,6 +290,11 @@ func (r *FirewallReconciler) reconcileFirewallServices(ctx context.Context, log 
 			name:      firewallExporterService,
 			port:      firewallExporterPort,
 			namedPort: firewallExporterNamedPort,
+		},
+		{
+			name:      nodeExporterService,
+			port:      nodeExporterPort,
+			namedPort: nodeExporterNamedPort,
 		},
 		{
 			name:      nftablesExporterService,
