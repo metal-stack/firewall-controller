@@ -24,7 +24,7 @@ table ip firewall {
 		ip daddr != @internal_prefixes counter name external_out
 
 		# network traffic accounting for internal traffic
-		ip saddr == @internal_prefixes ip daddr == internal_prefixes counter name internal_total
+		ip saddr == @internal_prefixes ip daddr == @internal_prefixes counter name internal_total
 
 		# rate limits
 		{{- range .RateLimits }}
