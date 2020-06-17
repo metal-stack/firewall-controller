@@ -12,7 +12,7 @@ Additional an IDS is managed on the firewall to detect known network anomalies. 
 ## Configuration
 
 Firewall Controller is configured with 2 CRDs: `firewalls.metal-stack.io` and `clusterwidenetworkpolicies.metal-stack.io`. Both are namespaced and must reside in the `firewall` namespace.
-The `firewalls` CRD is typically written from the gardener-extensio-provider-metal, the `clusterwidenetworkpolicy` should be provided by the deployment of your application.
+The `firewalls` CRD is typically written from the [gardener-extension-provider-metal](https://github.com/metal-stack/gardener-extension-provider-metal), the `clusterwidenetworkpolicy` should be provided by the deployment of your application.
 
 Example Firewall CRD:
 
