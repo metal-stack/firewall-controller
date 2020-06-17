@@ -8,6 +8,7 @@ table ip firewall {
 		elements = { {{ .InternalPrefixes }} }
 		{{ end }}
 	}
+
 	# Prefixes in the cluster, typically 10.x.x.x
 	# FIXME Should be filled with nodeCidr
 	set cluster_prefixes {
@@ -28,11 +29,11 @@ table ip firewall {
 		type filter hook forward priority 1; policy drop;
 
 		# network traffic accounting for external traffic
-		ip saddr != @internal_prefixes ip saddr != @cluster_prefixes counter name external_in
-		ip daddr != @internal_prefixes ip daddr != @cluster_prefixes counter name external_out
+		ip saddr != @internal_prefixes counter name external_in
+		ip daddr != @internal_prefixes counter name external_out
 
 		# network traffic accounting for internal traffic
-		ip daddr == @internal_prefixes ip saddr == @internal_prefixes counter name internal_total
+		ip saddr == @internal_prefixes ip daddr == @internal_prefixes counter name internal_total
 
 		# rate limits
 		{{- range .RateLimits }}
