@@ -24,7 +24,7 @@ test: generate fmt vet manifests
 	go test ./... -coverprofile cover.out
 
 # Build firewall-controller binary
-firewall-controller: statik generate fmt vet
+firewall-controller: statik generate fmt vet test
 	go build \
 		-tags netgo \
 		-trimpath \
