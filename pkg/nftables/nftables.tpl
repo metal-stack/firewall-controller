@@ -9,6 +9,15 @@ table ip firewall {
 		{{ end }}
 	}
 
+	# Prefixes in the cluster, typically 10.x.x.x
+	# FIXME Should be filled with nodeCidr
+	set cluster_prefixes {
+		type ipv4_addr
+		flags interval
+		auto-merge
+		elements = { 10.0.0.0/8 }
+	}
+
 	# counters
 	counter internal_total { }
 	counter external_in { }
