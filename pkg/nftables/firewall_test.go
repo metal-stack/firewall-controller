@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os/exec"
 	"path"
 	"testing"
 
@@ -82,10 +83,11 @@ func TestFirewall_renderString(t *testing.T) {
 		InternalPrefixes string
 	}
 	tests := []struct {
-		name    string
-		fields  fields
-		want    string
-		wantErr bool
+		name     string
+		fields   fields
+		validate bool
+		want     string
+		wantErr  bool
 	}{
 		{
 			name: "simple",
@@ -121,6 +123,17 @@ func TestFirewall_renderString(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "validated",
+			fields: fields{
+				Egress:           []string{"ip daddr == 1.2.3.4"},
+				Ingress:          []string{"ip saddr == 1.2.3.4"},
+				Ipv4RuleFile:     "nftables.v4",
+				statikFS:         statikFS,
+				InternalPrefixes: "1.2.3.4",
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -142,6 +155,71 @@ func TestFirewall_renderString(t *testing.T) {
 			want := string(rendered)
 			if got != want {
 				t.Errorf("Firewall.renderString() diff: %v", cmp.Diff(got, want))
+			}
+		})
+	}
+}
+
+// TestFirewallValidateRulesIntegration is a integration test an is skipped during normal unit testing
+// this is achieved by running the test with go test -short
+// to run this test you should either only execute go test
+// or to run only thes integration test go test Integration
+func TestFirewallValidateRulesIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	statikFS, _ := fs.NewWithNamespace("tpl")
+	type fields struct {
+		Ingress          []string
+		Egress           []string
+		RateLimits       []firewallv1.RateLimit
+		Ipv4RuleFile     string
+		DryRun           bool
+		statikFS         http.FileSystem
+		InternalPrefixes string
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		validate bool
+		want     string
+		wantErr  bool
+	}{
+		{
+			name: "validated",
+			fields: fields{
+				Egress:           []string{"ip daddr == 1.2.3.4"},
+				Ingress:          []string{"ip saddr == 1.2.3.4"},
+				Ipv4RuleFile:     "nftables.v4",
+				statikFS:         statikFS,
+				InternalPrefixes: "1.2.3.4",
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := &Firewall{
+				Ingress:          tt.fields.Ingress,
+				Egress:           tt.fields.Egress,
+				RateLimits:       tt.fields.RateLimits,
+				Ipv4RuleFile:     tt.fields.Ipv4RuleFile,
+				DryRun:           tt.fields.DryRun,
+				statikFS:         tt.fields.statikFS,
+				InternalPrefixes: tt.fields.InternalPrefixes,
+			}
+			got, err := f.renderString()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Firewall.renderString() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			c := exec.Command(nftBin, "-c", "-f", "-", got)
+			out, err := c.CombinedOutput()
+			if err != nil {
+				t.Errorf("Firewall.renderString() produced invalid nftables ruleset:%v", string(out))
+				return
 			}
 		})
 	}

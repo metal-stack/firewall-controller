@@ -21,7 +21,13 @@ all: firewall-controller
 
 # Run tests
 test: generate fmt vet manifests
-	go test ./... -coverprofile cover.out
+	go test ./... -short -coverprofile cover.out
+
+test-all:
+	go test ./... -v -coverprofile cover.out
+
+test-integration:
+	go test ./... -v Integration
 
 # Build firewall-controller binary
 firewall-controller: statik generate fmt vet test

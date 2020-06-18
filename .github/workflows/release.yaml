@@ -16,5 +16,7 @@ jobs:
       run: |
         export GITHUB_TAG_NAME=${GITHUB_REF##*/}
         docker login -u metalstackci -p ${{ secrets.DOCKER_HUB_TOKEN }}
+        apt install -y --no-install-recommends nftables
+        make test-all
         make docker-build
         make docker-push

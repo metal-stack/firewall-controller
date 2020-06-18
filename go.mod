@@ -10,15 +10,13 @@ require (
 	github.com/hashicorp/go-multierror v1.1.0
 	github.com/ks2211/go-suricata v0.0.0-20200410030237-20f6d74abae6
 	github.com/metal-stack/v v1.0.2
-	github.com/onsi/ginkgo v1.13.0
-	github.com/onsi/gomega v1.10.1
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rakyll/statik v0.1.7
 	github.com/txn2/txeh v1.3.0
-	k8s.io/api v0.18.3
-	k8s.io/apiextensions-apiserver v0.18.3
-	k8s.io/apimachinery v0.18.3
-	k8s.io/client-go v0.18.3
+	k8s.io/api v0.18.4
+	k8s.io/apiextensions-apiserver v0.18.4
+	k8s.io/apimachinery v0.18.4
+	k8s.io/client-go v0.18.4
 	sigs.k8s.io/controller-runtime v0.6.0
 	sigs.k8s.io/yaml v1.2.0
 )
