@@ -16,6 +16,6 @@ jobs:
       run: |
         docker login -u metalstackci -p ${{ secrets.DOCKER_HUB_TOKEN }}
         sudo apt install -y --no-install-recommends nftables
-        make test-all
+        sudo make test-all
         make docker-build
         make docker-push
