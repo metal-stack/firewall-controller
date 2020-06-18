@@ -178,6 +178,13 @@ node-exporter       10.3.164.1:9100   13h
 
 You can scrape these services in you prometheus installation to get the metrics.
 
+To check you can run:
+
+```bash
+curl nftables-exporter.firewall.svc.cluster.local:9630/metrics
+curl node-exporter.firewall.svc.cluster.local:9100/metrics
+```
+
 ## Firewall Logs
 
 It is also possible to tail for the dropped packets with the following command (install stern from [stern](https://github.com/wercker/stern) ):
