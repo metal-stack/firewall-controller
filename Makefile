@@ -29,6 +29,9 @@ test-all: generate fmt vet manifests
 test-integration: generate fmt vet manifests
 	go test ./... -v Integration
 
+clean:
+	rm -rf bin/* statik/statik.go
+
 # Build firewall-controller binary
 firewall-controller: statik generate fmt vet test
 	go build \
