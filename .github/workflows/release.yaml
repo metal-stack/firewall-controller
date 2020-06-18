@@ -6,7 +6,18 @@ on:
       - "v*"
 
 jobs:
+  integration:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v1
+    - uses: olegtarasov/get-tag@v1
+      id: tagName
+    - name: run integration tests
+      run: |
+        sudo apt install -y --no-install-recommends nftables
+        sudo make test-all clean
   build:
+    needs: integration
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v1
@@ -16,7 +27,5 @@ jobs:
       run: |
         export GITHUB_TAG_NAME=${GITHUB_REF##*/}
         docker login -u metalstackci -p ${{ secrets.DOCKER_HUB_TOKEN }}
-        sudo apt install -y --no-install-recommends nftables
-        sudo make test-all clean
         make docker-build
         make docker-push
