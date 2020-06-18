@@ -151,6 +151,35 @@ Status:
             Packets:  486
 ```
 
+## Prometheus integration
+
+There are two exporters running on the firewall to report essential metrics from this machine:
+
+- node-exporter for machine specific metrics like cpu, ram and disk usage, see [node-exporter](https://github.com/prometheus/node_exporter) for details.
+- nftables-exporter for nftables metrics, see [nftables-exporter](https://github.com/Sheridan/nftables_exporter)
+
+Both exporters are exposed as services:
+
+```bash
+kubectl get svc -n firewall
+NAME                TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)    AGE
+nftables-exporter   ClusterIP   None         <none>        9630/TCP   13h
+node-exporter       ClusterIP   None         <none>        9100/TCP   13h
+```
+
+These services are in front of virtual endpoints:
+
+```bash
+kubectl get ep -n firewall
+NAME                ENDPOINTS         AGE
+nftables-exporter   10.3.164.1:9630   13h
+node-exporter       10.3.164.1:9100   13h
+```
+
+You can scrape these services in you prometheus installation to get the metrics.
+
+## Firewall Logs
+
 It is also possible to tail for the dropped packets with the following command (install stern from [stern](https://github.com/wercker/stern) ):
 
 ```bash
