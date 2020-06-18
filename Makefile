@@ -23,10 +23,10 @@ all: firewall-controller
 test: generate fmt vet manifests
 	go test ./... -short -coverprofile cover.out
 
-test-all:
+test-all: generate fmt vet manifests
 	go test ./... -v -coverprofile cover.out
 
-test-integration:
+test-integration: generate fmt vet manifests
 	go test ./... -v Integration
 
 # Build firewall-controller binary
