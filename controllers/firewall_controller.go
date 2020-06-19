@@ -42,6 +42,7 @@ import (
 
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/pkg/collector"
+	"github.com/metal-stack/firewall-controller/pkg/evebox"
 	"github.com/metal-stack/firewall-controller/pkg/nftables"
 	"github.com/metal-stack/firewall-controller/pkg/suricata"
 	networking "k8s.io/api/networking/v1"
@@ -116,6 +117,11 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	log.Info("reconciling firewall services")
 	if err = r.reconcileFirewallServices(ctx, log); err != nil {
+		errors = multierror.Append(errors, err)
+	}
+
+	log.Info("reconciling evebox agent")
+	if err = r.reconcileEveboxAgent(ctx, f, log); err != nil {
 		errors = multierror.Append(errors, err)
 	}
 
@@ -271,6 +277,14 @@ func (r *FirewallReconciler) reconcileRules(ctx context.Context, f firewallv1.Fi
 		return err
 	}
 
+	return nil
+}
+
+func (r *FirewallReconciler) reconcileEveboxAgent(ctx context.Context, f firewallv1.Firewall, log logr.Logger) error {
+	if f.Spec.IDS != nil {
+		agent := evebox.NewEvebox(f.Spec)
+		return agent.Reconcile()
+	}
 	return nil
 }
 

@@ -11,6 +11,7 @@ import (
 	"text/template"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	"github.com/metal-stack/firewall-controller/pkg/file"
 	_ "github.com/metal-stack/firewall-controller/pkg/nftables/statik"
 	"github.com/rakyll/statik/fs"
 	corev1 "k8s.io/api/core/v1"
@@ -81,7 +82,7 @@ func (f *Firewall) Reconcile() error {
 	if err != nil {
 		return err
 	}
-	if equal(f.Ipv4RuleFile, desired) {
+	if file.Equal(f.Ipv4RuleFile, desired) {
 		return nil
 	}
 	err = os.Rename(desired, f.Ipv4RuleFile)

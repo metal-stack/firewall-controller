@@ -43,9 +43,23 @@ spec:
         spec:
           description: FirewallSpec defines the desired state of Firewall
           properties:
+            clusterid:
+              description: ClusterID the uuid of the cluster
+              type: string
             dryrun:
               description: DryRun if set to true, firewall rules are not applied
               type: boolean
+            ids:
+              description: IDS configuration
+              properties:
+                password:
+                  type: string
+                server_url:
+                  description: ServerURL the url where the IDS
+                  type: string
+                username:
+                  type: string
+              type: object
             internalprefixes:
               description: InternalPrefixes specify prefixes which are considered
                 local to the partition or all regions. Traffic to/from these prefixes

@@ -77,6 +77,7 @@ vet:
 # Generate code
 generate: controller-gen statik manifests
 	$(STATIK) -src=pkg/nftables -include='*.tpl' -dest=pkg/nftables -ns tpl
+	$(STATIK) -src=pkg/evebox -include='*.tpl' -dest=pkg/evebox -ns tpl
 	$(STATIK) -src=config/crd/bases -ns crd
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 

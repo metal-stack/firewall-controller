@@ -1,11 +1,7 @@
 package nftables
 
 import (
-	"bytes"
-	"crypto/sha256"
 	"fmt"
-	"io"
-	"os"
 	"sort"
 	"strings"
 
@@ -23,38 +19,6 @@ func uniqueSorted(elements []string) []string {
 	}
 	sort.Strings(r)
 	return r
-}
-
-func equal(source, target string) bool {
-	sourceChecksum, err := checksum(source)
-	if err != nil {
-		return false
-	}
-
-	targetChecksum, err := checksum(target)
-	if err != nil {
-		return false
-	}
-
-	return bytes.Equal(sourceChecksum, targetChecksum)
-}
-
-func checksum(file string) ([]byte, error) {
-	f, err := os.Open(file)
-	if err != nil {
-		return nil, err
-	}
-
-	defer func() {
-		_ = f.Close()
-	}()
-
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return nil, err
-	}
-
-	return h.Sum(nil), nil
 }
 
 func assembleDestinationPortRule(common []string, protocol string, ports []string, comment string) string {

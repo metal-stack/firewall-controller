@@ -57,6 +57,10 @@ type FirewallSpec struct {
 	// InternalPrefixes specify prefixes which are considered local to the partition or all regions.
 	// Traffic to/from these prefixes is accounted as internal traffic
 	InternalPrefixes []string `json:"internalprefixes,omitempty"`
+	// IDS configuration
+	IDS *IDS `json:"ids,omitempty"`
+	// ClusterID the uuid of the cluster
+	ClusterID string `json:"clusterid,omitempty"`
 }
 
 // FirewallStatus defines the observed state of Firewall
@@ -114,6 +118,14 @@ type InterfaceStat struct {
 	Drop             int `json:"drop"`
 	InvalidChecksums int `json:"invalidchecksums"`
 	Packets          int `json:"packets"`
+}
+
+// IDS configures the intrusion detection
+type IDS struct {
+	// ServerURL the url where the IDS
+	ServerURL string  `json:"server_url,omitempty"`
+	Username  *string `json:"username,omitempty"`
+	Password  *string `json:"password,omitempty"`
 }
 
 func init() {

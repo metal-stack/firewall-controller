@@ -1,0 +1,39 @@
+# EveBox Agent configuration file - subject to change.
+
+# Server information.
+server:
+  url: {{ .ServerURL }}
+
+  # Username and password. Note that at this time even with
+  # authentication enabled on the EveBox server, agents can still
+  # submit events without authenticating. You will need to supply and
+  # username and password if running behind a reverse proxy
+  # implementing authentication.
+  username: {{ .Username}}
+  password: {{ .Password}}
+
+# Directory to store bookmark information. This is optional and not
+# required if the agent has write access to the directory of the log
+# file being reader.
+bookmark-directory: "/var/lib/evebox"
+
+# If the EveBox server is running behind TLS and the certificate is
+# self signed, certificate validation can be disabled.
+#disable-certificate-check: true
+
+# Path to log file. Only a single path is allowed at this time.
+input:
+  filename: "/var/log/suricata/eve.json"
+
+  # Custom fields to add to the event. Only top level fields can be set,
+  # and only simple values (string, integer) can be set.
+  custom-fields:
+    # Set a host field. This will override the "host" field set by
+    # Suricata if the Suricata "sensor-name" option is set.
+    #host: "evebox-agent"
+    cluster: {{ .ClusterID }}
+
+  # The EveBox agent can add the rule to an event. To do so, list the
+  # rule files here.
+  rules:
+    - /etc/suricata/rules/*.rules
