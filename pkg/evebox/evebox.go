@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	nftablesService = "evebox-agent.service"
-	systemctlBin    = "/bin/systemctl"
+	eveboxAgentService = "evebox-agent.service"
+	systemctlBin       = "/bin/systemctl"
 )
 
 // Evebox configures the Evebox agent
@@ -115,7 +115,7 @@ func (e *Evebox) readTpl() (string, error) {
 }
 
 func (e *Evebox) reload(file string) error {
-	c := exec.Command(systemctlBin, "reload", nftablesService)
+	c := exec.Command(systemctlBin, "reload", eveboxAgentService)
 	err := c.Run()
 	if err != nil {
 		return fmt.Errorf("%s could not be applied, err: %w", file, err)
