@@ -7,13 +7,15 @@ import (
 	"os"
 )
 
+// Equal compares two files for content equality
+// returns true of both have the same content hash, otherwise false
 func Equal(source, target string) bool {
-	sourceChecksum, err := Checksum(source)
+	sourceChecksum, err := checksum(source)
 	if err != nil {
 		return false
 	}
 
-	targetChecksum, err := Checksum(target)
+	targetChecksum, err := checksum(target)
 	if err != nil {
 		return false
 	}
@@ -21,7 +23,7 @@ func Equal(source, target string) bool {
 	return bytes.Equal(sourceChecksum, targetChecksum)
 }
 
-func Checksum(file string) ([]byte, error) {
+func checksum(file string) ([]byte, error) {
 	f, err := os.Open(file)
 	if err != nil {
 		return nil, err
