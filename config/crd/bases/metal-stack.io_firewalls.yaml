@@ -54,7 +54,7 @@ spec:
               properties:
                 password:
                   type: string
-                server_url:
+                serverurl:
                   description: ServerURL the url where the IDS
                   type: string
                 username:

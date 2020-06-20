@@ -123,7 +123,7 @@ type InterfaceStat struct {
 // IDS configures the intrusion detection
 type IDS struct {
 	// ServerURL the url where the IDS
-	ServerURL string  `json:"server_url,omitempty"`
+	ServerURL string  `json:"serverurl,omitempty"`
 	Username  *string `json:"username,omitempty"`
 	Password  *string `json:"password,omitempty"`
 }

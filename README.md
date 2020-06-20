@@ -23,6 +23,8 @@ metadata:
   namespace: firewall
   name: firewall
 spec:
+  # clusterid should be set from the gardener-extension-provider-metal
+  clusterid: "<uuid of the k8s cluster>"
   # Interval of reconcilation if nftables rules and network traffic accounting
   interval: 10s
   # Ratelimits specify on which physical interface, which maximum rate of traffic is allowed
@@ -37,6 +39,15 @@ spec:
   - "1.2.3.0/24
   - "172.17.0.0/16"
   - "10.0.0.0/8"
+  # ids is optional, if not given ids events are not forwarded
+  ids:
+    # serverurl specifies the ids event sink url
+    serverurl: https://ids.foo.bar
+    # the username to be used for basic auth against serverurl
+    username: admin
+    # the password to be used for basic auth against serverurl
+    password: ids4security
+
 ```
 
 Example ClusterwideNetworkPolicy:
@@ -59,6 +70,15 @@ spec:
       port: 53
     - protocol: TCP
       port: 53
+  ingress:
+  - from:
+    - cidr: 1.1.0.0/24
+      except:
+      - 1.1.1.0/16
+    - cidr: 8.8.8.8/32
+    ports:
+    - protocol: TCP
+      port: 8443
 ```
 
 ## Status
