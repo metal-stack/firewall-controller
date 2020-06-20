@@ -74,6 +74,10 @@ spec:
               description: TrafficControl defines where to store the generated ipv4
                 firewall rules on disk
               type: string
+            projectid:
+              description: ProjectID the uuid of the project this cluster belongs
+                to
+              type: string
             ratelimits:
               description: RateLimits allows configuration of rate limit rules for
                 interfaces.

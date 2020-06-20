@@ -32,6 +32,7 @@ input:
     # Suricata if the Suricata "sensor-name" option is set.
     #host: "evebox-agent"
     cluster: {{ .ClusterID }}
+    project: {{ .ProjectID }}
 
   # The EveBox agent can add the rule to an event. To do so, list the
   # rule files here.

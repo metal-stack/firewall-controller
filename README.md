@@ -25,6 +25,8 @@ metadata:
 spec:
   # clusterid should be set from the gardener-extension-provider-metal
   clusterid: "<uuid of the k8s cluster>"
+  # projectid this cluster belongs to, should be set from the gardener-extension-provider-metal
+  projectid: "<uuid of the project"
   # Interval of reconcilation if nftables rules and network traffic accounting
   interval: 10s
   # Ratelimits specify on which physical interface, which maximum rate of traffic is allowed

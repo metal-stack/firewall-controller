@@ -26,6 +26,7 @@ type Evebox struct {
 	Username  *string
 	Password  *string
 	ClusterID string
+	ProjectID string
 	agentFile string
 	statikFS  http.FileSystem
 }
@@ -43,6 +44,7 @@ func NewEvebox(spec firewallv1.FirewallSpec) *Evebox {
 		Username:  spec.IDS.Username,
 		Password:  spec.IDS.Password,
 		ClusterID: spec.ClusterID,
+		ProjectID: spec.ProjectID,
 		statikFS:  statikFS,
 		agentFile: agentFile,
 	}

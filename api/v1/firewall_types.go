@@ -58,9 +58,12 @@ type FirewallSpec struct {
 	// Traffic to/from these prefixes is accounted as internal traffic
 	InternalPrefixes []string `json:"internalprefixes,omitempty"`
 	// IDS configuration
+	// +optional
 	IDS *IDS `json:"ids,omitempty"`
 	// ClusterID the uuid of the cluster
 	ClusterID string `json:"clusterid,omitempty"`
+	// ProjectID the uuid of the project this cluster belongs to
+	ProjectID string `json:"projectid,omitempty"`
 }
 
 // FirewallStatus defines the observed state of Firewall
