@@ -24,8 +24,8 @@ const (
 type Evebox struct {
 	ServerURL        string
 	BasicAuthEnabled bool
-	Username         *string
-	Password         *string
+	Username         string
+	Password         string
 	ClusterID        string
 	ProjectID        string
 	agentFile        string
@@ -43,8 +43,8 @@ func NewEvebox(spec firewallv1.FirewallSpec, basicAuthEnabled bool, username, pa
 	return &Evebox{
 		ServerURL:        spec.IDS.ServerURL,
 		BasicAuthEnabled: basicAuthEnabled,
-		Username:         &username,
-		Password:         &password,
+		Username:         username,
+		Password:         password,
 		ClusterID:        spec.ClusterID,
 		ProjectID:        spec.ProjectID,
 		statikFS:         statikFS,

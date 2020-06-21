@@ -51,6 +51,20 @@ spec:
     basicauthenabled: true
 ```
 
+IDS Secret
+
+```yaml
+---apiVersion: v1
+kind: Secret
+metadata:
+  name: ids
+  namespace: firewall
+type: Opaque
+data:
+  username: <base64 encoded username>
+  password: <base64 encoded password>
+```
+
 Example ClusterwideNetworkPolicy:
 
 ```yaml
