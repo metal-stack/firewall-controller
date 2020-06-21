@@ -505,5 +505,6 @@ func (r *FirewallReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&source.Kind{Type: &firewallv1.ClusterwideNetworkPolicy{}}, triggerFirewallReconcilation).
 		Watches(&source.Kind{Type: &networking.NetworkPolicy{}}, triggerFirewallReconcilation).
 		Watches(&source.Kind{Type: &corev1.Service{}}, triggerFirewallReconcilation).
+		Watches(&source.Kind{Type: &corev1.Secret{}}, triggerFirewallReconcilation).
 		Complete(r)
 }
