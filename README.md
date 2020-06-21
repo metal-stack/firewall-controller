@@ -45,11 +45,10 @@ spec:
   ids:
     # serverurl specifies the ids event sink url
     serverurl: https://ids.foo.bar
-    # the username to be used for basic auth against serverurl
-    username: admin
-    # the password to be used for basic auth against serverurl
-    password: ids4security
-
+    # basicauthenabled must be set to true if event sink requires username and password
+    # if set to true a secret in the firewall namespace with the name "ids" in the firewall namespace must be present
+    # it must also contain a username and password data object
+    basicauthenabled: true
 ```
 
 Example ClusterwideNetworkPolicy:

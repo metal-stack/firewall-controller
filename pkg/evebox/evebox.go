@@ -22,17 +22,18 @@ const (
 
 // Evebox configures the Evebox agent
 type Evebox struct {
-	ServerURL string
-	Username  *string
-	Password  *string
-	ClusterID string
-	ProjectID string
-	agentFile string
-	statikFS  http.FileSystem
+	ServerURL        string
+	BasicAuthEnabled bool
+	Username         *string
+	Password         *string
+	ClusterID        string
+	ProjectID        string
+	agentFile        string
+	statikFS         http.FileSystem
 }
 
 // NewEvebox creates a evebox object which manages the evebox-agent
-func NewEvebox(spec firewallv1.FirewallSpec) *Evebox {
+func NewEvebox(spec firewallv1.FirewallSpec, basicAuthEnabled bool, username, password string) *Evebox {
 	statikFS, err := fs.NewWithNamespace("tpl")
 	if err != nil {
 		panic(err)
@@ -40,13 +41,14 @@ func NewEvebox(spec firewallv1.FirewallSpec) *Evebox {
 
 	agentFile := "/etc/evebox/agent.yaml"
 	return &Evebox{
-		ServerURL: spec.IDS.ServerURL,
-		Username:  spec.IDS.Username,
-		Password:  spec.IDS.Password,
-		ClusterID: spec.ClusterID,
-		ProjectID: spec.ProjectID,
-		statikFS:  statikFS,
-		agentFile: agentFile,
+		ServerURL:        spec.IDS.ServerURL,
+		BasicAuthEnabled: basicAuthEnabled,
+		Username:         &username,
+		Password:         &password,
+		ClusterID:        spec.ClusterID,
+		ProjectID:        spec.ProjectID,
+		statikFS:         statikFS,
+		agentFile:        agentFile,
 	}
 }
 

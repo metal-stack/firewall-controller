@@ -9,8 +9,10 @@ server:
   # submit events without authenticating. You will need to supply and
   # username and password if running behind a reverse proxy
   # implementing authentication.
+  {{ if .BasicAuthEnabled }}
   username: {{ .Username}}
   password: {{ .Password}}
+  {{ end }}
 
 # Directory to store bookmark information. This is optional and not
 # required if the agent has write access to the directory of the log

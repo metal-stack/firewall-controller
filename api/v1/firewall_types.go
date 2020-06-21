@@ -126,10 +126,8 @@ type InterfaceStat struct {
 // IDS configures the intrusion detection
 type IDS struct {
 	// ServerURL the url where the IDS
-	ServerURL string `json:"serverurl,omitempty"`
-	// FIXME should be in a secret
-	Username *string `json:"username,omitempty"`
-	Password *string `json:"password,omitempty"`
+	ServerURL        string `json:"serverurl,omitempty"`
+	BasicAuthEnabled bool   `json:"basicauthenabled"`
 }
 
 func init() {

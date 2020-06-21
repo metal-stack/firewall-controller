@@ -52,13 +52,13 @@ spec:
             ids:
               description: IDS configuration
               properties:
-                password:
-                  type: string
+                basicauthenabled:
+                  type: boolean
                 serverurl:
                   description: ServerURL the url where the IDS
                   type: string
-                username:
-                  type: string
+              required:
+              - basicauthenabled
               type: object
             internalprefixes:
               description: InternalPrefixes specify prefixes which are considered
