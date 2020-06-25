@@ -15,12 +15,14 @@ import (
 	_ "github.com/metal-stack/firewall-controller/pkg/nftables/statik"
 	"github.com/rakyll/statik/fs"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 const (
-	nftablesService = "nftables.service"
-	nftBin          = "/usr/sbin/nft"
-	systemctlBin    = "/bin/systemctl"
+	defaultIpv4RuleFile = "/etc/nftables/firewall-controller.v4"
+	nftablesService     = "nftables.service"
+	nftBin              = "/usr/sbin/nft"
+	systemctlBin        = "/bin/systemctl"
 )
 
 // Firewall assembles nftable rules based on k8s entities
@@ -30,8 +32,14 @@ type Firewall struct {
 	RateLimits       []firewallv1.RateLimit
 	Ipv4RuleFile     string
 	DryRun           bool
-	statikFS         http.FileSystem
 	InternalPrefixes string
+	statikFS         http.FileSystem
+}
+
+// NewDefaultFirewall creates a new default nftables firewall.
+func NewDefaultFirewall() *Firewall {
+	defaultSpec := firewallv1.FirewallSpec{}
+	return NewFirewall(&firewallv1.ClusterwideNetworkPolicyList{}, &v1.ServiceList{}, defaultSpec)
 }
 
 // NewFirewall creates a new nftables firewall object based on k8s entities
@@ -54,7 +62,7 @@ func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.Serv
 		panic(err)
 	}
 
-	ipv4File := "/etc/nftables/firewall-controller.v4"
+	ipv4File := defaultIpv4RuleFile
 	if spec.Ipv4RuleFile != "" {
 		ipv4File = spec.Ipv4RuleFile
 	}
@@ -64,9 +72,19 @@ func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.Serv
 		RateLimits:       spec.RateLimits,
 		Ipv4RuleFile:     ipv4File,
 		DryRun:           spec.DryRun,
-		statikFS:         statikFS,
 		InternalPrefixes: strings.Join(spec.InternalPrefixes, ", "),
+		statikFS:         statikFS,
 	}
+}
+
+// Flush flushes the nftables rules that were deduced from a k8s resources
+// after that the firewall is a "plain metal firewall" with default policy accept in the forward chain.
+func (f *Firewall) Flush() error {
+	err := os.Remove(f.Ipv4RuleFile)
+	if err != nil {
+		return fmt.Errorf("could not delete ipv4 rule file: %w", err)
+	}
+	return f.reload()
 }
 
 // Reconcile drives the nftables firewall against the desired state by comparison with the current rule file.
@@ -92,7 +110,7 @@ func (f *Firewall) Reconcile() error {
 	if f.DryRun {
 		return nil
 	}
-	err = f.reload(f.Ipv4RuleFile)
+	err = f.reload()
 	if err != nil {
 		return err
 	}
@@ -166,11 +184,11 @@ func (f *Firewall) validate(file string) error {
 	return nil
 }
 
-func (f *Firewall) reload(file string) error {
+func (f *Firewall) reload() error {
 	c := exec.Command(systemctlBin, "reload", nftablesService)
 	err := c.Run()
 	if err != nil {
-		return fmt.Errorf("%s could not be applied, err: %w", file, err)
+		return fmt.Errorf("could not reload nftables service, err: %w", err)
 	}
 	return nil
 }
