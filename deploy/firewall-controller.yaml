@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: firewall-controller
+  name: firewall
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -10,7 +10,7 @@ metadata:
   labels:
     app: firewall-controller
   name: firewall-controller
-  namespace: firewall-controller
+  namespace: firewall
 spec:
   replicas: 1
   selector:
@@ -22,7 +22,7 @@ spec:
         app: firewall-controller
     spec:
       containers:
-      - image: metal-stack.io/firewall-controller
+      - image: metalstack/firewall-controller
         imagePullPolicy: IfNotPresent
         name: firewall-controller
         resources:
@@ -36,6 +36,86 @@ spec:
           capabilities:
             add: 
             - "NET_ADMIN"
+      - image: jasonish/suricata
+        imagePullPolicy: IfNotPresent
+        name: suricata
+        args:
+          - -i
+          - eth0
+        resources:
+            requests:
+              cpu: 100m
+              memory: 50m
+            limits:
+              cpu: 200m
+              memory: 1G
+        securityContext:
+          capabilities:
+            add:
+            - "NET_ADMIN"
+        volumeMounts:
+          - name: suricata-log
+            mountPath: /var/log/suricata
+      - image: jasonish/evebox
+        imagePullPolicy: IfNotPresent
+        name: evebox-server
+        command:
+          - evebox
+        args:
+          - server
+          - -c
+          - /etc/evebox/evebox.yaml
+        ports:
+          - containerPort: 5636
+            hostPort: 5636
+            protocol: TCP
+            name: evebox
+        resources:
+            requests:
+              cpu: 100m
+              memory: 50m
+            limits:
+              cpu: 200m
+              memory: 1G
+        volumeMounts:
+          - name: evebox-server-config-volume
+            mountPath: /etc/evebox
+          - name: evebox-lib
+            mountPath: /var/lib/evebox
+      - image: jasonish/evebox
+        imagePullPolicy: IfNotPresent
+        name: evebox-agent
+        command:
+          - evebox
+        args:
+          - agent
+          - -c
+          - /etc/evebox/agent.yaml
+        resources:
+            requests:
+              cpu: 100m
+              memory: 50m
+            limits:
+              cpu: 200m
+              memory: 1G
+        volumeMounts:
+          - name: evebox-agent-config-volume
+            mountPath: /etc/evebox
+          - name: evebox-lib
+            mountPath: /var/lib/evebox
+          - name: suricata-log
+            mountPath: /var/log/suricata
+      volumes:
+        - name: evebox-agent-config-volume
+          configMap:
+            name: evebox-agent-config
+        - name: evebox-server-config-volume
+          configMap:
+            name: evebox-server-config
+        - name: suricata-log
+          emptyDir: {}
+        - name: evebox-lib
+          emptyDir: {}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -103,4 +183,110 @@ roleRef:
   name: firewall-controller
 subjects:
 - kind: User
-  name: system:serviceaccount:firewall-controller:default
+  name: system:serviceaccount:firewall:default
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: evebox-agent-config
+  namespace: firewall
+data:
+  agent.yaml: |
+    server:
+      url: http://evebox-server:5636
+      # Username and password. Note that at this time even with
+      # authentication enabled on the EveBox server, agents can still
+      # submit events without authenticating. You will need to supply and
+      # username and password if running behind a reverse proxy
+      # implementing authentication.
+      #username: username
+      #password: password
+    bookmark-directory: "/var/lib/evebox"
+    input:
+      filename: "/var/log/suricata/eve.json"
+    # Custom fields to add to the event. Only top level fields can be set,
+    # and only simple values (string, integer) can be set.
+    custom-fields:
+      # Set a host field. This will override the "host" field set by
+      # Suricata if the Suricata "sensor-name" option is set.
+      #host: "evebox-agent"
+    # The EveBox agent can add the rule to an event. To do so, list the
+    # rule files here.
+    rules:
+      - /etc/suricata/rules/*.rules
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: evebox-server-config
+  namespace: firewall
+data:
+  evebox.yaml: |
+    data-directory: /var/lib/evebox
+    http:
+      tls:
+        enabled: false
+    # Database configuration.
+    database:
+      # Database type: elasticsearch, sqlite.
+      type: sqlite
+    authentication:
+      # Default: false
+      # env: EVEBOX_AUTHENTICATION_REQUIRED
+      required: no
+      # Type of login required:
+      # - username         -- just a username...
+      # - usernamepassword -- username and password
+      # env: EVEBOX_AUTHENTICATION_TYPE
+      type: usernamepassword
+
+      # A little message that is displayed in the login dialog.
+      #login-message: Some message here...
+
+    # The server can process a log file, eliminating the need for a
+    # separate agent process if on the same machine.
+    input:
+      # Toggle to disable the input without commenting it out.
+      enabled: false
+      custom-fields:
+        # Set a host field. This will override the "host" field set by
+        # Suricata if the Suricata "sensor-name" option is set.
+        clusterid: "firewall-controller"
+        projectid: "testenvironment"
+
+      # The event reader can add rules to events.
+      rules:
+        - /etc/suricata/rules/*.rules
+    geoip:
+      disabled: true
+    # Event services: links that will be provided on events to link to additonal
+    # services.
+    event-services:
+
+      # Custom service to link the rule in Scirius.
+      - type: custom
+        enabled: false
+        name: Scirius
+
+        # Only make available for alert types.
+        event-types:
+          - alert
+
+        # URL template. All eve values can be used.
+        url: https://10.16.1.179/rules/rule/{{alert.signature_id}}
+
+      # Custom service to link to Dumpy for full packet capture.
+      #
+      # This one has no event-types meaning its available for all event types.
+      - type: custom
+        enabled: false
+        name: Dumpy
+
+        # The URL template, {{raw}} expands to the raw eve event as a JSON
+        # string which is then url encoded.
+        url: http://10.16.1.1:7000/?event={{raw}}
+
+        # Open in new window. The default is the same window.
+        target: new
