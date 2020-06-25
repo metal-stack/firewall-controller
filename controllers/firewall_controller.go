@@ -26,6 +26,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -69,6 +70,8 @@ const (
 	nodeExporterPort          = 9630
 )
 
+var done = ctrl.Result{}
+
 // Reconcile reconciles a firewall by:
 // - reading ClusterwideNetworkPolicies and Services of type Loadbalancer
 // - rendering nftables rules
@@ -78,29 +81,34 @@ const (
 func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("firewall", req.NamespacedName)
-	interval := firewallReconcileInterval
+	requeue := ctrl.Result{
+		RequeueAfter: firewallReconcileInterval,
+	}
 
 	var f firewallv1.Firewall
 	if err := r.Get(ctx, req.NamespacedName, &f); err != nil {
-		// we'll ignore not-found errors, since they can't be fixed by an immediate
-		// requeue (we'll need to wait for a new notification), and we can get them
-		// on deleted requests.
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+		if apierrors.IsNotFound(err) {
+			defaultFw := nftables.NewDefaultFirewall()
+			log.Info("flushing k8s firewall rules")
+			err := defaultFw.Flush()
+			if err == nil {
+				return done, nil
+			}
+			return requeue, err
+		}
+
+		return done, client.IgnoreNotFound(err)
 	}
 
 	if err := r.validateFirewall(ctx, f); err != nil {
 		r.recorder.Event(&f, "Warning", "Unapplicable", err.Error())
 		// don't requeue invalid firewall objects
-		return ctrl.Result{}, err
+		return done, err
 	}
 
 	i, err := time.ParseDuration(f.Spec.Interval)
 	if err != nil {
-		interval = i
-	}
-
-	requeue := ctrl.Result{
-		RequeueAfter: interval,
+		requeue.RequeueAfter = i
 	}
 
 	var errors *multierror.Error
