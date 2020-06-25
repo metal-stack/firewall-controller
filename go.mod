@@ -3,7 +3,6 @@ module github.com/metal-stack/firewall-controller
 go 1.14
 
 require (
-	github.com/ghodss/yaml v1.0.0
 	github.com/go-logr/logr v0.1.0
 	github.com/google/go-cmp v0.4.1
 	github.com/google/nftables v0.0.0-20200316075819-7127d9d22474
