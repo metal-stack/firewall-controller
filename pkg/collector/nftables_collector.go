@@ -112,7 +112,7 @@ func (n nfCollector) CollectRuleStats() firewallv1.RuleStatsByAction {
 				continue
 			}
 
-			stats, _ := statsByAction[ri.action]
+			stats := statsByAction[ri.action]
 			stat, ok := stats[ri.comment]
 			if !ok {
 				stat = firewallv1.RuleStat{
