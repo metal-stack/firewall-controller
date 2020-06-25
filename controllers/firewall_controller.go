@@ -107,7 +107,7 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	i, err := time.ParseDuration(f.Spec.Interval)
-	if err != nil {
+	if err == nil {
 		requeue.RequeueAfter = i
 	}
 
