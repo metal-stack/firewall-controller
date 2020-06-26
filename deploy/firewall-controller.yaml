@@ -53,7 +53,7 @@ spec:
               cpu: 100m
               memory: 50m
             limits:
-              cpu: 200m
+              cpu: 2000m
               memory: 1G
         securityContext:
           capabilities:
@@ -66,13 +66,12 @@ spec:
             mountPath: /var/log/suricata
           - name: run
             mountPath: /run
-      - image: jasonish/evebox
+      - image: jasonish/evebox:master
         imagePullPolicy: IfNotPresent
         name: evebox-agent
-        command:
-          - evebox
         args:
           - agent
+          - -v
           - -c
           - /etc/evebox/agent.yaml
         resources:
@@ -122,13 +121,12 @@ spec:
         app: evebox-server
     spec:
       containers:
-      - image: jasonish/evebox
+      - image: jasonish/evebox:master
         imagePullPolicy: IfNotPresent
         name: evebox-server
-        command:
-          - evebox
         args:
           - server
+          - -v
           - -c
           - /etc/evebox/evebox.yaml
           - --host
@@ -247,26 +245,13 @@ data:
   agent.yaml: |
     server:
       url: http://evebox-server-service:80
-      # Username and password. Note that at this time even with
-      # authentication enabled on the EveBox server, agents can still
-      # submit events without authenticating. You will need to supply and
-      # username and password if running behind a reverse proxy
-      # implementing authentication.
-      #username: username
-      #password: password
     bookmark-directory: "/var/lib/evebox"
     input:
       filename: "/var/log/suricata/eve.json"
-    # Custom fields to add to the event. Only top level fields can be set,
-    # and only simple values (string, integer) can be set.
-    custom-fields:
-      # Set a host field. This will override the "host" field set by
-      # Suricata if the Suricata "sensor-name" option is set.
-      host: "evebox-agent"
-      clusterid: "firewall-controller-test"
-      projectid: "development"
-    # The EveBox agent can add the rule to an event. To do so, list the
-    # rule files here.
+      custom-fields:
+        host: "evebox-agent"
+        clusterid: "firewall-controller-test"
+        projectid: "development"
     rules:
       - /etc/suricata/rules/*.rules
 
@@ -285,18 +270,8 @@ data:
     # Database configuration.
     database:
       # Database type: elasticsearch, sqlite.
-      type: postgresql
-      postgresql:
-        # If managed, EveBox will manage its own PostgreSQL instance using
-        # PostgreSQL found on the path.
-        managed: false
-        host: evebox-db
-        database: evebox
-        user: evebox
-        password: evebox
+      type: sqlite
     authentication:
-      # Default: false
-      # env: EVEBOX_AUTHENTICATION_REQUIRED
       required: no
       # Type of login required:
       # - username         -- just a username...
@@ -306,19 +281,8 @@ data:
 
       # A little message that is displayed in the login dialog.
       #login-message: Some message here...
-
-    # The server can process a log file, eliminating the need for a
-    # separate agent process if on the same machine.
     input:
-      # Toggle to disable the input without commenting it out.
       enabled: false
-      custom-fields:
-        # Set a host field. This will override the "host" field set by
-        # Suricata if the Suricata "sensor-name" option is set.
-        clusterid: "firewall-controller"
-        projectid: "testenvironment"
-
-      # The event reader can add rules to events.
       rules:
         - /etc/suricata/rules/*.rules
     geoip:
@@ -352,69 +316,6 @@ data:
 
         # Open in new window. The default is the same window.
         target: new
----
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: evebox-db
-  namespace: firewall
-  labels:
-    app: evebox-db
-spec:
-  serviceName: "evebox-db"
-  replicas: 1
-  selector:
-    matchLabels:
-      app: evebox-db
-  template:
-    metadata:
-      labels:
-        app: evebox-db
-    spec:
-      containers:
-      - name: postgres
-        image: postgres:12-alpine
-        envFrom:
-        - configMapRef:
-            name: postgres-configuration
-        ports:
-        - containerPort: 5432
-          name: postgresdb
-      #   volumeMounts:
-      #   - name: pv-data
-      #     mountPath: /var/lib/postgresql/data
-      # volumes:
-      # - name: pv-data
-      #   persistentVolumeClaim:
-      #     claimName: postgres-pv-claim
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: postgres-configuration
-  namespace: firewall
-  labels:
-    app: postgres
-data:
-  POSTGRES_DB: evebox
-  POSTGRES_USER: evebox
-  POSTGRES_PASSWORD: evebox
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: evebox-db
-  namespace: firewall
-  labels:
-    app: evebox-db
-spec:
-  ports:
-  - port: 5432
-    name: postgres
-  type: NodePort
-  selector:
-    app: evebox-db
 ---
 apiVersion: v1
 kind: ConfigMap
