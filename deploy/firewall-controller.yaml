@@ -285,7 +285,15 @@ data:
     # Database configuration.
     database:
       # Database type: elasticsearch, sqlite.
-      type: sqlite
+      type: postgresql
+      postgresql:
+        # If managed, EveBox will manage its own PostgreSQL instance using
+        # PostgreSQL found on the path.
+        managed: false
+        host: evebox-db
+        database: evebox
+        user: evebox
+        password: evebox
     authentication:
       # Default: false
       # env: EVEBOX_AUTHENTICATION_REQUIRED
@@ -344,7 +352,69 @@ data:
 
         # Open in new window. The default is the same window.
         target: new
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: evebox-db
+  namespace: firewall
+  labels:
+    app: evebox-db
+spec:
+  serviceName: "evebox-db"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: evebox-db
+  template:
+    metadata:
+      labels:
+        app: evebox-db
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:12-alpine
+        envFrom:
+        - configMapRef:
+            name: postgres-configuration
+        ports:
+        - containerPort: 5432
+          name: postgresdb
+      #   volumeMounts:
+      #   - name: pv-data
+      #     mountPath: /var/lib/postgresql/data
+      # volumes:
+      # - name: pv-data
+      #   persistentVolumeClaim:
+      #     claimName: postgres-pv-claim
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-configuration
+  namespace: firewall
+  labels:
+    app: postgres
+data:
+  POSTGRES_DB: evebox
+  POSTGRES_USER: evebox
+  POSTGRES_PASSWORD: evebox
 
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: evebox-db
+  namespace: firewall
+  labels:
+    app: evebox-db
+spec:
+  ports:
+  - port: 5432
+    name: postgres
+  type: NodePort
+  selector:
+    app: evebox-db
 ---
 apiVersion: v1
 kind: ConfigMap
