@@ -3,6 +3,7 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: firewall
+
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -58,32 +59,6 @@ spec:
             mountPath: /var/log/suricata
       - image: jasonish/evebox
         imagePullPolicy: IfNotPresent
-        name: evebox-server
-        command:
-          - evebox
-        args:
-          - server
-          - -c
-          - /etc/evebox/evebox.yaml
-        ports:
-          - containerPort: 5636
-            hostPort: 5636
-            protocol: TCP
-            name: evebox
-        resources:
-            requests:
-              cpu: 100m
-              memory: 50m
-            limits:
-              cpu: 200m
-              memory: 1G
-        volumeMounts:
-          - name: evebox-server-config-volume
-            mountPath: /etc/evebox
-          - name: evebox-lib
-            mountPath: /var/lib/evebox
-      - image: jasonish/evebox
-        imagePullPolicy: IfNotPresent
         name: evebox-agent
         command:
           - evebox
@@ -109,13 +84,75 @@ spec:
         - name: evebox-agent-config-volume
           configMap:
             name: evebox-agent-config
-        - name: evebox-server-config-volume
-          configMap:
-            name: evebox-server-config
         - name: suricata-log
           emptyDir: {}
         - name: evebox-lib
           emptyDir: {}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: evebox-server
+  name: evebox-server
+  namespace: firewall
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: evebox-server
+  template:
+    metadata:
+      labels:
+        app: evebox-server
+    spec:
+      containers:
+      - image: jasonish/evebox
+        imagePullPolicy: IfNotPresent
+        name: evebox-server
+        command:
+          - evebox
+        args:
+          - server
+          - -c
+          - /etc/evebox/evebox.yaml
+        ports:
+          - containerPort: 5636
+            hostPort: 5636
+            protocol: TCP
+            name: evebox
+        resources:
+            requests:
+              cpu: 100m
+              memory: 50m
+            limits:
+              cpu: 200m
+              memory: 1G
+        volumeMounts:
+          - name: evebox-server-config-volume
+            mountPath: /etc/evebox
+          - name: evebox-lib
+            mountPath: /var/lib/evebox
+      volumes:
+        - name: evebox-server-config-volume
+          configMap:
+            name: evebox-server-config
+        - name: evebox-lib
+          emptyDir: {}
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: evebox-server-service
+  namespace: firewall
+spec:
+  selector:
+    app: evebox-server
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 5636
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
