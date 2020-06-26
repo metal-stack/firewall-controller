@@ -131,6 +131,8 @@ spec:
           - server
           - -c
           - /etc/evebox/evebox.yaml
+          - --host
+          - "0.0.0.0"
         ports:
           - containerPort: 5636
             protocol: TCP
