@@ -20,16 +20,8 @@ make test
 
 ```bash
 # start kind cluster
-kind create cluster
-
-# deploy manifests
-k apply -f deploy
-
-# start the controller
-bin/firewall-controller --hosts-file ./hosts
+make start
 
 # watch results
 k describe -n firewall firewall
-cat nftables.v4
-cat hosts
 ```

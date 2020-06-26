@@ -133,7 +133,6 @@ spec:
           - /etc/evebox/evebox.yaml
         ports:
           - containerPort: 5636
-            hostPort: 5636
             protocol: TCP
             name: evebox
         resources:
@@ -166,7 +165,7 @@ spec:
   ports:
   - port: 80
     protocol: TCP
-    targetPort: 5636
+    targetPort: evebox
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
