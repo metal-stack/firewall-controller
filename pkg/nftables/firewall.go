@@ -84,7 +84,7 @@ func (f *Firewall) Flush() error {
 		return f.reload()
 	}
 	// only remove if rule file exists
-	err := os.Remove(f.Ipv4RuleFile)
+	err = os.Remove(f.Ipv4RuleFile)
 	if err != nil {
 		return fmt.Errorf("could not delete ipv4 rule file: %w", err)
 	}
