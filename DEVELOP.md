@@ -24,4 +24,9 @@ make start
 
 # watch results
 k describe -n firewall firewall
+
+# see evebox
+k port-forward -n firewall svc/evebox-server-service 8080:80
+
+point your browser to http://localhost:8080
 ```
