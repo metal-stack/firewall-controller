@@ -79,6 +79,11 @@ func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.Serv
 // Flush flushes the nftables rules that were deduced from a k8s resources
 // after that the firewall is a "plain metal firewall" with default policy accept in the forward chain.
 func (f *Firewall) Flush() error {
+	_, err := os.Stat(f.Ipv4RuleFile)
+	if os.IsNotExist(err) {
+		return f.reload()
+	}
+	// only remove if rule file exists
 	err := os.Remove(f.Ipv4RuleFile)
 	if err != nil {
 		return fmt.Errorf("could not delete ipv4 rule file: %w", err)
