@@ -32,6 +32,8 @@ table ip firewall {
 	counter external_out { }
 	counter drop_total { }
 	counter drop_ratelimit { }
+	counter ssh_from_trusted_networks { }
+	counter ssh_from_untrusted_networks { }
 
 	chain input {
 		type filter hook input priority -1; policy drop;
