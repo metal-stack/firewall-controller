@@ -76,6 +76,12 @@ spec:
                     type: integer
                 type: object
               type: array
+            trustedNetworks:
+              description: TrustedNetworks specify prefixes from where direct access
+                to the firewall is allowed.
+              items:
+                type: string
+              type: array
           type: object
         status:
           description: FirewallStatus defines the observed state of Firewall

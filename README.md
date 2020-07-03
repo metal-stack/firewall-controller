@@ -37,6 +37,9 @@ spec:
   - "1.2.3.0/24
   - "172.17.0.0/16"
   - "10.0.0.0/8"
+  # TrustedNetworks defines a list of prefixes from which direct access to the firewall is allowed, if not given access is no restricted (0.0.0.0/24).
+  trustednetworks:
+  - "1.2.3.0/24"
 ```
 
 Example ClusterwideNetworkPolicy:

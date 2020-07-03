@@ -1,4 +1,12 @@
 table ip firewall {
+	# trusted networks specify networks where direct access to the firewall is allowed drom
+	set trusted_networks {
+		type ipv4_addr
+		flags interval
+		auto-merge
+		elements = { 0.0.0.0/0 }
+	}
+
 	# internal prefixes, which are not leaving the partition or the partition interconnect
 	set internal_prefixes {
 		type ipv4_addr
@@ -24,6 +32,10 @@ table ip firewall {
 	counter external_out { }
 	counter drop_total { }
 	counter drop_ratelimit { }
+
+	chain input {
+		ip saddr == @trusted_networks tcp dport ssh ct state new counter accept name ssh_from_trusted_networks comment "SSH incoming connections from trusted networks"
+	}
 
 	chain forward {
 		type filter hook forward priority 1; policy drop;

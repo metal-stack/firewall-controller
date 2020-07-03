@@ -57,6 +57,8 @@ type FirewallSpec struct {
 	// InternalPrefixes specify prefixes which are considered local to the partition or all regions.
 	// Traffic to/from these prefixes is accounted as internal traffic
 	InternalPrefixes []string `json:"internalprefixes,omitempty"`
+	// TrustedNetworks specify prefixes from where direct access to the firewall is allowed.
+	TrustedNetworks []string `json:"trustedNetworks,omitempty"`
 }
 
 // FirewallStatus defines the observed state of Firewall

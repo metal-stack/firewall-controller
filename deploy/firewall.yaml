@@ -13,3 +13,5 @@ spec:
   internalprefixes:
   - "127.0.0.1"
   - "100.64.0.0/8"
+  trustednetworks:
+  - "0.0.0.0/0"
