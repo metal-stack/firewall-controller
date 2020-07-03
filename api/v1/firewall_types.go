@@ -28,6 +28,7 @@ import (
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Interval",type=string,JSONPath=`.spec.interval`
 // +kubebuilder:printcolumn:name="InternalPrefixes",type=string,JSONPath=`.spec.internalprefixes`
+// +kubebuilder:printcolumn:name="TrustedNetworks",type=string,JSONPath=`.spec.trustednetworks`
 type Firewall struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -58,7 +59,7 @@ type FirewallSpec struct {
 	// Traffic to/from these prefixes is accounted as internal traffic
 	InternalPrefixes []string `json:"internalprefixes,omitempty"`
 	// TrustedNetworks specify prefixes from where direct access to the firewall is allowed.
-	TrustedNetworks []string `json:"trustedNetworks,omitempty"`
+	TrustedNetworks []string `json:"trustednetworks,omitempty"`
 }
 
 // FirewallStatus defines the observed state of Firewall
