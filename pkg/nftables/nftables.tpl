@@ -36,7 +36,7 @@ table ip firewall {
 	counter ssh_from_untrusted_networks { }
 
 	chain input {
-		type filter hook input priority -1; policy drop;
+		type filter hook input priority -1; policy accept;
 		ip saddr == @trusted_networks tcp dport ssh ct state new counter name ssh_from_trusted_networks accept comment "SSH incoming connections from trusted networks"
 		tcp dport ssh ct state new counter name ssh_from_untrusted_networks drop comment "blocked SSH incoming connections from untrusted networks"
 	}
