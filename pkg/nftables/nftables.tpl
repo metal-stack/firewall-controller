@@ -20,6 +20,8 @@ table ip firewall {
 
 	# counters
 	counter internal_total { }
+	counter internal_in { }
+	counter internal_out { }
 	counter external_in { }
 	counter external_out { }
 	counter drop_total { }
@@ -34,6 +36,8 @@ table ip firewall {
 
 		# network traffic accounting for internal traffic
 		ip saddr == @internal_prefixes ip daddr == @internal_prefixes counter name internal_total
+		ip saddr == @cluster_prefixes ip daddr == @internal_prefixes counter name internal_out
+		ip daddr == @cluster_prefixes ip saddr == @internal_prefixes counter name internal_in
 
 		# rate limits
 		{{- range .RateLimits }}
