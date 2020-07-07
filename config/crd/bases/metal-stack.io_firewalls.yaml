@@ -15,6 +15,9 @@ spec:
   - JSONPath: .spec.internalprefixes
     name: InternalPrefixes
     type: string
+  - JSONPath: .spec.trustednetworks
+    name: TrustedNetworks
+    type: string
   group: metal-stack.io
   names:
     kind: Firewall
@@ -75,6 +78,12 @@ spec:
                     format: int32
                     type: integer
                 type: object
+              type: array
+            trustednetworks:
+              description: TrustedNetworks specify prefixes from where direct access
+                to the firewall is allowed.
+              items:
+                type: string
               type: array
           type: object
         status:

@@ -32,6 +32,7 @@ type Firewall struct {
 	Ipv4RuleFile     string
 	DryRun           bool
 	InternalPrefixes string
+	TrustedNetworks  string
 	statikFS         http.FileSystem
 }
 
@@ -65,6 +66,11 @@ func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.Serv
 	if spec.Ipv4RuleFile != "" {
 		ipv4File = spec.Ipv4RuleFile
 	}
+	// if no TrustedNetwork is given, no restrictions apply
+	trustedNetworks := "0.0.0.0/0"
+	if len(spec.TrustedNetworks) > 0 {
+		trustedNetworks = strings.Join(spec.TrustedNetworks, ", ")
+	}
 	return &Firewall{
 		Egress:           uniqueSorted(egress),
 		Ingress:          uniqueSorted(ingress),
@@ -72,6 +78,7 @@ func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.Serv
 		Ipv4RuleFile:     ipv4File,
 		DryRun:           spec.DryRun,
 		InternalPrefixes: strings.Join(spec.InternalPrefixes, ", "),
+		TrustedNetworks:  trustedNetworks,
 		statikFS:         statikFS,
 	}
 }
