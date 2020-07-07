@@ -125,6 +125,7 @@ func TestFirewallValidateRulesIntegration(t *testing.T) {
 		DryRun           bool
 		statikFS         http.FileSystem
 		InternalPrefixes string
+		TrustedNetworks  string
 	}
 	tests := []struct {
 		name     string
@@ -141,6 +142,7 @@ func TestFirewallValidateRulesIntegration(t *testing.T) {
 				Ipv4RuleFile:     "nftables.v4",
 				statikFS:         statikFS,
 				InternalPrefixes: "1.2.3.4",
+				TrustedNetworks:  "0.0.0.0/0",
 			},
 			wantErr: false,
 		},
@@ -155,6 +157,7 @@ func TestFirewallValidateRulesIntegration(t *testing.T) {
 				DryRun:           tt.fields.DryRun,
 				statikFS:         tt.fields.statikFS,
 				InternalPrefixes: tt.fields.InternalPrefixes,
+				TrustedNetworks:  tt.fields.TrustedNetworks,
 			}
 			got, err := f.renderString()
 			if (err != nil) != tt.wantErr {
