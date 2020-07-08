@@ -103,9 +103,8 @@ type DeviceStatsByDevice map[string]DeviceStat
 
 // DeviceStat contains statistics of a device
 type DeviceStat struct {
-	InBytes    uint64 `json:"in"`
-	OutBytes   uint64 `json:"out"`
-	TotalBytes uint64 `json:"total"`
+	InBytes  uint64 `json:"in"`
+	OutBytes uint64 `json:"out"`
 }
 
 type IDSStatsByDevice map[string]InterfaceStat
