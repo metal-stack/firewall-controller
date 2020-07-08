@@ -19,7 +19,6 @@ table ip firewall {
 	}
 
 	# counters
-	counter internal_total { }
 	counter internal_in { }
 	counter internal_out { }
 	counter external_in { }
@@ -31,13 +30,12 @@ table ip firewall {
 		type filter hook forward priority 1; policy drop;
 
 		# network traffic accounting for external traffic
-		ip saddr != @internal_prefixes counter name external_in
-		ip daddr != @internal_prefixes counter name external_out
+		ip saddr != @internal_prefixes oif vlan{{ .PrivateVrfID }} counter name external_in
+		ip daddr != @internal_prefixes iif vrf{{ .PrivateVrfID }} counter name external_out
 
 		# network traffic accounting for internal traffic
-		ip saddr == @internal_prefixes ip daddr == @internal_prefixes counter name internal_total
-		ip saddr == @cluster_prefixes ip daddr == @internal_prefixes counter name internal_out
-		ip daddr == @cluster_prefixes ip saddr == @internal_prefixes counter name internal_in
+		ip saddr @internal_prefixes oif vlan{{ .PrivateVrfID }} counter name internal_in
+		ip daddr @internal_prefixes iif vrf{{ .PrivateVrfID }} counter name internal_out
 
 		# rate limits
 		{{- range .RateLimits }}

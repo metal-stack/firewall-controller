@@ -54,16 +54,20 @@ func init() {
 }
 
 func main() {
-	var metricsAddr string
-	var enableLeaderElection bool
-	var hostsFile string
-	var serviceIP string
+	var (
+		metricsAddr          string
+		enableLeaderElection bool
+		hostsFile            string
+		serviceIP            string
+		privateVrfID         int64
+	)
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.StringVar(&hostsFile, "hosts-file", "/etc/hosts", "The hosts file to manipulate for the droptailer.")
 	flag.StringVar(&serviceIP, "service-ip", "172.17.0.1", "The ip where firewall services are exposed.")
+	flag.Int64Var(&privateVrfID, "private-vrf", 0, "the vrf id of the private network.")
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
@@ -135,10 +139,11 @@ func main() {
 
 	// Firewall Reconciler
 	if err = (&controllers.FirewallReconciler{
-		Client:    mgr.GetClient(),
-		Log:       ctrl.Log.WithName("controllers").WithName("Firewall"),
-		Scheme:    mgr.GetScheme(),
-		ServiceIP: serviceIP,
+		Client:       mgr.GetClient(),
+		Log:          ctrl.Log.WithName("controllers").WithName("Firewall"),
+		Scheme:       mgr.GetScheme(),
+		ServiceIP:    serviceIP,
+		PrivateVrdID: privateVrfID,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Firewall")
 		os.Exit(1)

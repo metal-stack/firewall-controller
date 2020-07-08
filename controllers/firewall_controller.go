@@ -51,10 +51,11 @@ import (
 // FirewallReconciler reconciles a Firewall object
 type FirewallReconciler struct {
 	client.Client
-	recorder  record.EventRecorder
-	Log       logr.Logger
-	Scheme    *runtime.Scheme
-	ServiceIP string
+	recorder     record.EventRecorder
+	Log          logr.Logger
+	Scheme       *runtime.Scheme
+	ServiceIP    string
+	PrivateVrdID int64
 }
 
 const (
@@ -88,7 +89,7 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	var f firewallv1.Firewall
 	if err := r.Get(ctx, req.NamespacedName, &f); err != nil {
 		if apierrors.IsNotFound(err) {
-			defaultFw := nftables.NewDefaultFirewall()
+			defaultFw := nftables.NewDefaultFirewall(r.PrivateVrdID)
 			log.Info("flushing k8s firewall rules")
 			err := defaultFw.Flush()
 			if err == nil {
@@ -272,7 +273,7 @@ func (r *FirewallReconciler) reconcileRules(ctx context.Context, f firewallv1.Fi
 		return err
 	}
 
-	nftablesFirewall := nftables.NewFirewall(&clusterNPs, &services, f.Spec)
+	nftablesFirewall := nftables.NewFirewall(&clusterNPs, &services, f.Spec, r.PrivateVrdID)
 	log.Info("loaded rules", "ingress", len(nftablesFirewall.Ingress), "egress", len(nftablesFirewall.Egress))
 
 	if err := nftablesFirewall.Reconcile(); err != nil {
