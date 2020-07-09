@@ -19,7 +19,8 @@ table ip firewall {
 	}
 
 	# counters
-	counter internal_total { }
+	counter internal_in { }
+	counter internal_out { }
 	counter external_in { }
 	counter external_out { }
 	counter drop_total { }
@@ -29,11 +30,12 @@ table ip firewall {
 		type filter hook forward priority 1; policy drop;
 
 		# network traffic accounting for external traffic
-		ip saddr != @internal_prefixes counter name external_in
-		ip daddr != @internal_prefixes counter name external_out
+		ip saddr != @internal_prefixes oif vlan42 counter name external_in
+		ip daddr != @internal_prefixes iif vrf42 counter name external_out
 
 		# network traffic accounting for internal traffic
-		ip saddr == @internal_prefixes ip daddr == @internal_prefixes counter name internal_total
+		ip saddr @internal_prefixes oif vlan42 counter name internal_in
+		ip daddr @internal_prefixes iif vrf42 counter name internal_out
 
 		# rate limits
 		meta iifname "eth0" limit rate over 10 mbytes/second counter name drop_ratelimit drop

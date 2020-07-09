@@ -34,18 +34,20 @@ type Firewall struct {
 	DryRun           bool
 	InternalPrefixes string
 	statikFS         http.FileSystem
+	PrivateVrfID     int64
 }
 
 // NewDefaultFirewall creates a new default nftables firewall.
-func NewDefaultFirewall() *Firewall {
+func NewDefaultFirewall(vrfID int64) *Firewall {
 	defaultSpec := firewallv1.FirewallSpec{}
-	return NewFirewall(&firewallv1.ClusterwideNetworkPolicyList{}, &v1.ServiceList{}, defaultSpec)
+	return NewFirewall(&firewallv1.ClusterwideNetworkPolicyList{}, &v1.ServiceList{}, defaultSpec, vrfID)
 }
 
 // NewFirewall creates a new nftables firewall object based on k8s entities
-func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.ServiceList, spec firewallv1.FirewallSpec) *Firewall {
+func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.ServiceList, spec firewallv1.FirewallSpec, vrfID int64) *Firewall {
 	ingress := []string{}
 	egress := []string{}
+
 	for _, np := range nps.Items {
 		if len(np.Spec.Egress) > 0 {
 			egress = append(egress, egressForNetworkPolicy(np)...)
@@ -74,6 +76,7 @@ func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.Serv
 		DryRun:           spec.DryRun,
 		InternalPrefixes: strings.Join(spec.InternalPrefixes, ", "),
 		statikFS:         statikFS,
+		PrivateVrfID:     vrfID,
 	}
 }
 
@@ -184,7 +187,7 @@ func (f *Firewall) validate(file string) error {
 	c := exec.Command(nftBin, "-c", "-f", file)
 	out, err := c.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("nftables file '%s' is invalid: %s, err: %w", file, fmt.Sprint(out), err)
+		return fmt.Errorf("nftables file '%s' is invalid: %s, err: %w", file, string(out), err)
 	}
 	return nil
 }

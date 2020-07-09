@@ -14,7 +14,10 @@ jobs:
       id: tagName
     - name: run integration tests
       run: |
-        sudo apt install -y --no-install-recommends nftables
+        sudo apt install -y --no-install-recommends nftables iproute2 kmod
+        sudo modprobe dummy
+        sudo ip link add vrf42 type dummy
+        sudo ip link add vlan42 type dummy
         sudo make test-all clean
   build:
     needs: integration

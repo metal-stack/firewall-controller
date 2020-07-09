@@ -22,7 +22,7 @@ type (
 
 var (
 	countersToCollect = map[string][]string{
-		"internal": {"total"},
+		"internal": {"in", "out"},
 		"external": {"in", "out"},
 	}
 	tableName = "firewall"
@@ -59,8 +59,6 @@ func (n nfCollector) CollectDeviceStats() (firewallv1.DeviceStatsByDevice, error
 				deviceStat.InBytes = counter.Bytes
 			case "out":
 				deviceStat.OutBytes = counter.Bytes
-			case "total":
-				deviceStat.TotalBytes = counter.Bytes
 			}
 
 		}

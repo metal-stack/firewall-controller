@@ -23,6 +23,7 @@ func TestFirewall_renderString(t *testing.T) {
 		DryRun           bool
 		statikFS         http.FileSystem
 		InternalPrefixes string
+		PrivateVrfID     int64
 	}
 	tests := []struct {
 		name     string
@@ -45,6 +46,7 @@ func TestFirewall_renderString(t *testing.T) {
 				},
 				statikFS:         statikFS,
 				InternalPrefixes: "1.2.3.4",
+				PrivateVrfID:     int64(42),
 			},
 			wantErr: false,
 		},
@@ -62,6 +64,7 @@ func TestFirewall_renderString(t *testing.T) {
 				},
 				statikFS:         statikFS,
 				InternalPrefixes: "1.2.3.0/24, 2.3.4.0/8",
+				PrivateVrfID:     int64(42),
 			},
 			wantErr: false,
 		},
@@ -73,6 +76,7 @@ func TestFirewall_renderString(t *testing.T) {
 				Ipv4RuleFile:     "nftables.v4",
 				statikFS:         statikFS,
 				InternalPrefixes: "1.2.3.4",
+				PrivateVrfID:     int64(42),
 			},
 			wantErr: false,
 		},
@@ -87,6 +91,7 @@ func TestFirewall_renderString(t *testing.T) {
 				DryRun:           tt.fields.DryRun,
 				statikFS:         tt.fields.statikFS,
 				InternalPrefixes: tt.fields.InternalPrefixes,
+				PrivateVrfID:     tt.fields.PrivateVrfID,
 			}
 			got, err := f.renderString()
 			if (err != nil) != tt.wantErr {
@@ -120,6 +125,7 @@ func TestFirewallValidateRulesIntegration(t *testing.T) {
 		DryRun           bool
 		statikFS         http.FileSystem
 		InternalPrefixes string
+		PrivateVrfID     int64
 	}
 	tests := []struct {
 		name     string
@@ -136,6 +142,7 @@ func TestFirewallValidateRulesIntegration(t *testing.T) {
 				Ipv4RuleFile:     "nftables.v4",
 				statikFS:         statikFS,
 				InternalPrefixes: "1.2.3.4",
+				PrivateVrfID:     int64(42),
 			},
 			wantErr: false,
 		},
@@ -150,6 +157,7 @@ func TestFirewallValidateRulesIntegration(t *testing.T) {
 				DryRun:           tt.fields.DryRun,
 				statikFS:         tt.fields.statikFS,
 				InternalPrefixes: tt.fields.InternalPrefixes,
+				PrivateVrfID:     tt.fields.PrivateVrfID,
 			}
 			got, err := f.renderString()
 			if (err != nil) != tt.wantErr {

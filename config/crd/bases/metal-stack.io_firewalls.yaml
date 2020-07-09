@@ -125,6 +125,8 @@ spec:
                         format: int64
                         type: integer
                       total:
+                        description: 'Deprecated: TotalBytes is kept for backwards
+                          compatibility'
                         format: int64
                         type: integer
                     required:
