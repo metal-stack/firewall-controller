@@ -105,6 +105,8 @@ type DeviceStatsByDevice map[string]DeviceStat
 type DeviceStat struct {
 	InBytes  uint64 `json:"in"`
 	OutBytes uint64 `json:"out"`
+	// Deprecated: TotalBytes is kept for backwards compatibility
+	TotalBytes uint64 `json:"total"`
 }
 
 type IDSStatsByDevice map[string]InterfaceStat

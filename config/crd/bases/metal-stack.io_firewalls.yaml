@@ -98,9 +98,13 @@ spec:
                       out:
                         format: int64
                         type: integer
+                      total:
+                        format: int64
+                        type: integer
                     required:
                     - in
                     - out
+                    - total
                     type: object
                   description: DeviceStatsByDevice contains DeviceStatistics grouped
                     by device name

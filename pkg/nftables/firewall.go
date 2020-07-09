@@ -186,7 +186,7 @@ func (f *Firewall) validate(file string) error {
 	c := exec.Command(nftBin, "-c", "-f", file)
 	out, err := c.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("nftables file '%s' is invalid: %s, err: %w", file, fmt.Sprint(out), err)
+		return fmt.Errorf("nftables file '%s' is invalid: %s, err: %w", file, string(out), err)
 	}
 	return nil
 }
