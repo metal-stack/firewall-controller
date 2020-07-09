@@ -143,7 +143,7 @@ func main() {
 		Log:          ctrl.Log.WithName("controllers").WithName("Firewall"),
 		Scheme:       mgr.GetScheme(),
 		ServiceIP:    serviceIP,
-		PrivateVrdID: privateVrfID,
+		PrivateVrfID: privateVrfID,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Firewall")
 		os.Exit(1)
