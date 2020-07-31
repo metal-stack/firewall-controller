@@ -296,19 +296,19 @@ func (r *FirewallReconciler) reconcileEveboxAgent(ctx context.Context, f firewal
 		return nil
 	}
 
-	var secrets corev1.SecretList
-	if err := r.List(ctx, &secrets, &client.ListOptions{Namespace: namespace}); err != nil {
-		// we'll ignore not-found errors, since they can't be fixed by an immediate
-		// requeue (we'll need to wait for a new notification), and we can get them
-		// on deleted requests.
-		return client.IgnoreNotFound(err)
-	}
-
 	var (
 		username string
 		password string
 	)
 	if f.Spec.IDS.BasicAuthEnabled {
+		var secrets corev1.SecretList
+		if err := r.List(ctx, &secrets, &client.ListOptions{Namespace: namespace}); err != nil {
+			// we'll ignore not-found errors, since they can't be fixed by an immediate
+			// requeue (we'll need to wait for a new notification), and we can get them
+			// on deleted requests.
+			return client.IgnoreNotFound(err)
+		}
+
 		var idsSecret corev1.Secret
 		secretFound := false
 		for _, s := range secrets.Items {
