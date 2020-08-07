@@ -43,6 +43,7 @@ import (
 
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/pkg/collector"
+	"github.com/metal-stack/firewall-controller/pkg/evebox"
 	"github.com/metal-stack/firewall-controller/pkg/nftables"
 	"github.com/metal-stack/firewall-controller/pkg/suricata"
 	networking "k8s.io/api/networking/v1"
@@ -69,6 +70,8 @@ const (
 	nodeExporterService       = "nftables-exporter"
 	nodeExporterNamedPort     = "nftexporter"
 	nodeExporterPort          = 9630
+
+	idsSecretName = "ids"
 )
 
 var done = ctrl.Result{}
@@ -125,6 +128,11 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	log.Info("reconciling firewall services")
 	if err = r.reconcileFirewallServices(ctx, log); err != nil {
+		errors = multierror.Append(errors, err)
+	}
+
+	log.Info("reconciling evebox agent")
+	if err = r.reconcileEveboxAgent(ctx, f, log); err != nil {
 		errors = multierror.Append(errors, err)
 	}
 
@@ -281,6 +289,52 @@ func (r *FirewallReconciler) reconcileRules(ctx context.Context, f firewallv1.Fi
 	}
 
 	return nil
+}
+
+func (r *FirewallReconciler) reconcileEveboxAgent(ctx context.Context, f firewallv1.Firewall, log logr.Logger) error {
+	if f.Spec.IDS == nil {
+		return nil
+	}
+
+	var (
+		username string
+		password string
+	)
+	if f.Spec.IDS.BasicAuthEnabled {
+		var secrets corev1.SecretList
+		if err := r.List(ctx, &secrets, &client.ListOptions{Namespace: namespace}); err != nil {
+			// we'll ignore not-found errors, since they can't be fixed by an immediate
+			// requeue (we'll need to wait for a new notification), and we can get them
+			// on deleted requests.
+			return client.IgnoreNotFound(err)
+		}
+
+		var idsSecret corev1.Secret
+		secretFound := false
+		for _, s := range secrets.Items {
+			if s.Name == idsSecretName {
+				idsSecret = s
+				secretFound = true
+				break
+			}
+		}
+		if !secretFound {
+			return fmt.Errorf("ids basic auth enabled but no secret with username and password given in secret:%s", idsSecretName)
+		}
+		u, ok := idsSecret.Data["username"]
+		if !ok {
+			return fmt.Errorf("ids basic auth enabled but no username given in secret:%s", idsSecretName)
+		}
+		p, ok := idsSecret.Data["password"]
+		if !ok {
+			return fmt.Errorf("ids basic auth enabled but no password given in secret:%s", idsSecretName)
+		}
+		username = string(u)
+		password = string(p)
+	}
+
+	agent := evebox.NewEvebox(f.Spec, f.Spec.IDS.BasicAuthEnabled, username, password)
+	return agent.Reconcile()
 }
 
 type firewallService struct {
@@ -460,5 +514,6 @@ func (r *FirewallReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&source.Kind{Type: &firewallv1.ClusterwideNetworkPolicy{}}, triggerFirewallReconcilation).
 		Watches(&source.Kind{Type: &networking.NetworkPolicy{}}, triggerFirewallReconcilation).
 		Watches(&source.Kind{Type: &corev1.Service{}}, triggerFirewallReconcilation).
+		Watches(&source.Kind{Type: &corev1.Secret{}}, triggerFirewallReconcilation).
 		Complete(r)
 }

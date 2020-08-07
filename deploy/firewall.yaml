@@ -13,3 +13,6 @@ spec:
   internalprefixes:
   - "127.0.0.1"
   - "100.64.0.0/8"
+  ids:
+    serverurl: http://evebox-server-service:80
+    basicauthenabled: false

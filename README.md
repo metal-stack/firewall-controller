@@ -23,6 +23,10 @@ metadata:
   namespace: firewall
   name: firewall
 spec:
+  # clusterid should be set from the gardener-extension-provider-metal
+  clusterid: "<uuid of the k8s cluster>"
+  # projectid this cluster belongs to, should be set from the gardener-extension-provider-metal
+  projectid: "<uuid of the project"
   # Interval of reconcilation if nftables rules and network traffic accounting
   interval: 10s
   # Ratelimits specify on which physical interface, which maximum rate of traffic is allowed
@@ -37,6 +41,28 @@ spec:
   - "1.2.3.0/24
   - "172.17.0.0/16"
   - "10.0.0.0/8"
+  # ids is optional, if not given ids events are not forwarded
+  ids:
+    # serverurl specifies the ids event sink url
+    serverurl: https://ids.foo.bar
+    # basicauthenabled must be set to true if event sink requires username and password
+    # if set to true a secret in the firewall namespace with the name "ids" in the firewall namespace must be present
+    # it must also contain a username and password data object
+    basicauthenabled: true
+```
+
+IDS Secret
+
+```yaml
+---apiVersion: v1
+kind: Secret
+metadata:
+  name: ids
+  namespace: firewall
+type: Opaque
+data:
+  username: <base64 encoded username>
+  password: <base64 encoded password>
 ```
 
 Example ClusterwideNetworkPolicy:
@@ -59,6 +85,15 @@ spec:
       port: 53
     - protocol: TCP
       port: 53
+  ingress:
+  - from:
+    - cidr: 1.1.0.0/24
+      except:
+      - 1.1.1.0/16
+    - cidr: 8.8.8.8/32
+    ports:
+    - protocol: TCP
+      port: 8443
 ```
 
 ## Status

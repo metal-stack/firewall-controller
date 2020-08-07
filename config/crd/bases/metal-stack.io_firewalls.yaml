@@ -15,6 +15,9 @@ spec:
   - JSONPath: .spec.internalprefixes
     name: InternalPrefixes
     type: string
+  - JSONPath: .spec.ids.serverurl
+    name: IDS
+    type: string
   group: metal-stack.io
   names:
     kind: Firewall
@@ -43,9 +46,28 @@ spec:
         spec:
           description: FirewallSpec defines the desired state of Firewall
           properties:
+            clusterid:
+              description: ClusterID the uuid of the cluster
+              type: string
             dryrun:
               description: DryRun if set to true, firewall rules are not applied
               type: boolean
+            ids:
+              description: IDS configuration
+              properties:
+                basicauthenabled:
+                  description: BasicAuthEnabled must be set to true if event sink
+                    requires username and password if set to true a secret in the
+                    firewall namespace with the name "ids" in the firewall namespace
+                    must be present it must also contain a username and password data
+                    object
+                  type: boolean
+                serverurl:
+                  description: ServerURL the url where the IDS
+                  type: string
+              required:
+              - basicauthenabled
+              type: object
             internalprefixes:
               description: InternalPrefixes specify prefixes which are considered
                 local to the partition or all regions. Traffic to/from these prefixes
@@ -59,6 +81,10 @@ spec:
             ipv4rulefile:
               description: TrafficControl defines where to store the generated ipv4
                 firewall rules on disk
+              type: string
+            projectid:
+              description: ProjectID the uuid of the project this cluster belongs
+                to
               type: string
             ratelimits:
               description: RateLimits allows configuration of rate limit rules for

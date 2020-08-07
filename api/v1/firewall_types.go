@@ -28,6 +28,7 @@ import (
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Interval",type=string,JSONPath=`.spec.interval`
 // +kubebuilder:printcolumn:name="InternalPrefixes",type=string,JSONPath=`.spec.internalprefixes`
+// +kubebuilder:printcolumn:name="IDS",type=string,JSONPath=`.spec.ids.serverurl`
 type Firewall struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -57,6 +58,13 @@ type FirewallSpec struct {
 	// InternalPrefixes specify prefixes which are considered local to the partition or all regions.
 	// Traffic to/from these prefixes is accounted as internal traffic
 	InternalPrefixes []string `json:"internalprefixes,omitempty"`
+	// IDS configuration
+	// +optional
+	IDS *IDS `json:"ids,omitempty"`
+	// ClusterID the uuid of the cluster
+	ClusterID string `json:"clusterid,omitempty"`
+	// ProjectID the uuid of the project this cluster belongs to
+	ProjectID string `json:"projectid,omitempty"`
 }
 
 // FirewallStatus defines the observed state of Firewall
@@ -115,6 +123,16 @@ type InterfaceStat struct {
 	Drop             int `json:"drop"`
 	InvalidChecksums int `json:"invalidchecksums"`
 	Packets          int `json:"packets"`
+}
+
+// IDS configures the intrusion detection
+type IDS struct {
+	// ServerURL the url where the IDS
+	ServerURL string `json:"serverurl,omitempty"`
+	// BasicAuthEnabled must be set to true if event sink requires username and password
+	// if set to true a secret in the firewall namespace with the name "ids" in the firewall namespace must be present
+	// it must also contain a username and password data object
+	BasicAuthEnabled bool `json:"basicauthenabled"`
 }
 
 func init() {

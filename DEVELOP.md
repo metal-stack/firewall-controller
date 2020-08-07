@@ -20,16 +20,13 @@ make test
 
 ```bash
 # start kind cluster
-kind create cluster
-
-# deploy manifests
-k apply -f deploy
-
-# start the controller
-bin/firewall-controller --hosts-file ./hosts
+make start
 
 # watch results
 k describe -n firewall firewall
-cat nftables.v4
-cat hosts
+
+# see evebox
+k port-forward -n firewall svc/evebox-server-service 8080:80
+
+point your browser to http://localhost:8080
 ```

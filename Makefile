@@ -77,6 +77,7 @@ vet:
 # Generate code
 generate: controller-gen statik manifests
 	$(STATIK) -src=pkg/nftables -include='*.tpl' -dest=pkg/nftables -ns tpl
+	$(STATIK) -src=pkg/evebox -include='*.tpl' -dest=pkg/evebox -ns tpl
 	$(STATIK) -src=config/crd/bases -ns crd
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
@@ -87,6 +88,30 @@ docker-build:
 # Push the docker image
 docker-push:
 	docker push ${DOCKER_IMG}
+
+KUBECONFIG := $(shell pwd)/.kubeconfig
+
+.PHONY: start
+start: kind-cluster-create
+	kind --name firewall-controller load docker-image metalstack/firewall-controller:latest
+	kubectl --kubeconfig $(KUBECONFIG) delete -f "deploy/firewall-controller.yaml" || true # for idempotence
+	kubectl --kubeconfig $(KUBECONFIG) apply -f "deploy/firewall-controller.yaml"
+	kubectl --kubeconfig $(KUBECONFIG) apply -f "deploy/firewall.yaml"
+	# tailing
+	stern --kubeconfig $(KUBECONFIG) '.*'
+
+.PHONY: kind-cluster-create
+kind-cluster-create: docker-build
+	@if ! which kind > /dev/null; then echo "kind needs to be installed"; exit 1; fi
+	@if ! kind get clusters | grep firewall-controller > /dev/null; then \
+		kind create cluster \
+		--name firewall-controller \
+		--kubeconfig $(KUBECONFIG); fi
+
+.PHONY: cleanup
+cleanup:
+	kind delete cluster --name firewall-controller
+	rm -f $(KUBECONFIG)
 
 # find or download controller-gen
 # download controller-gen if necessary
