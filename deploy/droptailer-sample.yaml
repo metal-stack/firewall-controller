@@ -31,6 +31,8 @@ kind: Pod
 metadata:
   name: droptailer
   namespace: firewall
+  labels:
+    app: droptailer
 spec:
   containers:
   - env:

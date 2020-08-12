@@ -99,6 +99,9 @@ type EgressRule struct {
 	// allows traffic only if the traffic matches at least one item in the to list.
 	// +optional
 	To []networking.IPBlock `json:"to,omitempty"`
+
+	// Map of labels of pods this rule applies to.
+	MatchLabels map[string]string `json:"matchLabels,omitempty"`
 }
 
 func init() {

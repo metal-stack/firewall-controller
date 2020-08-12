@@ -261,6 +261,14 @@ func convert(np networking.NetworkPolicy) (*firewallv1.ClusterwideNetworkPolicy,
 	return &cwnp, nil
 }
 
+func (r *FirewallReconciler) podLister(ctx context.Context, labels map[string]string) (*v1.PodList, error) {
+	var pods v1.PodList
+	if err := r.List(ctx, &pods, client.MatchingLabels(labels)); err != nil {
+		return nil, err
+	}
+	return &pods, nil
+}
+
 // reconcileRules reconciles the nftable rules for this firewall
 func (r *FirewallReconciler) reconcileRules(ctx context.Context, f firewallv1.Firewall, log logr.Logger) error {
 	var clusterNPs firewallv1.ClusterwideNetworkPolicyList
@@ -273,7 +281,13 @@ func (r *FirewallReconciler) reconcileRules(ctx context.Context, f firewallv1.Fi
 		return err
 	}
 
-	nftablesFirewall := nftables.NewFirewall(&clusterNPs, &services, f.Spec, r.PrivateVrfID)
+	nftablesFirewall := nftables.NewFirewall(&clusterNPs, &services, f.Spec, r.PrivateVrfID, func(labels map[string]string) v1.PodList {
+		pods, err := r.podLister(ctx, labels)
+		if err != nil {
+			log.Info("could not list pods", "err", err)
+		}
+		return *pods
+	})
 	log.Info("loaded rules", "ingress", len(nftablesFirewall.Ingress), "egress", len(nftablesFirewall.Egress))
 
 	if err := nftablesFirewall.Reconcile(); err != nil {

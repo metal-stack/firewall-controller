@@ -51,6 +51,11 @@ spec:
                   is allowed out of the cluster The traffic must match both ports
                   and to.
                 properties:
+                  matchLabels:
+                    additionalProperties:
+                      type: string
+                    description: Map of labels of pods this rule applies to.
+                    type: object
                   ports:
                     description: List of destination ports for outgoing traffic. Each
                       item in this list is combined using a logical OR. If this field

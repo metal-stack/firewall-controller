@@ -39,17 +39,19 @@ type Firewall struct {
 // NewDefaultFirewall creates a new default nftables firewall.
 func NewDefaultFirewall(vrfID int64) *Firewall {
 	defaultSpec := firewallv1.FirewallSpec{}
-	return NewFirewall(&firewallv1.ClusterwideNetworkPolicyList{}, &v1.ServiceList{}, defaultSpec, vrfID)
+	return NewFirewall(&firewallv1.ClusterwideNetworkPolicyList{}, &v1.ServiceList{}, defaultSpec, vrfID, nil)
 }
 
+type podLister func(map[string]string) v1.PodList
+
 // NewFirewall creates a new nftables firewall object based on k8s entities
-func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.ServiceList, spec firewallv1.FirewallSpec, vrfID int64) *Firewall {
+func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.ServiceList, spec firewallv1.FirewallSpec, vrfID int64, podLister podLister) *Firewall {
 	ingress := []string{}
 	egress := []string{}
 
 	for _, np := range nps.Items {
 		if len(np.Spec.Egress) > 0 {
-			egress = append(egress, egressForNetworkPolicy(np)...)
+			egress = append(egress, egressForNetworkPolicy(np, podLister)...)
 		}
 		if len(np.Spec.Ingress) > 0 {
 			ingress = append(ingress, ingressForNetworkPolicy(np)...)

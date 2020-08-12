@@ -48,7 +48,7 @@ func ingressForNetworkPolicy(np firewallv1.ClusterwideNetworkPolicy) []string {
 	return rules
 }
 
-func egressForNetworkPolicy(np firewallv1.ClusterwideNetworkPolicy) []string {
+func egressForNetworkPolicy(np firewallv1.ClusterwideNetworkPolicy, podLister podLister) []string {
 	egress := np.Spec.Egress
 	if egress == nil {
 		return nil
@@ -72,6 +72,16 @@ func egressForNetworkPolicy(np firewallv1.ClusterwideNetworkPolicy) []string {
 			except = append(except, ipBlock.Except...)
 		}
 		ruleBase := []string{"ip saddr == @cluster_prefixes"}
+		if podLister != nil && len(e.MatchLabels) > 0 {
+			pods := podLister(e.MatchLabels)
+			podIPs := []string{}
+			for _, p := range pods.Items {
+				podIPs = append(podIPs, p.Status.PodIP)
+			}
+			if len(podIPs) > 0 {
+				ruleBase = []string{fmt.Sprintf("ip saddr { %s }", strings.Join(podIPs, "/32, ")+"/32")}
+			}
+		}
 		if len(except) > 0 {
 			ruleBase = append(ruleBase, fmt.Sprintf("ip daddr != { %s }", strings.Join(except, ", ")))
 		}
