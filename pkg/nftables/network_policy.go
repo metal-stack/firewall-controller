@@ -78,9 +78,10 @@ func egressForNetworkPolicy(np firewallv1.ClusterwideNetworkPolicy, podLister po
 			for _, p := range pods.Items {
 				podIPs = append(podIPs, fmt.Sprintf("%s/32", p.Status.PodIP))
 			}
-			if len(podIPs) > 0 {
-				ruleBase = []string{fmt.Sprintf("ip saddr { %s }", strings.Join(podIPs, ", "))}
+			if len(podIPs) == 0 {
+				continue
 			}
+			ruleBase = []string{fmt.Sprintf("ip saddr { %s }", strings.Join(podIPs, ", "))}
 		}
 		if len(except) > 0 {
 			ruleBase = append(ruleBase, fmt.Sprintf("ip daddr != { %s }", strings.Join(except, ", ")))
