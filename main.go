@@ -57,6 +57,7 @@ func main() {
 	var (
 		metricsAddr          string
 		enableLeaderElection bool
+		enableIDS            bool
 		hostsFile            string
 		serviceIP            string
 		privateVrfID         int64
@@ -65,6 +66,7 @@ func main() {
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+	flag.BoolVar(&enableIDS, "enable-IDS", true, "Set this to false to exclude IDS.")
 	flag.StringVar(&hostsFile, "hosts-file", "/etc/hosts", "The hosts file to manipulate for the droptailer.")
 	flag.StringVar(&serviceIP, "service-ip", "172.17.0.1", "The ip where firewall services are exposed.")
 	flag.Int64Var(&privateVrfID, "private-vrf", 0, "the vrf id of the private network.")
@@ -144,6 +146,7 @@ func main() {
 		Scheme:       mgr.GetScheme(),
 		ServiceIP:    serviceIP,
 		PrivateVrfID: privateVrfID,
+		EnableIDS:    enableIDS,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Firewall")
 		os.Exit(1)
