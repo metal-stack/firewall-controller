@@ -56,6 +56,7 @@ type FirewallReconciler struct {
 	Scheme       *runtime.Scheme
 	ServiceIP    string
 	PrivateVrfID int64
+	EnableIDS    bool
 }
 
 const (
@@ -415,17 +416,19 @@ func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Fire
 	}
 	f.Status.FirewallStats.DeviceStats = deviceStats
 
-	s := suricata.New()
-	ss, err := s.InterfaceStats()
-	if err != nil {
-		return err
-	}
 	idsStats := firewallv1.IDSStatsByDevice{}
-	for iface, stat := range *ss {
-		idsStats[iface] = firewallv1.InterfaceStat{
-			Drop:             stat.Drop,
-			InvalidChecksums: stat.InvalidChecksums,
-			Packets:          stat.Pkts,
+	if r.EnableIDS { // checks the CLI-flag
+		s := suricata.New()
+		ss, err := s.InterfaceStats()
+		if err != nil {
+			return err
+		}
+		for iface, stat := range *ss {
+			idsStats[iface] = firewallv1.InterfaceStat{
+				Drop:             stat.Drop,
+				InvalidChecksums: stat.InvalidChecksums,
+				Packets:          stat.Pkts,
+			}
 		}
 	}
 	f.Status.FirewallStats.IDSStats = idsStats
