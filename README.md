@@ -9,6 +9,12 @@ Additional an IDS is managed on the firewall to detect known network anomalies. 
 
 ![Architecture](architecture.svg)
 
+## Automatically generated ingress rules
+
+For every `Service` of type `LoadBalancer` in the cluster, the corresponding ingress rules will be automatically generated.
+
+If `loadBalancerSourceRanges` is not specified, incomig traffic to this service will be allowed for any source ip adresses.
+
 ## Configuration
 
 Firewall Controller is configured with 2 CRDs: `firewalls.metal-stack.io` and `clusterwidenetworkpolicies.metal-stack.io`. Both are namespaced and must reside in the `firewall` namespace.
