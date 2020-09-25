@@ -1,6 +1,8 @@
 package suricata
 
 import (
+	"context"
+
 	"github.com/ks2211/go-suricata/client"
 )
 
@@ -30,13 +32,13 @@ func (s *Suricata) InterfaceStats() (*InterfaceStats, error) {
 	}
 	defer suricata.Close()
 
-	ifaces, err := suricata.IFaceListCommand()
+	ifaces, err := suricata.IFaceListCommand(context.Background())
 	if err != nil {
 		return nil, err
 	}
 	result := InterfaceStats{}
 	for _, iface := range ifaces.Ifaces {
-		stat, err := suricata.IFaceStatCommand(client.IFaceStatRequest{IFace: iface})
+		stat, err := suricata.IFaceStatCommand(context.Background(), client.IFaceStatRequest{IFace: iface})
 		if err != nil {
 			return nil, err
 		}
