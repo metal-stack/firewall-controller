@@ -70,6 +70,7 @@ const (
 	nodeExporterService       = "nftables-exporter"
 	nodeExporterNamedPort     = "nftexporter"
 	nodeExporterPort          = 9630
+	exporterLabelKey          = "app"
 )
 
 var done = ctrl.Result{}
@@ -321,6 +322,7 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 	meta := metav1.ObjectMeta{
 		Name:      s.name,
 		Namespace: firewallNamespace,
+		Labels:    map[string]string{exporterLabelKey: s.name},
 	}
 
 	var currentSvc v1.Service
