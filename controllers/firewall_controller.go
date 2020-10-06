@@ -91,7 +91,7 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	var f firewallv1.Firewall
 	if err := r.Get(ctx, req.NamespacedName, &f); err != nil {
 		if apierrors.IsNotFound(err) {
-			defaultFw := nftables.NewDefaultFirewall(r.PrivateVrfID)
+			defaultFw := nftables.NewDefaultFirewall()
 			log.Info("flushing k8s firewall rules")
 			err := defaultFw.Flush()
 			if err == nil {
@@ -275,9 +275,7 @@ func (r *FirewallReconciler) reconcileRules(ctx context.Context, f firewallv1.Fi
 		return err
 	}
 
-	nftablesFirewall := nftables.NewFirewall(&clusterNPs, &services, f.Spec, r.PrivateVrfID)
-	log.Info("loaded rules", "ingress", len(nftablesFirewall.Ingress), "egress", len(nftablesFirewall.Egress))
-
+	nftablesFirewall := nftables.NewFirewall(&clusterNPs, &services, f.Spec)
 	if err := nftablesFirewall.Reconcile(); err != nil {
 		return err
 	}

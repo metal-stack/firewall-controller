@@ -8,8 +8,48 @@ spec:
   dryrun: true
   ipv4rulefile: nftables.v4
   ratelimits:
-  - interface: vrf104009
+  - network: internet
     rate: 10
   internalprefixes:
   - "127.0.0.1"
   - "100.64.0.0/8"
+  snat:
+  - network: internet
+    ips:
+    - 212.34.80.1
+  networks:
+  - asn: 4200003073
+    destinationprefixes: []
+    ips:
+      - 10.0.16.2
+    nat: false
+    networkid: bc830818-2df1-4904-8c40-4322296d393d
+    prefixes:
+      - 10.0.16.0/22
+    private: true
+    underlay: false
+    vrf: 3981
+  - asn: 4200003073
+    destinationprefixes:
+      - 0.0.0.0/0
+    ips:
+      - 185.1.2.3
+    nat: true
+    networkid: internet
+    prefixes:
+      - 185.1.2.0/24
+      - 185.27.0.0/22
+    private: false
+    underlay: false
+    vrf: 104009
+  - asn: 4200003073
+    destinationprefixes: []
+    ips:
+      - 10.1.0.1
+    nat: false
+    networkid: underlay-vagrant-lab
+    prefixes:
+      - 10.0.12.0/22
+    private: false
+    underlay: true
+    vrf: 0

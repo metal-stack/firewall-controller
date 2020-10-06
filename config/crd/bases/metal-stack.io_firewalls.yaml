@@ -60,20 +60,86 @@ spec:
               description: TrafficControl defines where to store the generated ipv4
                 firewall rules on disk
               type: string
+            networks:
+              description: Networks
+              items:
+                description: Network holds a metal-api network.
+                properties:
+                  destinationprefixes:
+                    items:
+                      type: string
+                    type: array
+                  id:
+                    type: string
+                  ips:
+                    items:
+                      type: string
+                    type: array
+                  nat:
+                    type: boolean
+                  parentnetworkid:
+                    type: string
+                  partitionid:
+                    type: string
+                  prefixes:
+                    items:
+                      type: string
+                    type: array
+                  privatesuper:
+                    type: boolean
+                  projectid:
+                    type: string
+                  shared:
+                    type: boolean
+                  underlay:
+                    type: boolean
+                  vrf:
+                    type: integer
+                required:
+                - destinationprefixes
+                - id
+                - ips
+                - nat
+                - parentnetworkid
+                - partitionid
+                - prefixes
+                - privatesuper
+                - projectid
+                - shared
+                - underlay
+                - vrf
+                type: object
+              type: array
             ratelimits:
               description: RateLimits allows configuration of rate limit rules for
                 interfaces.
               items:
-                description: RateLimit contains the rate limit rule for a interface.
+                description: RateLimit contains the rate limit rule for a network.
                 properties:
-                  interface:
-                    description: Interface specifies the interface which should be
-                      rate limited
+                  network:
+                    description: Network specifies the network which should be rate
+                      limited
                     type: string
                   rate:
                     description: Rate is the input rate in MiB/s
                     format: int32
                     type: integer
+                type: object
+              type: array
+            snat:
+              description: Snat
+              items:
+                description: Snat holds a Source-NAT rule
+                properties:
+                  ips:
+                    items:
+                      type: string
+                    type: array
+                  network:
+                    type: string
+                required:
+                - ips
+                - network
                 type: object
               type: array
           type: object

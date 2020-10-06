@@ -75,3 +75,36 @@ func proto(p *corev1.Protocol) string {
 	}
 	return proto
 }
+
+type diffResult struct {
+	toAdd    []string
+	toRemove []string
+}
+
+// diff computes the symmetrical distance of the two string arrays split into elements needed to be added / removed from the current list
+func diff(desired, current []string) diffResult {
+	res := diffResult{}
+	desiredMap := map[string]bool{}
+	for _, d := range desired {
+		desiredMap[d] = true
+	}
+
+	currentMap := map[string]bool{}
+	for _, a := range current {
+		currentMap[a] = true
+	}
+
+	for desired := range desiredMap {
+		if !currentMap[desired] {
+			res.toAdd = append(res.toAdd, desired)
+		}
+	}
+
+	for current := range currentMap {
+		if !desiredMap[current] {
+			res.toRemove = append(res.toRemove, current)
+		}
+	}
+
+	return res
+}

@@ -57,6 +57,10 @@ type FirewallSpec struct {
 	// InternalPrefixes specify prefixes which are considered local to the partition or all regions.
 	// Traffic to/from these prefixes is accounted as internal traffic
 	InternalPrefixes []string `json:"internalprefixes,omitempty"`
+	// Snat
+	Snat []Snat `json:"snat,omitempty"`
+	// Networks
+	Networks []Network `json:"networks,omitempty"`
 }
 
 // FirewallStatus defines the observed state of Firewall
@@ -71,6 +75,22 @@ type FirewallStats struct {
 	RuleStats   RuleStatsByAction   `json:"rules"`
 	DeviceStats DeviceStatsByDevice `json:"devices"`
 	IDSStats    IDSStatsByDevice    `json:"idsstats"`
+}
+
+// Network holds a metal-api network.
+type Network struct {
+	ID                  string   `json:"id"`
+	Prefixes            []string `json:"prefixes"`
+	IPs                 []string `json:"ips"`
+	DestinationPrefixes []string `json:"destinationprefixes"`
+	PartitionID         string   `json:"partitionid"`
+	ProjectID           string   `json:"projectid"`
+	ParentNetworkID     string   `json:"parentnetworkid"`
+	Vrf                 uint     `json:"vrf"`
+	PrivateSuper        bool     `json:"privatesuper"`
+	Nat                 bool     `json:"nat"`
+	Underlay            bool     `json:"underlay"`
+	Shared              bool     `json:"shared"`
 }
 
 // RuleStatsByAction contains firewall rule statistics groups by action: e.g. accept, drop, policy, masquerade
@@ -90,10 +110,16 @@ type Counter struct {
 	Packets uint64 `json:"packets"`
 }
 
-// RateLimit contains the rate limit rule for a interface.
+// Snat holds a Source-NAT rule
+type Snat struct {
+	Network string   `json:"network"`
+	IPs     []string `json:"ips"`
+}
+
+// RateLimit contains the rate limit rule for a network.
 type RateLimit struct {
-	// Interface specifies the interface which should be rate limited
-	Interface string `json:"interface,omitempty"`
+	// Network specifies the network which should be rate limited
+	Network string `json:"network,omitempty"`
 	// Rate is the input rate in MiB/s
 	Rate uint32 `json:"rate,omitempty"`
 }
