@@ -52,17 +52,20 @@ func NewDefaultFirewall() *Firewall {
 func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.ServiceList, spec firewallv1.FirewallSpec) *Firewall {
 	networkMap := networkMap{}
 	var primaryPrivateNet *firewallv1.Network
-	for _, n := range spec.Networks {
+	for i, n := range spec.Networks {
 		if n.ParentNetworkID != "" && !n.Underlay && !n.PrivateSuper && !n.Shared {
-			primaryPrivateNet = &n
+			primaryPrivateNet = &spec.Networks[i]
 		}
 		networkMap[n.ID] = n
 	}
 
 	return &Firewall{
-		dryRun:            spec.DryRun,
-		primaryPrivateNet: primaryPrivateNet,
-		networkMap:        networkMap,
+		spec:                       spec,
+		clusterwideNetworkPolicies: nps,
+		services:                   svcs,
+		primaryPrivateNet:          primaryPrivateNet,
+		networkMap:                 networkMap,
+		dryRun:                     spec.DryRun,
 	}
 }
 

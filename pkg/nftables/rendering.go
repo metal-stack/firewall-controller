@@ -112,7 +112,7 @@ type snatRule struct {
 }
 
 func (s *snatRule) String() string {
-	return fmt.Sprintf("ip saddr { %s } oifname \"%s\" counter snat %s comment \"%s\"", s.sourceNetworks, s.oifname, s.to, s.comment)
+	return fmt.Sprintf(`ip saddr { %s } oifname "%s" counter snat %s comment "%s"`, s.sourceNetworks, s.oifname, s.to, s.comment)
 }
 
 // snatRules generates the nftables rules for SNAT based on the firewall spec
@@ -144,6 +144,7 @@ func snatRules(f *Firewall) (nftablesRules, error) {
 
 				if cidr.Contains(ip) {
 					innets = true
+					break
 				}
 			}
 
@@ -153,11 +154,20 @@ func snatRules(f *Firewall) (nftablesRules, error) {
 			hmap = append(hmap, fmt.Sprintf("%d : %s", k, ip.String()))
 		}
 
+		var to string
+		if len(s.IPs) == 0 {
+			return nil, fmt.Errorf("need to specify at least one address for SNAT")
+		} else if len(s.IPs) == 1 {
+			to = s.IPs[0]
+		} else {
+			to = fmt.Sprintf("to jhash ip daddr . tcp sport mod %d map { %s }", len(s.IPs), strings.Join(hmap, ", "))
+		}
+
 		snatRule := snatRule{
-			comment:        s.Network,
+			comment:        fmt.Sprintf("snat for %s", s.Network),
 			sourceNetworks: strings.Join(f.primaryPrivateNet.Prefixes, ", "),
 			oifname:        fmt.Sprintf("vlan%d", n.Vrf),
-			to:             fmt.Sprintf("to jhash ip daddr . tcp sport mod %d map { %s }", len(s.IPs), strings.Join(hmap, ", ")),
+			to:             to,
 		}
 		rules = append(rules, snatRule.String())
 	}
@@ -172,7 +182,10 @@ func rateLimitRules(f *Firewall) nftablesRules {
 		if !ok {
 			continue
 		}
-		rules = append(rules, fmt.Sprintf("meta iifname \"%s\" limit rate over %d mbytes/second counter name drop_ratelimit drop", fmt.Sprintf("vrf%d", n.Vrf), l.Rate))
+		if n.Underlay {
+			continue
+		}
+		rules = append(rules, fmt.Sprintf(`meta iifname "%s" limit rate over %d mbytes/second counter name drop_ratelimit drop`, fmt.Sprintf("vrf%d", n.Vrf), l.Rate))
 	}
 	return rules
 }
