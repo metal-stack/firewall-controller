@@ -7,7 +7,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func ingressForService(svc corev1.Service) []string {
+// serviceRules generates nftables rules base on a k8s service definition
+func serviceRules(svc corev1.Service) nftablesRules {
 	if svc.Spec.Type != corev1.ServiceTypeLoadBalancer && svc.Spec.Type != corev1.ServiceTypeNodePort {
 		return nil
 	}
@@ -49,7 +50,7 @@ func ingressForService(svc corev1.Service) []string {
 		}
 	}
 	comment := fmt.Sprintf("accept traffic for k8s service %s/%s", svc.ObjectMeta.Namespace, svc.ObjectMeta.Name)
-	rules := []string{}
+	rules := nftablesRules{}
 	if len(tcpPorts) > 0 {
 		rules = append(rules, assembleDestinationPortRule(ruleBase, "tcp", tcpPorts, comment))
 	}

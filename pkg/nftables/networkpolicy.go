@@ -7,12 +7,24 @@ import (
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 )
 
-func ingressForNetworkPolicy(np firewallv1.ClusterwideNetworkPolicy) []string {
+// clusterwideNetworkPolicyRules generates nftables rules for a clusterwidenetworkpolicy
+func clusterwideNetworkPolicyRules(np firewallv1.ClusterwideNetworkPolicy) (nftablesRules, nftablesRules) {
+	ingress, egress := nftablesRules{}, nftablesRules{}
+	if len(np.Spec.Egress) > 0 {
+		egress = append(egress, clusterwideNetworkPolicyEgressRules(np)...)
+	}
+	if len(np.Spec.Ingress) > 0 {
+		ingress = append(ingress, clusterwideNetworkPolicyIngressRules(np)...)
+	}
+	return ingress, egress
+}
+
+func clusterwideNetworkPolicyIngressRules(np firewallv1.ClusterwideNetworkPolicy) nftablesRules {
 	ingress := np.Spec.Ingress
 	if ingress == nil {
 		return nil
 	}
-	rules := []string{}
+	rules := nftablesRules{}
 	for _, i := range ingress {
 		allow := []string{}
 		except := []string{}
@@ -45,15 +57,15 @@ func ingressForNetworkPolicy(np firewallv1.ClusterwideNetworkPolicy) []string {
 			rules = append(rules, assembleDestinationPortRule(common, "udp", udpPorts, comment+" udp"))
 		}
 	}
-	return rules
+	return uniqueSorted(rules)
 }
 
-func egressForNetworkPolicy(np firewallv1.ClusterwideNetworkPolicy) []string {
+func clusterwideNetworkPolicyEgressRules(np firewallv1.ClusterwideNetworkPolicy) nftablesRules {
 	egress := np.Spec.Egress
 	if egress == nil {
 		return nil
 	}
-	rules := []string{}
+	rules := nftablesRules{}
 	for _, e := range egress {
 		tcpPorts := []string{}
 		udpPorts := []string{}
@@ -88,5 +100,5 @@ func egressForNetworkPolicy(np firewallv1.ClusterwideNetworkPolicy) []string {
 			rules = append(rules, assembleDestinationPortRule(ruleBase, "udp", udpPorts, comment+" udp"))
 		}
 	}
-	return rules
+	return uniqueSorted(rules)
 }
