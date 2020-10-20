@@ -59,8 +59,8 @@ type FirewallSpec struct {
 	InternalPrefixes []string `json:"internalprefixes,omitempty"`
 	// Snat
 	Snat []Snat `json:"snat,omitempty"`
-	// Networks
-	Networks []Network `json:"networks,omitempty"`
+	// Networks holds the machine networks known at the metal-api
+	Networks []MachineNetwork `json:"networks,omitempty"`
 }
 
 // FirewallStatus defines the observed state of Firewall
@@ -75,22 +75,6 @@ type FirewallStats struct {
 	RuleStats   RuleStatsByAction   `json:"rules"`
 	DeviceStats DeviceStatsByDevice `json:"devices"`
 	IDSStats    IDSStatsByDevice    `json:"idsstats"`
-}
-
-// Network holds a metal-api network.
-type Network struct {
-	ID                  string   `json:"id"`
-	Prefixes            []string `json:"prefixes"`
-	IPs                 []string `json:"ips"`
-	DestinationPrefixes []string `json:"destinationprefixes"`
-	PartitionID         string   `json:"partitionid"`
-	ProjectID           string   `json:"projectid"`
-	ParentNetworkID     string   `json:"parentnetworkid"`
-	Vrf                 uint     `json:"vrf"`
-	PrivateSuper        bool     `json:"privatesuper"`
-	Nat                 bool     `json:"nat"`
-	Underlay            bool     `json:"underlay"`
-	Shared              bool     `json:"shared"`
 }
 
 // RuleStatsByAction contains firewall rule statistics groups by action: e.g. accept, drop, policy, masquerade
@@ -141,6 +125,30 @@ type InterfaceStat struct {
 	Drop             int `json:"drop"`
 	InvalidChecksums int `json:"invalidchecksums"`
 	Packets          int `json:"packets"`
+}
+
+// this is a copy of the models.V1MachineNetwork struct of metal-go
+// this is needed because when using the imported struct we get this error:
+// api/v1/zz_generated.deepcopy.go:250:12: (*in)[i].DeepCopyInto undefined (type models.V1MachineNetwork has no field or method DeepCopyInto)
+type MachineNetwork struct {
+	Asn                 *int64       `json:"asn"`
+	Destinationprefixes []string     `json:"destinationprefixes"`
+	Ips                 []string     `json:"ips"`
+	Nat                 *bool        `json:"nat"`
+	Networkid           *string      `json:"networkid"`
+	Networktype         *NetworkType `json:"networktype"`
+	Prefixes            []string     `json:"prefixes"`
+	Private             *bool        `json:"private"`
+	Underlay            *bool        `json:"underlay"`
+	Vrf                 *int64       `json:"vrf"`
+}
+
+type NetworkType struct {
+	Name           string `json:"name,omitempty"`
+	Private        bool   `json:"private,omitempty"`
+	PrivatePrimary bool   `json:"private_primary,omitempty"`
+	Shared         bool   `json:"shared,omitempty"`
+	Underlay       bool   `json:"underlay,omitempty"`
 }
 
 func init() {

@@ -9,6 +9,14 @@ import (
 )
 
 func TestSnatRules(t *testing.T) {
+	private := "private"
+	internet := "internet"
+	mpls := "mpls"
+	underlay := "underlay"
+	vrf1 := int64(1)
+	vrf2 := int64(2)
+	boolTrue := true
+
 	tests := []struct {
 		name    string
 		input   firewallv1.FirewallSpec
@@ -19,24 +27,26 @@ func TestSnatRules(t *testing.T) {
 		{
 			name: "snat for multiple networks",
 			input: firewallv1.FirewallSpec{
-				Networks: []firewallv1.Network{
+				Networks: []firewallv1.MachineNetwork{
 					{
-						ID:              "private",
-						Prefixes:        []string{"10.0.1.0/24"},
-						IPs:             []string{"10.0.1.1"},
-						ParentNetworkID: "super",
+						Networkid:   &private,
+						Prefixes:    []string{"10.0.1.0/24"},
+						Ips:         []string{"10.0.1.1"},
+						Networktype: &firewallv1.NetworkType{PrivatePrimary: true},
 					},
 					{
-						ID:       "internet",
-						Prefixes: []string{"185.0.0.0/24"},
-						IPs:      []string{"185.0.0.1"},
-						Vrf:      uint(1),
+						Networkid:   &internet,
+						Prefixes:    []string{"185.0.0.0/24"},
+						Ips:         []string{"185.0.0.1"},
+						Vrf:         &vrf1,
+						Networktype: &firewallv1.NetworkType{},
 					},
 					{
-						ID:       "mpls",
-						Prefixes: []string{"100.0.0.0/24"},
-						IPs:      []string{"100.0.0.1"},
-						Vrf:      uint(2),
+						Networkid:   &mpls,
+						Prefixes:    []string{"100.0.0.0/24"},
+						Ips:         []string{"100.0.0.1"},
+						Vrf:         &vrf2,
+						Networktype: &firewallv1.NetworkType{},
 					},
 				},
 				Snat: []firewallv1.Snat{
@@ -57,12 +67,13 @@ func TestSnatRules(t *testing.T) {
 		{
 			name: "empty snat rules",
 			input: firewallv1.FirewallSpec{
-				Networks: []firewallv1.Network{
+				Networks: []firewallv1.MachineNetwork{
 					{
-						ID:              "private",
-						Prefixes:        []string{"10.0.1.0/24"},
-						IPs:             []string{"10.0.1.1"},
-						ParentNetworkID: "super",
+						Networkid:   &private,
+						Prefixes:    []string{"10.0.1.0/24"},
+						Ips:         []string{"10.0.1.1"},
+						Networktype: &firewallv1.NetworkType{PrivatePrimary: true},
+						Vrf:         &vrf1,
 					},
 				},
 				Snat: []firewallv1.Snat{},
@@ -72,12 +83,13 @@ func TestSnatRules(t *testing.T) {
 		{
 			name: "no primary network",
 			input: firewallv1.FirewallSpec{
-				Networks: []firewallv1.Network{
+				Networks: []firewallv1.MachineNetwork{
 					{
-						ID:       "underlay",
-						Prefixes: []string{"10.0.0.0/24"},
-						IPs:      []string{"10.0.0.1"},
-						Underlay: true,
+						Networkid:   &underlay,
+						Prefixes:    []string{"10.0.1.0/24"},
+						Ips:         []string{"10.0.1.1"},
+						Networktype: &firewallv1.NetworkType{Underlay: true},
+						Underlay:    &boolTrue,
 					},
 				},
 			},

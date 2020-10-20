@@ -8,6 +8,13 @@ import (
 )
 
 func TestRateLimitRules(t *testing.T) {
+	private := "private"
+	internet := "internet"
+	mpls := "mpls"
+	vrf1 := int64(1)
+	vrf2 := int64(2)
+	vrf3 := int64(3)
+	boolFalse := false
 	tests := []struct {
 		name  string
 		input firewallv1.FirewallSpec
@@ -16,25 +23,30 @@ func TestRateLimitRules(t *testing.T) {
 		{
 			name: "rate limit for multiple networks",
 			input: firewallv1.FirewallSpec{
-				Networks: []firewallv1.Network{
+				Networks: []firewallv1.MachineNetwork{
 					{
-						ID:              "private",
-						Prefixes:        []string{"10.0.1.0/24"},
-						IPs:             []string{"10.0.1.1"},
-						ParentNetworkID: "super",
-						Vrf:             uint(1),
+						Networkid:   &private,
+						Prefixes:    []string{"10.0.1.0/24"},
+						Ips:         []string{"10.0.1.1"},
+						Vrf:         &vrf1,
+						Underlay:    &boolFalse,
+						Networktype: &firewallv1.NetworkType{PrivatePrimary: true},
 					},
 					{
-						ID:       "internet",
-						Prefixes: []string{"185.0.0.0/24"},
-						IPs:      []string{"185.0.0.1"},
-						Vrf:      uint(2),
+						Networkid:   &internet,
+						Prefixes:    []string{"185.0.0.0/24"},
+						Ips:         []string{"185.0.0.1"},
+						Vrf:         &vrf2,
+						Underlay:    &boolFalse,
+						Networktype: &firewallv1.NetworkType{},
 					},
 					{
-						ID:       "mpls",
-						Prefixes: []string{"100.0.0.0/24"},
-						IPs:      []string{"100.0.0.1"},
-						Vrf:      uint(3),
+						Networkid:   &mpls,
+						Prefixes:    []string{"100.0.0.0/24"},
+						Ips:         []string{"100.0.0.1"},
+						Vrf:         &vrf3,
+						Underlay:    &boolFalse,
+						Networktype: &firewallv1.NetworkType{},
 					},
 				},
 				RateLimits: []firewallv1.RateLimit{

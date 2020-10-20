@@ -46,7 +46,7 @@ func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 
 	return &firewallRenderingData{
 		statikFS:         statikFS,
-		PrivateVrfID:     f.primaryPrivateNet.Vrf,
+		PrivateVrfID:     uint(*f.primaryPrivateNet.Vrf),
 		InternalPrefixes: strings.Join(f.spec.InternalPrefixes, ", "),
 		ForwardingRules: forwardingRules{
 			Ingress: ingress,

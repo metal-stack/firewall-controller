@@ -13,13 +13,16 @@ require (
 	github.com/googleapis/gnostic v0.4.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.0
 	github.com/imdario/mergo v0.3.11 // indirect
+	github.com/kr/text v0.2.0 // indirect
 	github.com/ks2211/go-suricata v0.0.0-20200823200910-986ce1470707
 	github.com/mdlayher/netlink v1.1.0 // indirect
 	github.com/metal-stack/v v1.0.2
+	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
+	github.com/onsi/ginkgo v1.14.0 // indirect
 	github.com/prometheus/common v0.14.0 // indirect
 	github.com/prometheus/procfs v0.2.0 // indirect
 	github.com/rakyll/statik v0.1.7
-	github.com/stretchr/testify v1.5.1 // indirect
+	github.com/stretchr/testify v1.6.1 // indirect
 	github.com/txn2/txeh v1.3.0
 	github.com/vishvananda/netlink v1.1.0
 	go.uber.org/multierr v1.6.0 // indirect
@@ -29,6 +32,8 @@ require (
 	golang.org/x/sys v0.0.0-20200923182605-d9f96fdee20d // indirect
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e // indirect
 	gomodules.xyz/jsonpatch/v2 v2.1.0 // indirect
+	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
+	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
 	k8s.io/api v0.18.9
 	k8s.io/apiextensions-apiserver v0.18.9
 	k8s.io/apimachinery v0.18.9

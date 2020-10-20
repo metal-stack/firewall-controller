@@ -27,13 +27,13 @@ type Firewall struct {
 	clusterwideNetworkPolicies *firewallv1.ClusterwideNetworkPolicyList
 	services                   *corev1.ServiceList
 
-	primaryPrivateNet *firewallv1.Network
+	primaryPrivateNet *firewallv1.MachineNetwork
 	networkMap        networkMap
 
 	dryRun bool
 }
 
-type networkMap map[string]firewallv1.Network
+type networkMap map[string]firewallv1.MachineNetwork
 
 type nftablesRules []string
 
@@ -51,12 +51,12 @@ func NewDefaultFirewall() *Firewall {
 // NewFirewall creates a new nftables firewall object based on k8s entities
 func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.ServiceList, spec firewallv1.FirewallSpec) *Firewall {
 	networkMap := networkMap{}
-	var primaryPrivateNet *firewallv1.Network
+	var primaryPrivateNet *firewallv1.MachineNetwork
 	for i, n := range spec.Networks {
-		if n.ParentNetworkID != "" && !n.Underlay && !n.PrivateSuper && !n.Shared {
+		if n.Networktype.PrivatePrimary {
 			primaryPrivateNet = &spec.Networks[i]
 		}
-		networkMap[n.ID] = n
+		networkMap[*n.Networkid] = n
 	}
 
 	return &Firewall{
@@ -163,12 +163,12 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 			continue
 		}
 
-		if n.Underlay || n.PrivateSuper || n.Shared {
-			errors = multierror.Append(errors, fmt.Errorf("it is unsupported to configure snat for underlay, private super or shared private networks"))
+		if *n.Underlay {
+			errors = multierror.Append(errors, fmt.Errorf("it is unsupported to configure snat for underlay networks"))
 			continue
 		}
 
-		link, _ := netlink.LinkByName(fmt.Sprintf("vlan%d", n.Vrf))
+		link, _ := netlink.LinkByName(fmt.Sprintf("vlan%d", *n.Vrf))
 		addrs, err := netlink.AddrList(link, netlink.FAMILY_V4)
 		if err != nil {
 			errors = multierror.Append(errors, err)
@@ -191,7 +191,7 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 		for _, delete := range d.toRemove {
 			// do not remove IPs that were initially used during machine allocation!
 			isFixed := false
-			for _, fixedIP := range n.IPs {
+			for _, fixedIP := range n.Ips {
 				if delete == fixedIP {
 					isFixed = true
 					break

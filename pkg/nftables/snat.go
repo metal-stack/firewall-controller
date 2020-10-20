@@ -68,7 +68,7 @@ func snatRules(f *Firewall) (nftablesRules, error) {
 		snatRule := snatRule{
 			comment:        fmt.Sprintf("snat for %s", s.Network),
 			sourceNetworks: strings.Join(f.primaryPrivateNet.Prefixes, ", "),
-			oifname:        fmt.Sprintf("vlan%d", n.Vrf),
+			oifname:        fmt.Sprintf("vlan%d", *n.Vrf),
 			to:             to,
 		}
 		rules = append(rules, snatRule.String())

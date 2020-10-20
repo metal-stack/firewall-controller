@@ -61,51 +61,61 @@ spec:
                 firewall rules on disk
               type: string
             networks:
-              description: Networks
+              description: Networks holds the machine networks known at the metal-api
               items:
-                description: Network holds a metal-api network.
+                description: 'this is a copy of the models.V1MachineNetwork struct
+                  of metal-go this is needed because when using the imported struct
+                  we get this error: api/v1/zz_generated.deepcopy.go:250:12: (*in)[i].DeepCopyInto
+                  undefined (type models.V1MachineNetwork has no field or method DeepCopyInto)'
                 properties:
+                  asn:
+                    format: int64
+                    type: integer
                   destinationprefixes:
                     items:
                       type: string
                     type: array
-                  id:
-                    type: string
                   ips:
                     items:
                       type: string
                     type: array
                   nat:
                     type: boolean
-                  parentnetworkid:
+                  networkid:
                     type: string
-                  partitionid:
-                    type: string
+                  networktype:
+                    properties:
+                      name:
+                        type: string
+                      private:
+                        type: boolean
+                      private_primary:
+                        type: boolean
+                      shared:
+                        type: boolean
+                      underlay:
+                        type: boolean
+                    type: object
                   prefixes:
                     items:
                       type: string
                     type: array
-                  privatesuper:
-                    type: boolean
-                  projectid:
-                    type: string
-                  shared:
+                  private:
                     type: boolean
                   underlay:
                     type: boolean
                   vrf:
+                    format: int64
                     type: integer
                 required:
+                - asn
                 - destinationprefixes
-                - id
                 - ips
                 - nat
-                - parentnetworkid
-                - partitionid
+                - networkid
+                - networktype
                 - prefixes
-                - privatesuper
-                - projectid
-                - shared
+                - private
                 - underlay
                 - vrf
                 type: object
