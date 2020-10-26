@@ -84,18 +84,7 @@ spec:
                   networkid:
                     type: string
                   networktype:
-                    properties:
-                      name:
-                        type: string
-                      private:
-                        type: boolean
-                      private_primary:
-                        type: boolean
-                      shared:
-                        type: boolean
-                      underlay:
-                        type: boolean
-                    type: object
+                    type: string
                   prefixes:
                     items:
                       type: string

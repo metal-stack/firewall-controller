@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	_ "github.com/metal-stack/firewall-controller/pkg/nftables/statik"
+	mn "github.com/metal-stack/metal-lib/pkg/net"
 	"github.com/vishvananda/netlink"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -53,7 +54,10 @@ func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.Serv
 	networkMap := networkMap{}
 	var primaryPrivateNet *firewallv1.MachineNetwork
 	for i, n := range spec.Networks {
-		if n.Networktype.PrivatePrimary {
+		if n.Networktype == nil {
+			continue
+		}
+		if *n.Networktype == mn.PrivatePrimaryShared || *n.Networktype == mn.PrivatePrimaryUnshared {
 			primaryPrivateNet = &spec.Networks[i]
 		}
 		networkMap[*n.Networkid] = n

@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	mn "github.com/metal-stack/metal-lib/pkg/net"
 )
 
 func TestRateLimitRules(t *testing.T) {
@@ -14,6 +15,8 @@ func TestRateLimitRules(t *testing.T) {
 	vrf1 := int64(1)
 	vrf2 := int64(2)
 	vrf3 := int64(3)
+	privatePrimary := mn.PrivatePrimaryShared
+	external := mn.External
 	boolFalse := false
 	tests := []struct {
 		name  string
@@ -30,7 +33,7 @@ func TestRateLimitRules(t *testing.T) {
 						Ips:         []string{"10.0.1.1"},
 						Vrf:         &vrf1,
 						Underlay:    &boolFalse,
-						Networktype: &firewallv1.NetworkType{PrivatePrimary: true},
+						Networktype: &privatePrimary,
 					},
 					{
 						Networkid:   &internet,
@@ -38,7 +41,7 @@ func TestRateLimitRules(t *testing.T) {
 						Ips:         []string{"185.0.0.1"},
 						Vrf:         &vrf2,
 						Underlay:    &boolFalse,
-						Networktype: &firewallv1.NetworkType{},
+						Networktype: &external,
 					},
 					{
 						Networkid:   &mpls,
@@ -46,7 +49,7 @@ func TestRateLimitRules(t *testing.T) {
 						Ips:         []string{"100.0.0.1"},
 						Vrf:         &vrf3,
 						Underlay:    &boolFalse,
-						Networktype: &firewallv1.NetworkType{},
+						Networktype: &external,
 					},
 				},
 				RateLimits: []firewallv1.RateLimit{

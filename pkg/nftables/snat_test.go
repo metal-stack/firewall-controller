@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	mn "github.com/metal-stack/metal-lib/pkg/net"
 )
 
 func TestSnatRules(t *testing.T) {
@@ -16,7 +17,9 @@ func TestSnatRules(t *testing.T) {
 	vrf1 := int64(1)
 	vrf2 := int64(2)
 	boolTrue := true
-
+	privatePrimary := mn.PrivatePrimaryShared
+	external := mn.External
+	underlayNet := mn.Underlay
 	tests := []struct {
 		name    string
 		input   firewallv1.FirewallSpec
@@ -32,21 +35,21 @@ func TestSnatRules(t *testing.T) {
 						Networkid:   &private,
 						Prefixes:    []string{"10.0.1.0/24"},
 						Ips:         []string{"10.0.1.1"},
-						Networktype: &firewallv1.NetworkType{PrivatePrimary: true},
+						Networktype: &privatePrimary,
 					},
 					{
 						Networkid:   &internet,
 						Prefixes:    []string{"185.0.0.0/24"},
 						Ips:         []string{"185.0.0.1"},
 						Vrf:         &vrf1,
-						Networktype: &firewallv1.NetworkType{},
+						Networktype: &external,
 					},
 					{
 						Networkid:   &mpls,
 						Prefixes:    []string{"100.0.0.0/24"},
 						Ips:         []string{"100.0.0.1"},
 						Vrf:         &vrf2,
-						Networktype: &firewallv1.NetworkType{},
+						Networktype: &external,
 					},
 				},
 				Snat: []firewallv1.Snat{
@@ -72,7 +75,7 @@ func TestSnatRules(t *testing.T) {
 						Networkid:   &private,
 						Prefixes:    []string{"10.0.1.0/24"},
 						Ips:         []string{"10.0.1.1"},
-						Networktype: &firewallv1.NetworkType{PrivatePrimary: true},
+						Networktype: &privatePrimary,
 						Vrf:         &vrf1,
 					},
 				},
@@ -88,7 +91,7 @@ func TestSnatRules(t *testing.T) {
 						Networkid:   &underlay,
 						Prefixes:    []string{"10.0.1.0/24"},
 						Ips:         []string{"10.0.1.1"},
-						Networktype: &firewallv1.NetworkType{Underlay: true},
+						Networktype: &underlayNet,
 						Underlay:    &boolTrue,
 					},
 				},

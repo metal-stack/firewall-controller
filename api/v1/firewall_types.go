@@ -131,24 +131,16 @@ type InterfaceStat struct {
 // this is needed because when using the imported struct we get this error:
 // api/v1/zz_generated.deepcopy.go:250:12: (*in)[i].DeepCopyInto undefined (type models.V1MachineNetwork has no field or method DeepCopyInto)
 type MachineNetwork struct {
-	Asn                 *int64       `json:"asn"`
-	Destinationprefixes []string     `json:"destinationprefixes"`
-	Ips                 []string     `json:"ips"`
-	Nat                 *bool        `json:"nat"`
-	Networkid           *string      `json:"networkid"`
-	Networktype         *NetworkType `json:"networktype"`
-	Prefixes            []string     `json:"prefixes"`
-	Private             *bool        `json:"private"`
-	Underlay            *bool        `json:"underlay"`
-	Vrf                 *int64       `json:"vrf"`
-}
-
-type NetworkType struct {
-	Name           string `json:"name,omitempty"`
-	Private        bool   `json:"private,omitempty"`
-	PrivatePrimary bool   `json:"private_primary,omitempty"`
-	Shared         bool   `json:"shared,omitempty"`
-	Underlay       bool   `json:"underlay,omitempty"`
+	Asn                 *int64   `json:"asn"`
+	Destinationprefixes []string `json:"destinationprefixes"`
+	Ips                 []string `json:"ips"`
+	Nat                 *bool    `json:"nat"`
+	Networkid           *string  `json:"networkid"`
+	Networktype         *string  `json:"networktype"`
+	Prefixes            []string `json:"prefixes"`
+	Private             *bool    `json:"private"`
+	Underlay            *bool    `json:"underlay"`
+	Vrf                 *int64   `json:"vrf"`
 }
 
 func init() {

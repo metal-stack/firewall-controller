@@ -28,12 +28,7 @@ spec:
       - 10.0.16.0/22
     private: true
     underlay: false
-    networktype:
-      name: privateprimaryunshared
-      privateprimary: true
-      private: true
-      shared: false
-      underlay: false
+    networktype: privateprimaryunshared
     vrf: 3981
   - asn: 4200003073
     destinationprefixes:
@@ -47,12 +42,7 @@ spec:
       - 185.27.0.0/22
     private: false
     underlay: false
-    networktype:
-      name: external
-      privateprimary: false
-      private: false
-      shared: false
-      underlay: false
+    networktype: external
     vrf: 104009
   - asn: 4200003073
     destinationprefixes: []
@@ -64,10 +54,5 @@ spec:
       - 10.0.12.0/22
     private: false
     underlay: true
-    networktype:
-      name: external
-      privateprimary: false
-      private: false
-      shared: false
-      underlay: false
+    networktype: external
     vrf: 0
