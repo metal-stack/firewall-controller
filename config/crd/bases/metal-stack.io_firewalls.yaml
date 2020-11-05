@@ -46,6 +46,22 @@ spec:
             dryrun:
               description: DryRun if set to true, firewall rules are not applied
               type: boolean
+            egressrules:
+              description: EgressRules
+              items:
+                description: EgressRuleSNAT holds a Source-NAT rule
+                properties:
+                  ips:
+                    items:
+                      type: string
+                    type: array
+                  network:
+                    type: string
+                required:
+                - ips
+                - network
+                type: object
+              type: array
             internalprefixes:
               description: InternalPrefixes specify prefixes which are considered
                 local to the partition or all regions. Traffic to/from these prefixes
@@ -60,8 +76,9 @@ spec:
               description: TrafficControl defines where to store the generated ipv4
                 firewall rules on disk
               type: string
-            networks:
-              description: Networks holds the machine networks known at the metal-api
+            machinenetworks:
+              description: MachineNetworks holds the machine networks known at the
+                metal-api
               items:
                 description: 'this is a copy of the models.V1MachineNetwork struct
                   of metal-go this is needed because when using the imported struct
@@ -123,22 +140,6 @@ spec:
                     description: Rate is the input rate in MiB/s
                     format: int32
                     type: integer
-                type: object
-              type: array
-            snat:
-              description: Snat
-              items:
-                description: Snat holds a Source-NAT rule
-                properties:
-                  ips:
-                    items:
-                      type: string
-                    type: array
-                  network:
-                    type: string
-                required:
-                - ips
-                - network
                 type: object
               type: array
           type: object

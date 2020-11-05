@@ -30,7 +30,7 @@ func TestSnatRules(t *testing.T) {
 		{
 			name: "snat for multiple networks",
 			input: firewallv1.FirewallSpec{
-				Networks: []firewallv1.MachineNetwork{
+				MachineNetworks: []firewallv1.MachineNetwork{
 					{
 						Networkid:   &private,
 						Prefixes:    []string{"10.0.1.0/24"},
@@ -52,13 +52,13 @@ func TestSnatRules(t *testing.T) {
 						Networktype: &external,
 					},
 				},
-				Snat: []firewallv1.Snat{
+				EgressRules: []firewallv1.EgressRuleSNAT{
 					{
-						Network: "internet",
-						IPs:     []string{"185.0.0.2", "185.0.0.3"},
+						NetworkID: "internet",
+						IPs:       []string{"185.0.0.2", "185.0.0.3"},
 					}, {
-						Network: "mpls",
-						IPs:     []string{"100.0.0.2"},
+						NetworkID: "mpls",
+						IPs:       []string{"100.0.0.2"},
 					},
 				},
 			},
@@ -70,7 +70,7 @@ func TestSnatRules(t *testing.T) {
 		{
 			name: "empty snat rules",
 			input: firewallv1.FirewallSpec{
-				Networks: []firewallv1.MachineNetwork{
+				MachineNetworks: []firewallv1.MachineNetwork{
 					{
 						Networkid:   &private,
 						Prefixes:    []string{"10.0.1.0/24"},
@@ -79,14 +79,14 @@ func TestSnatRules(t *testing.T) {
 						Vrf:         &vrf1,
 					},
 				},
-				Snat: []firewallv1.Snat{},
+				EgressRules: []firewallv1.EgressRuleSNAT{},
 			},
 			want: nftablesRules{},
 		},
 		{
 			name: "no primary network",
 			input: firewallv1.FirewallSpec{
-				Networks: []firewallv1.MachineNetwork{
+				MachineNetworks: []firewallv1.MachineNetwork{
 					{
 						Networkid:   &underlay,
 						Prefixes:    []string{"10.0.1.0/24"},

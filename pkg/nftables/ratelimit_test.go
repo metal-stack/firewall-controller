@@ -26,7 +26,7 @@ func TestRateLimitRules(t *testing.T) {
 		{
 			name: "rate limit for multiple networks",
 			input: firewallv1.FirewallSpec{
-				Networks: []firewallv1.MachineNetwork{
+				MachineNetworks: []firewallv1.MachineNetwork{
 					{
 						Networkid:   &private,
 						Prefixes:    []string{"10.0.1.0/24"},

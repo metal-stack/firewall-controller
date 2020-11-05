@@ -57,10 +57,10 @@ type FirewallSpec struct {
 	// InternalPrefixes specify prefixes which are considered local to the partition or all regions.
 	// Traffic to/from these prefixes is accounted as internal traffic
 	InternalPrefixes []string `json:"internalprefixes,omitempty"`
-	// Snat
-	Snat []Snat `json:"snat,omitempty"`
-	// Networks holds the machine networks known at the metal-api
-	Networks []MachineNetwork `json:"networks,omitempty"`
+	// EgressRules
+	EgressRules []EgressRuleSNAT `json:"egressrules,omitempty"`
+	// MachineNetworks holds the machine networks known at the metal-api
+	MachineNetworks []MachineNetwork `json:"machinenetworks,omitempty"`
 }
 
 // FirewallStatus defines the observed state of Firewall
@@ -94,10 +94,10 @@ type Counter struct {
 	Packets uint64 `json:"packets"`
 }
 
-// Snat holds a Source-NAT rule
-type Snat struct {
-	Network string   `json:"network"`
-	IPs     []string `json:"ips"`
+// EgressRuleSNAT holds a Source-NAT rule
+type EgressRuleSNAT struct {
+	NetworkID string   `json:"network"`
+	IPs       []string `json:"ips"`
 }
 
 // RateLimit contains the rate limit rule for a network.

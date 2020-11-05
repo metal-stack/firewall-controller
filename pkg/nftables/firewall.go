@@ -8,6 +8,8 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+
+	// using blank import for static files included with statik
 	_ "github.com/metal-stack/firewall-controller/pkg/nftables/statik"
 	mn "github.com/metal-stack/metal-lib/pkg/net"
 	"github.com/vishvananda/netlink"
@@ -53,12 +55,12 @@ func NewDefaultFirewall() *Firewall {
 func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.ServiceList, spec firewallv1.FirewallSpec) *Firewall {
 	networkMap := networkMap{}
 	var primaryPrivateNet *firewallv1.MachineNetwork
-	for i, n := range spec.Networks {
+	for i, n := range spec.MachineNetworks {
 		if n.Networktype == nil {
 			continue
 		}
 		if *n.Networktype == mn.PrivatePrimaryShared || *n.Networktype == mn.PrivatePrimaryUnshared {
-			primaryPrivateNet = &spec.Networks[i]
+			primaryPrivateNet = &spec.MachineNetworks[i]
 		}
 		networkMap[*n.Networkid] = n
 	}
@@ -160,10 +162,10 @@ func (f *Firewall) validate(file string) error {
 
 func (f *Firewall) reconcileIfaceAddresses() error {
 	var errors *multierror.Error
-	for _, i := range f.spec.Snat {
-		n, ok := f.networkMap[i.Network]
+	for _, i := range f.spec.EgressRules {
+		n, ok := f.networkMap[i.NetworkID]
 		if !ok {
-			errors = multierror.Append(errors, fmt.Errorf("could not find network %s in networks", i.Network))
+			errors = multierror.Append(errors, fmt.Errorf("could not find network %s in networks", i.NetworkID))
 			continue
 		}
 

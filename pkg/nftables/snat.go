@@ -24,8 +24,8 @@ func snatRules(f *Firewall) (nftablesRules, error) {
 	}
 
 	rules := nftablesRules{}
-	for _, s := range f.spec.Snat {
-		n, there := f.networkMap[s.Network]
+	for _, s := range f.spec.EgressRules {
+		n, there := f.networkMap[s.NetworkID]
 		if !there {
 			return nil, fmt.Errorf("network not found")
 		}
@@ -51,7 +51,7 @@ func snatRules(f *Firewall) (nftablesRules, error) {
 			}
 
 			if !innets {
-				return nil, fmt.Errorf("ip %s is not in any prefix of network %s", i, s.Network)
+				return nil, fmt.Errorf("ip %s is not in any prefix of network %s", i, s.NetworkID)
 			}
 			hmap = append(hmap, fmt.Sprintf("%d : %s", k, ip.String()))
 		}
@@ -66,7 +66,7 @@ func snatRules(f *Firewall) (nftablesRules, error) {
 		}
 
 		snatRule := snatRule{
-			comment:        fmt.Sprintf("snat for %s", s.Network),
+			comment:        fmt.Sprintf("snat for %s", s.NetworkID),
 			sourceNetworks: strings.Join(f.primaryPrivateNet.Prefixes, ", "),
 			oifname:        fmt.Sprintf("vlan%d", *n.Vrf),
 			to:             to,
