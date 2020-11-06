@@ -80,10 +80,6 @@ spec:
               description: MachineNetworks holds the machine networks known at the
                 metal-api
               items:
-                description: 'this is a copy of the models.V1MachineNetwork struct
-                  of metal-go this is needed because when using the imported struct
-                  we get this error: api/v1/zz_generated.deepcopy.go:250:12: (*in)[i].DeepCopyInto
-                  undefined (type models.V1MachineNetwork has no field or method DeepCopyInto)'
                 properties:
                   asn:
                     format: int64
@@ -106,10 +102,6 @@ spec:
                     items:
                       type: string
                     type: array
-                  private:
-                    type: boolean
-                  underlay:
-                    type: boolean
                   vrf:
                     format: int64
                     type: integer
@@ -121,8 +113,6 @@ spec:
                 - networkid
                 - networktype
                 - prefixes
-                - private
-                - underlay
                 - vrf
                 type: object
               type: array

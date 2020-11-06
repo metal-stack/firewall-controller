@@ -447,16 +447,6 @@ func (in *MachineNetwork) DeepCopyInto(out *MachineNetwork) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
-	if in.Private != nil {
-		in, out := &in.Private, &out.Private
-		*out = new(bool)
-		**out = **in
-	}
-	if in.Underlay != nil {
-		in, out := &in.Underlay, &out.Underlay
-		*out = new(bool)
-		**out = **in
-	}
 	if in.Vrf != nil {
 		in, out := &in.Vrf, &out.Vrf
 		*out = new(int64)

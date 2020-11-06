@@ -129,9 +129,6 @@ type InterfaceStat struct {
 	Packets          int `json:"packets"`
 }
 
-// this is a copy of the models.V1MachineNetwork struct of metal-go
-// this is needed because when using the imported struct we get this error:
-// api/v1/zz_generated.deepcopy.go:250:12: (*in)[i].DeepCopyInto undefined (type models.V1MachineNetwork has no field or method DeepCopyInto)
 type MachineNetwork struct {
 	Asn                 *int64   `json:"asn"`
 	Destinationprefixes []string `json:"destinationprefixes"`
@@ -140,8 +137,6 @@ type MachineNetwork struct {
 	Networkid           *string  `json:"networkid"`
 	Networktype         *string  `json:"networktype"`
 	Prefixes            []string `json:"prefixes"`
-	Private             *bool    `json:"private"`
-	Underlay            *bool    `json:"underlay"`
 	Vrf                 *int64   `json:"vrf"`
 }
 
