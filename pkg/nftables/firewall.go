@@ -30,13 +30,13 @@ type Firewall struct {
 	clusterwideNetworkPolicies *firewallv1.ClusterwideNetworkPolicyList
 	services                   *corev1.ServiceList
 
-	primaryPrivateNet *firewallv1.MachineNetwork
+	primaryPrivateNet *firewallv1.FirewallNetwork
 	networkMap        networkMap
 
 	dryRun bool
 }
 
-type networkMap map[string]firewallv1.MachineNetwork
+type networkMap map[string]firewallv1.FirewallNetwork
 
 type nftablesRules []string
 
@@ -54,13 +54,13 @@ func NewDefaultFirewall() *Firewall {
 // NewFirewall creates a new nftables firewall object based on k8s entities
 func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.ServiceList, spec firewallv1.FirewallSpec) *Firewall {
 	networkMap := networkMap{}
-	var primaryPrivateNet *firewallv1.MachineNetwork
-	for i, n := range spec.MachineNetworks {
+	var primaryPrivateNet *firewallv1.FirewallNetwork
+	for i, n := range spec.FirewallNetworks {
 		if n.Networktype == nil {
 			continue
 		}
 		if *n.Networktype == mn.PrivatePrimaryShared || *n.Networktype == mn.PrivatePrimaryUnshared {
-			primaryPrivateNet = &spec.MachineNetworks[i]
+			primaryPrivateNet = &spec.FirewallNetworks[i]
 		}
 		networkMap[*n.Networkid] = n
 	}

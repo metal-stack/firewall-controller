@@ -62,23 +62,9 @@ spec:
                 - network
                 type: object
               type: array
-            internalprefixes:
-              description: InternalPrefixes specify prefixes which are considered
-                local to the partition or all regions. Traffic to/from these prefixes
-                is accounted as internal traffic
-              items:
-                type: string
-              type: array
-            interval:
-              description: Interval on which rule reconciliation should happen
-              type: string
-            ipv4rulefile:
-              description: TrafficControl defines where to store the generated ipv4
-                firewall rules on disk
-              type: string
-            machinenetworks:
-              description: MachineNetworks holds the machine networks known at the
-                metal-api
+            firewallnetworks:
+              description: FirewallNetworks holds the networks known at the metal-api
+                for this firewall machine
               items:
                 properties:
                   asn:
@@ -116,6 +102,20 @@ spec:
                 - vrf
                 type: object
               type: array
+            internalprefixes:
+              description: InternalPrefixes specify prefixes which are considered
+                local to the partition or all regions. Traffic to/from these prefixes
+                is accounted as internal traffic
+              items:
+                type: string
+              type: array
+            interval:
+              description: Interval on which rule reconciliation should happen
+              type: string
+            ipv4rulefile:
+              description: TrafficControl defines where to store the generated ipv4
+                firewall rules on disk
+              type: string
             ratelimits:
               description: RateLimits allows configuration of rate limit rules for
                 interfaces.

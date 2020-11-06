@@ -29,7 +29,7 @@ func TestSnatRules(t *testing.T) {
 		{
 			name: "snat for multiple networks",
 			input: firewallv1.FirewallSpec{
-				MachineNetworks: []firewallv1.MachineNetwork{
+				FirewallNetworks: []firewallv1.FirewallNetwork{
 					{
 						Networkid:   &private,
 						Prefixes:    []string{"10.0.1.0/24"},
@@ -69,7 +69,7 @@ func TestSnatRules(t *testing.T) {
 		{
 			name: "empty snat rules",
 			input: firewallv1.FirewallSpec{
-				MachineNetworks: []firewallv1.MachineNetwork{
+				FirewallNetworks: []firewallv1.FirewallNetwork{
 					{
 						Networkid:   &private,
 						Prefixes:    []string{"10.0.1.0/24"},
@@ -85,7 +85,7 @@ func TestSnatRules(t *testing.T) {
 		{
 			name: "no primary network",
 			input: firewallv1.FirewallSpec{
-				MachineNetworks: []firewallv1.MachineNetwork{
+				FirewallNetworks: []firewallv1.FirewallNetwork{
 					{
 						Networkid:   &underlay,
 						Prefixes:    []string{"10.0.1.0/24"},

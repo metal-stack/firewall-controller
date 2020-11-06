@@ -167,10 +167,10 @@ func (r *FirewallReconciler) validateFirewall(ctx context.Context, f firewallv1.
 	}
 
 	fwValues := map[string]interface{}{
-		"machinenetworks":  f.Spec.MachineNetworks,
-		"internalprefixes": f.Spec.InternalPrefixes,
-		"ratelimits":       f.Spec.RateLimits,
-		"egressrules":      f.Spec.EgressRules,
+		"firewallNetworks": f.Spec.FirewallNetworks,
+		"internalPrefixes": f.Spec.InternalPrefixes,
+		"rateLimits":       f.Spec.RateLimits,
+		"egressRules":      f.Spec.EgressRules,
 	}
 
 	fwValuesMarshalled, err := yaml.Marshal(&fwValues)
