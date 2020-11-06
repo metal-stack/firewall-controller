@@ -18,11 +18,13 @@ package controllers
 
 import (
 	"context"
+	"crypto/rsa"
 	"fmt"
 	"reflect"
 	"time"
 
 	"github.com/go-logr/logr"
+	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -45,18 +47,20 @@ import (
 	"github.com/metal-stack/firewall-controller/pkg/collector"
 	"github.com/metal-stack/firewall-controller/pkg/nftables"
 	"github.com/metal-stack/firewall-controller/pkg/suricata"
+	"github.com/metal-stack/metal-lib/pkg/sign"
 	networking "k8s.io/api/networking/v1"
 )
 
 // FirewallReconciler reconciles a Firewall object
 type FirewallReconciler struct {
 	client.Client
-	recorder     record.EventRecorder
-	Log          logr.Logger
-	Scheme       *runtime.Scheme
-	ServiceIP    string
-	PrivateVrfID int64
-	EnableIDS    bool
+	recorder             record.EventRecorder
+	Log                  logr.Logger
+	Scheme               *runtime.Scheme
+	ServiceIP            string
+	EnableIDS            bool
+	EnableSignatureCheck bool
+	CAPubKey             *rsa.PublicKey
 }
 
 const (
@@ -146,8 +150,9 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 }
 
 // validateFirewall validates a firewall object:
-// it must be a singularity in a fixed namespace
-// and for the triggered reconcilation requests
+// - it must be a singularity in a fixed namespace
+// - and for the triggered reconcilation request
+// - the signature is valid (when signature checking is enabled)
 func (r *FirewallReconciler) validateFirewall(ctx context.Context, f firewallv1.Firewall) error {
 	if f.Namespace != firewallNamespace {
 		return fmt.Errorf("firewall must be defined in namespace %s otherwise it won't take effect", firewallNamespace)
@@ -155,6 +160,31 @@ func (r *FirewallReconciler) validateFirewall(ctx context.Context, f firewallv1.
 
 	if f.Name != firewallName {
 		return fmt.Errorf("firewall object is a singularity - it must have the name %s", firewallName)
+	}
+
+	if !r.EnableSignatureCheck {
+		return nil
+	}
+
+	fwValues := map[string]interface{}{
+		"machinenetworks":  f.Spec.MachineNetworks,
+		"internalprefixes": f.Spec.InternalPrefixes,
+		"ratelimits":       f.Spec.RateLimits,
+		"egressrules":      f.Spec.EgressRules,
+	}
+
+	fwValuesMarshalled, err := yaml.Marshal(&fwValues)
+	if err != nil {
+		return fmt.Errorf("could not marshal firewall values to yaml for signature check: %w", err)
+	}
+
+	ok, err := sign.VerifySignature(r.CAPubKey, f.Spec.Signature, fwValuesMarshalled)
+	if err != nil {
+		return fmt.Errorf("firewall spec could not be verified with signature: %w", err)
+	}
+
+	if !ok {
+		return fmt.Errorf("firewall object was tampered; could not verify the values given in the firewall spec")
 	}
 
 	return nil

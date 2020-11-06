@@ -14,7 +14,7 @@ require (
 	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/ks2211/go-suricata v0.0.0-20200823200910-986ce1470707
 	github.com/mdlayher/netlink v1.1.0 // indirect
-	github.com/metal-stack/metal-lib v0.6.3
+	github.com/metal-stack/metal-lib v0.6.4-0.20201106055355-9f3da533d57c
 	github.com/metal-stack/v v1.0.2
 	github.com/onsi/ginkgo v1.14.0 // indirect
 	github.com/prometheus/common v0.14.0 // indirect
@@ -27,6 +27,7 @@ require (
 	golang.org/x/sys v0.0.0-20200923182605-d9f96fdee20d // indirect
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e // indirect
 	gomodules.xyz/jsonpatch/v2 v2.1.0 // indirect
+	gopkg.in/yaml.v2 v2.3.0
 	k8s.io/api v0.18.9
 	k8s.io/apiextensions-apiserver v0.18.9
 	k8s.io/apimachinery v0.18.9
