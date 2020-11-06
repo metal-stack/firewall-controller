@@ -169,7 +169,12 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 			continue
 		}
 
-		if *n.Underlay {
+		if n.Networktype == nil {
+			errors = multierror.Append(errors, fmt.Errorf("it is unsupported to configure snat for a network without a proper network type: %v", n))
+			continue
+		}
+
+		if *n.Networktype == mn.Underlay {
 			errors = multierror.Append(errors, fmt.Errorf("it is unsupported to configure snat for underlay networks"))
 			continue
 		}

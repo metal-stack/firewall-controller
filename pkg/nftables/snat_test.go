@@ -16,7 +16,6 @@ func TestSnatRules(t *testing.T) {
 	underlay := "underlay"
 	vrf1 := int64(1)
 	vrf2 := int64(2)
-	boolTrue := true
 	privatePrimary := mn.PrivatePrimaryShared
 	external := mn.External
 	underlayNet := mn.Underlay
@@ -92,7 +91,6 @@ func TestSnatRules(t *testing.T) {
 						Prefixes:    []string{"10.0.1.0/24"},
 						Ips:         []string{"10.0.1.1"},
 						Networktype: &underlayNet,
-						Underlay:    &boolTrue,
 					},
 				},
 			},

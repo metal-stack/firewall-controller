@@ -17,7 +17,6 @@ func TestRateLimitRules(t *testing.T) {
 	vrf3 := int64(3)
 	privatePrimary := mn.PrivatePrimaryShared
 	external := mn.External
-	boolFalse := false
 	tests := []struct {
 		name  string
 		input firewallv1.FirewallSpec
@@ -32,7 +31,6 @@ func TestRateLimitRules(t *testing.T) {
 						Prefixes:    []string{"10.0.1.0/24"},
 						Ips:         []string{"10.0.1.1"},
 						Vrf:         &vrf1,
-						Underlay:    &boolFalse,
 						Networktype: &privatePrimary,
 					},
 					{
@@ -40,7 +38,6 @@ func TestRateLimitRules(t *testing.T) {
 						Prefixes:    []string{"185.0.0.0/24"},
 						Ips:         []string{"185.0.0.1"},
 						Vrf:         &vrf2,
-						Underlay:    &boolFalse,
 						Networktype: &external,
 					},
 					{
@@ -48,7 +45,6 @@ func TestRateLimitRules(t *testing.T) {
 						Prefixes:    []string{"100.0.0.0/24"},
 						Ips:         []string{"100.0.0.1"},
 						Vrf:         &vrf3,
-						Underlay:    &boolFalse,
 						Networktype: &external,
 					},
 				},

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net"
 	"strings"
+
+	mn "github.com/metal-stack/metal-lib/pkg/net"
 )
 
 type snatRule struct {
@@ -28,6 +30,10 @@ func snatRules(f *Firewall) (nftablesRules, error) {
 		n, there := f.networkMap[s.NetworkID]
 		if !there {
 			return nil, fmt.Errorf("network not found")
+		}
+
+		if n.Networktype == nil || *n.Networktype != mn.External {
+			continue
 		}
 
 		hmap := []string{}
