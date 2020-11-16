@@ -10,8 +10,6 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v1
-    - uses: olegtarasov/get-tag@v1
-      id: tagName
     - name: run integration tests
       run: |
         sudo apt install -y --no-install-recommends nftables iproute2 kmod
