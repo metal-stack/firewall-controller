@@ -50,17 +50,17 @@ func TestRateLimitRules(t *testing.T) {
 				},
 				RateLimits: []firewallv1.RateLimit{
 					{
-						Network: "private",
-						Rate:    uint32(100),
+						NetworkID: "private",
+						Rate:      uint32(100),
 					}, {
-						Network: "internet",
-						Rate:    uint32(10),
+						NetworkID: "internet",
+						Rate:      uint32(10),
 					}, {
-						Network: "mpls",
-						Rate:    uint32(20),
+						NetworkID: "mpls",
+						Rate:      uint32(20),
 					}, {
-						Network: "underlay",
-						Rate:    uint32(200),
+						NetworkID: "underlay",
+						Rate:      uint32(200),
 					},
 				},
 			},

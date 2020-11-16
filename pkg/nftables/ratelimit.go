@@ -10,7 +10,7 @@ import (
 func rateLimitRules(f *Firewall) nftablesRules {
 	rules := nftablesRules{}
 	for _, l := range f.spec.RateLimits {
-		n, ok := f.networkMap[l.Network]
+		n, ok := f.networkMap[l.NetworkID]
 		if !ok {
 			continue
 		}

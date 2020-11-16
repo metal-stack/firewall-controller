@@ -46,7 +46,7 @@ spec:
             dryrun:
               description: DryRun if set to true, firewall rules are not applied
               type: boolean
-            egressrules:
+            egressRules:
               description: EgressRules
               items:
                 description: EgressRuleSNAT holds a Source-NAT rule
@@ -55,14 +55,14 @@ spec:
                     items:
                       type: string
                     type: array
-                  network:
+                  networkid:
                     type: string
                 required:
                 - ips
-                - network
+                - networkid
                 type: object
               type: array
-            firewallnetworks:
+            firewallNetworks:
               description: FirewallNetworks holds the networks known at the metal-api
                 for this firewall machine
               items:
@@ -102,7 +102,7 @@ spec:
                 - vrf
                 type: object
               type: array
-            internalprefixes:
+            internalPrefixes:
               description: InternalPrefixes specify prefixes which are considered
                 local to the partition or all regions. Traffic to/from these prefixes
                 is accounted as internal traffic
@@ -116,14 +116,14 @@ spec:
               description: TrafficControl defines where to store the generated ipv4
                 firewall rules on disk
               type: string
-            ratelimits:
+            rateLimits:
               description: RateLimits allows configuration of rate limit rules for
                 interfaces.
               items:
                 description: RateLimit contains the rate limit rule for a network.
                 properties:
-                  network:
-                    description: Network specifies the network which should be rate
+                  networkid:
+                    description: NetworkID specifies the network which should be rate
                       limited
                     type: string
                   rate:

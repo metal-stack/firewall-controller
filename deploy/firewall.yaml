@@ -7,17 +7,17 @@ spec:
   interval: 10s
   dryrun: true
   ipv4rulefile: nftables.v4
-  ratelimits:
+  rateLimits:
   - network: internet
     rate: 10
-  internalprefixes:
+  internalPrefixes:
   - "127.0.0.1"
   - "100.64.0.0/8"
   snat:
   - network: internet
     ips:
     - 212.34.80.1
-  networks:
+  firewallNetworks:
   - asn: 4200003073
     destinationprefixes: []
     ips:
