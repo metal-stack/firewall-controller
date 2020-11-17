@@ -130,6 +130,9 @@ spec:
                     description: Rate is the input rate in MiB/s
                     format: int32
                     type: integer
+                required:
+                - networkid
+                - rate
                 type: object
               type: array
             signature:

@@ -56,20 +56,20 @@ type FirewallSpec struct {
 // Data contains the fields over which the signature is calculated.
 type Data struct {
 	// Interval on which rule reconciliation should happen
-	Interval string `json:"interval,omitempty"`
+	Interval string `json:"interval,omitempty" yaml:"interval,omitempty"`
 	// DryRun if set to true, firewall rules are not applied
-	DryRun bool `json:"dryrun,omitempty"`
+	DryRun bool `json:"dryrun,omitempty" yaml:"dryrun,omitempty"`
 	// TrafficControl defines where to store the generated ipv4 firewall rules on disk
-	Ipv4RuleFile string `json:"ipv4rulefile,omitempty"`
+	Ipv4RuleFile string `json:"ipv4rulefile,omitempty" yaml:"ipv4rulefile,omitempty"`
 	// RateLimits allows configuration of rate limit rules for interfaces.
-	RateLimits []RateLimit `json:"rateLimits,omitempty"`
+	RateLimits []RateLimit `json:"rateLimits,omitempty" yaml:"rateLimits,omitempty"`
 	// InternalPrefixes specify prefixes which are considered local to the partition or all regions.
 	// Traffic to/from these prefixes is accounted as internal traffic
-	InternalPrefixes []string `json:"internalPrefixes,omitempty"`
+	InternalPrefixes []string `json:"internalPrefixes,omitempty" yaml:"internalPrefixes,omitempty"`
 	// EgressRules
-	EgressRules []EgressRuleSNAT `json:"egressRules,omitempty"`
+	EgressRules []EgressRuleSNAT `json:"egressRules,omitempty" yaml:"egressRules,omitempty"`
 	// FirewallNetworks holds the networks known at the metal-api for this firewall machine
-	FirewallNetworks []FirewallNetwork `json:"firewallNetworks,omitempty"`
+	FirewallNetworks []FirewallNetwork `json:"firewallNetworks,omitempty" yaml:"firewallNetworks,omitempty"`
 }
 
 // FirewallStatus defines the observed state of Firewall
@@ -105,16 +105,16 @@ type Counter struct {
 
 // EgressRuleSNAT holds a Source-NAT rule
 type EgressRuleSNAT struct {
-	NetworkID string   `json:"networkid"`
-	IPs       []string `json:"ips"`
+	NetworkID string   `json:"networkid" yaml:"networkid"`
+	IPs       []string `json:"ips" yaml:"ips"`
 }
 
 // RateLimit contains the rate limit rule for a network.
 type RateLimit struct {
 	// NetworkID specifies the network which should be rate limited
-	NetworkID string `json:"networkid,omitempty"`
+	NetworkID string `json:"networkid" yaml:"networkid"`
 	// Rate is the input rate in MiB/s
-	Rate uint32 `json:"rate,omitempty"`
+	Rate uint32 `json:"rate" yaml:"rate"`
 }
 
 // DeviceStatsByDevice contains DeviceStatistics grouped by device name
