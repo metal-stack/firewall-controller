@@ -34,7 +34,7 @@ clean:
 
 # Build firewall-controller binary
 firewall-controller: statik generate fmt vet test
-	go build \
+	CGO_ENABLED=0 go build \
 		-tags netgo \
 		-trimpath \
 		-ldflags \
