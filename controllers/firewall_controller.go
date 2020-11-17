@@ -47,6 +47,7 @@ import (
 	"github.com/metal-stack/firewall-controller/pkg/collector"
 	"github.com/metal-stack/firewall-controller/pkg/nftables"
 	"github.com/metal-stack/firewall-controller/pkg/suricata"
+	mn "github.com/metal-stack/metal-lib/pkg/net"
 	"github.com/metal-stack/metal-lib/pkg/sign"
 	networking "k8s.io/api/networking/v1"
 )
@@ -57,7 +58,6 @@ type FirewallReconciler struct {
 	recorder             record.EventRecorder
 	Log                  logr.Logger
 	Scheme               *runtime.Scheme
-	ServiceIP            string
 	EnableIDS            bool
 	EnableSignatureCheck bool
 	CAPubKey             *rsa.PublicKey
@@ -130,7 +130,7 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	log.Info("reconciling firewall services")
-	if err = r.reconcileFirewallServices(ctx, log); err != nil {
+	if err = r.reconcileFirewallServices(ctx, f, log); err != nil {
 		errors = multierror.Append(errors, err)
 	}
 
@@ -314,7 +314,7 @@ type firewallService struct {
 }
 
 // reconcileFirewallServices reconciles the services and endpoints exposed by the firewall
-func (r *FirewallReconciler) reconcileFirewallServices(ctx context.Context, log logr.Logger) error {
+func (r *FirewallReconciler) reconcileFirewallServices(ctx context.Context, f firewallv1.Firewall, log logr.Logger) error {
 	services := []firewallService{
 		{
 			name:      nodeExporterService,
@@ -330,7 +330,7 @@ func (r *FirewallReconciler) reconcileFirewallServices(ctx context.Context, log 
 
 	var errors *multierror.Error
 	for _, s := range services {
-		err := r.reconcileFirewallService(ctx, s, log)
+		err := r.reconcileFirewallService(ctx, s, f, log)
 		if err != nil {
 			errors = multierror.Append(errors, err)
 		}
@@ -339,7 +339,7 @@ func (r *FirewallReconciler) reconcileFirewallServices(ctx context.Context, log 
 }
 
 // reconcileFirewallService reconciles a single service that is to be exposed at the firewall.
-func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s firewallService, log logr.Logger) error {
+func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s firewallService, f firewallv1.Firewall, log logr.Logger) error {
 	nn := types.NamespacedName{Name: s.name, Namespace: firewallNamespace}
 	meta := metav1.ObjectMeta{
 		Name:      s.name,
@@ -384,13 +384,34 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 		}
 	}
 
+	var privateNet *firewallv1.FirewallNetwork
+	for _, n := range f.Spec.FirewallNetworks {
+		if n.Networktype == nil {
+			continue
+		}
+
+		switch *n.Networktype {
+		case mn.PrivatePrimaryUnshared:
+		case mn.PrivatePrimaryShared:
+			privateNet = &n
+		}
+	}
+
+	if privateNet == nil {
+		return fmt.Errorf("firewall networks contain no private network")
+	}
+
+	if len(privateNet.Ips) < 1 {
+		return fmt.Errorf("private firewall network contains no ip")
+	}
+
 	endpoints := v1.Endpoints{
 		ObjectMeta: meta,
 		Subsets: []v1.EndpointSubset{
 			{
 				Addresses: []corev1.EndpointAddress{
 					{
-						IP: r.ServiceIP,
+						IP: privateNet.Ips[0],
 					},
 				},
 				Ports: []v1.EndpointPort{

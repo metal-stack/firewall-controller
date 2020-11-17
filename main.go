@@ -61,7 +61,6 @@ func main() {
 		enableIDS            bool
 		enableSignatureCheck bool
 		hostsFile            string
-		serviceIP            string
 	)
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
@@ -69,7 +68,6 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.BoolVar(&enableIDS, "enable-IDS", true, "Set this to false to exclude IDS.")
 	flag.StringVar(&hostsFile, "hosts-file", "/etc/hosts", "The hosts file to manipulate for the droptailer.")
-	flag.StringVar(&serviceIP, "service-ip", "172.17.0.1", "The ip where firewall services are exposed.")
 	flag.BoolVar(&enableSignatureCheck, "enable-signature-check", true, "Set this to false to ignore signature checking.")
 	flag.Parse()
 
@@ -158,7 +156,6 @@ func main() {
 		Client:               mgr.GetClient(),
 		Log:                  ctrl.Log.WithName("controllers").WithName("Firewall"),
 		Scheme:               mgr.GetScheme(),
-		ServiceIP:            serviceIP,
 		EnableIDS:            enableIDS,
 		EnableSignatureCheck: enableSignatureCheck,
 		CAPubKey:             caPubKey,
