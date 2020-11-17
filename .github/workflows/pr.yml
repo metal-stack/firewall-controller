@@ -22,10 +22,9 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v1
-    - name: Make tag
-      run: echo "::set-env name=GITHUB_TAG_NAME::$(echo $GITHUB_REF | awk -F / '{print $3}')-${GITHUB_HEAD_REF##*/}"
     - name: build the Docker images
       run: |
+        export GITHUB_TAG_NAME=${GITHUB_HEAD_REF##*/}
         docker login -u metalstackci -p ${{ secrets.DOCKER_HUB_TOKEN }}
         make docker-build
         make docker-push
