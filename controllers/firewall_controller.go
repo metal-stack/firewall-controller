@@ -19,12 +19,12 @@ package controllers
 import (
 	"context"
 	"crypto/rsa"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"time"
 
 	"github.com/go-logr/logr"
-	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -166,19 +166,13 @@ func (r *FirewallReconciler) validateFirewall(ctx context.Context, f firewallv1.
 		return nil
 	}
 
-	fwValues := map[string]interface{}{
-		"firewallNetworks": f.Spec.FirewallNetworks,
-		"internalPrefixes": f.Spec.InternalPrefixes,
-		"rateLimits":       f.Spec.RateLimits,
-		"egressRules":      f.Spec.EgressRules,
-	}
-
-	fwValuesMarshalled, err := yaml.Marshal(&fwValues)
+	dataMarshalled, err := json.Marshal(&f.Spec.Data)
 	if err != nil {
-		return fmt.Errorf("could not marshal firewall values to yaml for signature check: %w", err)
+		return fmt.Errorf("could not marshal firewall values to json for signature check: %w", err)
 	}
+	r.Log.Info("checking firewall signature for", "values", dataMarshalled)
 
-	ok, err := sign.VerifySignature(r.CAPubKey, f.Spec.Signature, fwValuesMarshalled)
+	ok, err := sign.VerifySignature(r.CAPubKey, f.Spec.Signature, dataMarshalled)
 	if err != nil {
 		return fmt.Errorf("firewall spec could not be verified with signature: %w", err)
 	}

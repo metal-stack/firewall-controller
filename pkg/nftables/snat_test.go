@@ -29,35 +29,37 @@ func TestSnatRules(t *testing.T) {
 		{
 			name: "snat for multiple networks",
 			input: firewallv1.FirewallSpec{
-				FirewallNetworks: []firewallv1.FirewallNetwork{
-					{
-						Networkid:   &private,
-						Prefixes:    []string{"10.0.1.0/24"},
-						Ips:         []string{"10.0.1.1"},
-						Networktype: &privatePrimary,
+				Data: firewallv1.Data{
+					FirewallNetworks: []firewallv1.FirewallNetwork{
+						{
+							Networkid:   &private,
+							Prefixes:    []string{"10.0.1.0/24"},
+							Ips:         []string{"10.0.1.1"},
+							Networktype: &privatePrimary,
+						},
+						{
+							Networkid:   &internet,
+							Prefixes:    []string{"185.0.0.0/24"},
+							Ips:         []string{"185.0.0.1"},
+							Vrf:         &vrf1,
+							Networktype: &external,
+						},
+						{
+							Networkid:   &mpls,
+							Prefixes:    []string{"100.0.0.0/24"},
+							Ips:         []string{"100.0.0.1"},
+							Vrf:         &vrf2,
+							Networktype: &external,
+						},
 					},
-					{
-						Networkid:   &internet,
-						Prefixes:    []string{"185.0.0.0/24"},
-						Ips:         []string{"185.0.0.1"},
-						Vrf:         &vrf1,
-						Networktype: &external,
-					},
-					{
-						Networkid:   &mpls,
-						Prefixes:    []string{"100.0.0.0/24"},
-						Ips:         []string{"100.0.0.1"},
-						Vrf:         &vrf2,
-						Networktype: &external,
-					},
-				},
-				EgressRules: []firewallv1.EgressRuleSNAT{
-					{
-						NetworkID: "internet",
-						IPs:       []string{"185.0.0.2", "185.0.0.3"},
-					}, {
-						NetworkID: "mpls",
-						IPs:       []string{"100.0.0.2"},
+					EgressRules: []firewallv1.EgressRuleSNAT{
+						{
+							NetworkID: "internet",
+							IPs:       []string{"185.0.0.2", "185.0.0.3"},
+						}, {
+							NetworkID: "mpls",
+							IPs:       []string{"100.0.0.2"},
+						},
 					},
 				},
 			},
@@ -69,28 +71,32 @@ func TestSnatRules(t *testing.T) {
 		{
 			name: "empty snat rules",
 			input: firewallv1.FirewallSpec{
-				FirewallNetworks: []firewallv1.FirewallNetwork{
-					{
-						Networkid:   &private,
-						Prefixes:    []string{"10.0.1.0/24"},
-						Ips:         []string{"10.0.1.1"},
-						Networktype: &privatePrimary,
-						Vrf:         &vrf1,
+				Data: firewallv1.Data{
+					FirewallNetworks: []firewallv1.FirewallNetwork{
+						{
+							Networkid:   &private,
+							Prefixes:    []string{"10.0.1.0/24"},
+							Ips:         []string{"10.0.1.1"},
+							Networktype: &privatePrimary,
+							Vrf:         &vrf1,
+						},
 					},
+					EgressRules: []firewallv1.EgressRuleSNAT{},
 				},
-				EgressRules: []firewallv1.EgressRuleSNAT{},
 			},
 			want: nftablesRules{},
 		},
 		{
 			name: "no primary network",
 			input: firewallv1.FirewallSpec{
-				FirewallNetworks: []firewallv1.FirewallNetwork{
-					{
-						Networkid:   &underlay,
-						Prefixes:    []string{"10.0.1.0/24"},
-						Ips:         []string{"10.0.1.1"},
-						Networktype: &underlayNet,
+				Data: firewallv1.Data{
+					FirewallNetworks: []firewallv1.FirewallNetwork{
+						{
+							Networkid:   &underlay,
+							Prefixes:    []string{"10.0.1.0/24"},
+							Ips:         []string{"10.0.1.1"},
+							Networktype: &underlayNet,
+						},
 					},
 				},
 			},

@@ -25,42 +25,44 @@ func TestRateLimitRules(t *testing.T) {
 		{
 			name: "rate limit for multiple networks",
 			input: firewallv1.FirewallSpec{
-				FirewallNetworks: []firewallv1.FirewallNetwork{
-					{
-						Networkid:   &private,
-						Prefixes:    []string{"10.0.1.0/24"},
-						Ips:         []string{"10.0.1.1"},
-						Vrf:         &vrf1,
-						Networktype: &privatePrimary,
+				Data: firewallv1.Data{
+					FirewallNetworks: []firewallv1.FirewallNetwork{
+						{
+							Networkid:   &private,
+							Prefixes:    []string{"10.0.1.0/24"},
+							Ips:         []string{"10.0.1.1"},
+							Vrf:         &vrf1,
+							Networktype: &privatePrimary,
+						},
+						{
+							Networkid:   &internet,
+							Prefixes:    []string{"185.0.0.0/24"},
+							Ips:         []string{"185.0.0.1"},
+							Vrf:         &vrf2,
+							Networktype: &external,
+						},
+						{
+							Networkid:   &mpls,
+							Prefixes:    []string{"100.0.0.0/24"},
+							Ips:         []string{"100.0.0.1"},
+							Vrf:         &vrf3,
+							Networktype: &external,
+						},
 					},
-					{
-						Networkid:   &internet,
-						Prefixes:    []string{"185.0.0.0/24"},
-						Ips:         []string{"185.0.0.1"},
-						Vrf:         &vrf2,
-						Networktype: &external,
-					},
-					{
-						Networkid:   &mpls,
-						Prefixes:    []string{"100.0.0.0/24"},
-						Ips:         []string{"100.0.0.1"},
-						Vrf:         &vrf3,
-						Networktype: &external,
-					},
-				},
-				RateLimits: []firewallv1.RateLimit{
-					{
-						NetworkID: "private",
-						Rate:      uint32(100),
-					}, {
-						NetworkID: "internet",
-						Rate:      uint32(10),
-					}, {
-						NetworkID: "mpls",
-						Rate:      uint32(20),
-					}, {
-						NetworkID: "underlay",
-						Rate:      uint32(200),
+					RateLimits: []firewallv1.RateLimit{
+						{
+							NetworkID: "private",
+							Rate:      uint32(100),
+						}, {
+							NetworkID: "internet",
+							Rate:      uint32(10),
+						}, {
+							NetworkID: "mpls",
+							Rate:      uint32(20),
+						}, {
+							NetworkID: "underlay",
+							Rate:      uint32(200),
+						},
 					},
 				},
 			},
