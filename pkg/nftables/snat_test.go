@@ -106,7 +106,7 @@ func TestSnatRules(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f := NewFirewall(nil, nil, tt.input)
+			f := NewFirewall(nil, nil, tt.input, nil)
 			got, err := snatRules(f)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("snatRules() error = %v, wantErr %v", err, tt.err)

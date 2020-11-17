@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/go-logr/logr"
 	"github.com/hashicorp/go-multierror"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 
@@ -26,6 +27,8 @@ const (
 
 // Firewall assembles nftable rules based on k8s entities
 type Firewall struct {
+	log logr.Logger
+
 	spec                       firewallv1.FirewallSpec
 	clusterwideNetworkPolicies *firewallv1.ClusterwideNetworkPolicyList
 	services                   *corev1.ServiceList
@@ -48,11 +51,11 @@ type forwardingRules struct {
 // NewDefaultFirewall creates a new default nftables firewall.
 func NewDefaultFirewall() *Firewall {
 	defaultSpec := firewallv1.FirewallSpec{}
-	return NewFirewall(&firewallv1.ClusterwideNetworkPolicyList{}, &v1.ServiceList{}, defaultSpec)
+	return NewFirewall(&firewallv1.ClusterwideNetworkPolicyList{}, &v1.ServiceList{}, defaultSpec, nil)
 }
 
 // NewFirewall creates a new nftables firewall object based on k8s entities
-func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.ServiceList, spec firewallv1.FirewallSpec) *Firewall {
+func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.ServiceList, spec firewallv1.FirewallSpec, log logr.Logger) *Firewall {
 	networkMap := networkMap{}
 	var primaryPrivateNet *firewallv1.FirewallNetwork
 	for i, n := range spec.FirewallNetworks {
@@ -72,6 +75,7 @@ func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.Serv
 		primaryPrivateNet:          primaryPrivateNet,
 		networkMap:                 networkMap,
 		dryRun:                     spec.DryRun,
+		log:                        log,
 	}
 }
 
@@ -191,6 +195,8 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 		}
 
 		d := diff(i.IPs, actualIPs)
+
+		f.log.Info("reconciling ips for", "network", n.Networkid, "adding", d.toAdd, "removing", d.toRemove)
 		for _, add := range d.toAdd {
 			addr, _ := netlink.ParseAddr(fmt.Sprintf("%s/32", add))
 			err = netlink.AddrAdd(link, addr)
@@ -199,17 +205,13 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 			}
 		}
 
+	nextIp:
 		for _, delete := range d.toRemove {
 			// do not remove IPs that were initially used during machine allocation!
-			isFixed := false
 			for _, fixedIP := range n.Ips {
 				if delete == fixedIP {
-					isFixed = true
-					break
+					continue nextIp
 				}
-			}
-			if isFixed {
-				continue
 			}
 			addr, _ := netlink.ParseAddr(fmt.Sprintf("%s/32", delete))
 			err = netlink.AddrDel(link, addr)

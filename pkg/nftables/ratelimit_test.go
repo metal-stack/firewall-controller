@@ -75,7 +75,7 @@ func TestRateLimitRules(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f := NewFirewall(nil, nil, tt.input)
+			f := NewFirewall(nil, nil, tt.input, nil)
 			got := rateLimitRules(f)
 			if !cmp.Equal(got, tt.want) {
 				t.Errorf("rateLimitRules() diff: %v", cmp.Diff(got, tt.want))

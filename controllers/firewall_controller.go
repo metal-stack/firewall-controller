@@ -299,7 +299,7 @@ func (r *FirewallReconciler) reconcileRules(ctx context.Context, f firewallv1.Fi
 		return err
 	}
 
-	nftablesFirewall := nftables.NewFirewall(&clusterNPs, &services, f.Spec)
+	nftablesFirewall := nftables.NewFirewall(&clusterNPs, &services, f.Spec, log)
 	if err := nftablesFirewall.Reconcile(); err != nil {
 		return err
 	}
@@ -392,6 +392,7 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 
 		switch *n.Networktype {
 		case mn.PrivatePrimaryUnshared:
+			fallthrough
 		case mn.PrivatePrimaryShared:
 			privateNet = &n
 		}
