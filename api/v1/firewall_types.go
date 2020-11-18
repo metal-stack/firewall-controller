@@ -17,6 +17,11 @@ limitations under the License.
 package v1
 
 import (
+	"crypto/rsa"
+	"encoding/json"
+	"fmt"
+
+	"github.com/metal-stack/metal-lib/pkg/sign"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -146,6 +151,28 @@ type FirewallNetwork struct {
 	Networktype         *string  `json:"networktype"`
 	Prefixes            []string `json:"prefixes"`
 	Vrf                 *int64   `json:"vrf"`
+}
+
+func (d *Data) marshalText() ([]byte, error) {
+	return json.Marshal(d)
+}
+
+// Sign builds a signature for firewall data
+func (d *Data) Sign(privateKey *rsa.PrivateKey) (string, error) {
+	b, err := d.marshalText()
+	if err != nil {
+		return "", fmt.Errorf("could not marshal data: %s, err: %w", string(b), err)
+	}
+	return sign.Sign(privateKey, b)
+}
+
+// Verify checks the firewall data against a given signature with public key
+func (d *Data) Verify(pubKey *rsa.PublicKey, sig string) (bool, error) {
+	b, err := d.marshalText()
+	if err != nil {
+		return false, fmt.Errorf("could not marshal data: %s, err: %w", string(b), err)
+	}
+	return sign.VerifySignature(pubKey, sig, b)
 }
 
 func init() {

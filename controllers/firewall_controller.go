@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"crypto/rsa"
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"time"
@@ -48,7 +47,6 @@ import (
 	"github.com/metal-stack/firewall-controller/pkg/nftables"
 	"github.com/metal-stack/firewall-controller/pkg/suricata"
 	mn "github.com/metal-stack/metal-lib/pkg/net"
-	"github.com/metal-stack/metal-lib/pkg/sign"
 	networking "k8s.io/api/networking/v1"
 )
 
@@ -166,13 +164,7 @@ func (r *FirewallReconciler) validateFirewall(ctx context.Context, f firewallv1.
 		return nil
 	}
 
-	dataMarshalled, err := json.Marshal(&f.Spec.Data)
-	if err != nil {
-		return fmt.Errorf("could not marshal firewall values to json for signature check: %w", err)
-	}
-	r.Log.Info("checking firewall signature for", "values", dataMarshalled)
-
-	ok, err := sign.VerifySignature(r.CAPubKey, f.Spec.Signature, dataMarshalled)
+	ok, err := f.Spec.Data.Verify(r.CAPubKey, f.Spec.Signature)
 	if err != nil {
 		return fmt.Errorf("firewall spec could not be verified with signature: %w", err)
 	}
