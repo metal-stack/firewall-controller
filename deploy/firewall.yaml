@@ -8,13 +8,13 @@ spec:
   dryrun: true
   ipv4rulefile: nftables.v4
   rateLimits:
-  - network: internet
+  - networkid: internet
     rate: 10
-  internalPrefixes:
+  internalprefixes:
   - "127.0.0.1"
   - "100.64.0.0/8"
-  snat:
-  - network: internet
+  egressRules:
+  - networkid: internet
     ips:
     - 212.34.80.1
   firewallNetworks:
