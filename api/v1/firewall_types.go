@@ -56,20 +56,21 @@ type FirewallSpec struct {
 // Data contains the fields over which the signature is calculated.
 type Data struct {
 	// Interval on which rule reconciliation should happen
-	Interval string `json:"interval,omitempty" yaml:"interval,omitempty"`
+	Interval string `json:"interval,omitempty"`
 	// DryRun if set to true, firewall rules are not applied
-	DryRun bool `json:"dryrun,omitempty" yaml:"dryrun,omitempty"`
+	DryRun bool `json:"dryrun,omitempty"`
 	// TrafficControl defines where to store the generated ipv4 firewall rules on disk
-	Ipv4RuleFile string `json:"ipv4rulefile,omitempty" yaml:"ipv4rulefile,omitempty"`
+	Ipv4RuleFile string `json:"ipv4rulefile,omitempty"`
 	// RateLimits allows configuration of rate limit rules for interfaces.
-	RateLimits []RateLimit `json:"rateLimits,omitempty" yaml:"rateLimits,omitempty"`
+	RateLimits []RateLimit `json:"rateLimits,omitempty"`
 	// InternalPrefixes specify prefixes which are considered local to the partition or all regions.
 	// Traffic to/from these prefixes is accounted as internal traffic
-	InternalPrefixes []string `json:"internalPrefixes,omitempty" yaml:"internalPrefixes,omitempty"`
+	// TODO: align to camel-case - rename to internalPrefixes
+	InternalPrefixes []string `json:"internalprefixes,omitempty"`
 	// EgressRules
-	EgressRules []EgressRuleSNAT `json:"egressRules,omitempty" yaml:"egressRules,omitempty"`
+	EgressRules []EgressRuleSNAT `json:"egressRules,omitempty"`
 	// FirewallNetworks holds the networks known at the metal-api for this firewall machine
-	FirewallNetworks []FirewallNetwork `json:"firewallNetworks,omitempty" yaml:"firewallNetworks,omitempty"`
+	FirewallNetworks []FirewallNetwork `json:"firewallNetworks,omitempty"`
 }
 
 // FirewallStatus defines the observed state of Firewall

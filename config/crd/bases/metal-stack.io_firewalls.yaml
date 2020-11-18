@@ -102,10 +102,11 @@ spec:
                 - vrf
                 type: object
               type: array
-            internalPrefixes:
-              description: InternalPrefixes specify prefixes which are considered
+            internalprefixes:
+              description: 'InternalPrefixes specify prefixes which are considered
                 local to the partition or all regions. Traffic to/from these prefixes
-                is accounted as internal traffic
+                is accounted as internal traffic TODO: align to camel-case - rename
+                to internalPrefixes'
               items:
                 type: string
               type: array
