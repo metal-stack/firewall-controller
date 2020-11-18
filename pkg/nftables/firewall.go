@@ -16,6 +16,7 @@ import (
 	"github.com/vishvananda/netlink"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 const (
@@ -109,6 +110,11 @@ func (f *Firewall) Reconcile() error {
 	}
 	defer os.Remove(tmpFile.Name())
 
+	err = f.reconcileIfaceAddresses()
+	if err != nil {
+		return err
+	}
+
 	desired := tmpFile.Name()
 	err = f.renderFile(desired)
 	if err != nil {
@@ -123,10 +129,6 @@ func (f *Firewall) Reconcile() error {
 	}
 	if f.dryRun {
 		return nil
-	}
-	err = f.reconcileIfaceAddresses()
-	if err != nil {
-		return err
 	}
 	err = f.reload()
 	if err != nil {
@@ -166,21 +168,22 @@ func (f *Firewall) validate(file string) error {
 
 func (f *Firewall) reconcileIfaceAddresses() error {
 	var errors *multierror.Error
-	for _, i := range f.spec.EgressRules {
-		n, ok := f.networkMap[i.NetworkID]
-		if !ok {
-			errors = multierror.Append(errors, fmt.Errorf("could not find network %s in networks", i.NetworkID))
-			continue
-		}
 
+	for _, n := range f.networkMap {
 		if n.Networktype == nil {
-			errors = multierror.Append(errors, fmt.Errorf("it is unsupported to configure snat for a network without a proper network type: %v", n))
 			continue
 		}
 
 		if *n.Networktype == mn.Underlay {
-			errors = multierror.Append(errors, fmt.Errorf("it is unsupported to configure snat for underlay networks"))
 			continue
+		}
+
+		wantedIPs := sets.NewString()
+		for _, i := range f.spec.EgressRules {
+			if i.NetworkID == *n.Networkid {
+				wantedIPs.Insert(i.IPs...)
+				break
+			}
 		}
 
 		link, _ := netlink.LinkByName(fmt.Sprintf("vlan%d", *n.Vrf))
@@ -189,15 +192,19 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 			errors = multierror.Append(errors, err)
 		}
 
-		actualIPs := []string{}
+		actualIPs := sets.NewString()
 		for _, addr := range addrs {
-			actualIPs = append(actualIPs, addr.IP.String())
+			actualIPs.Insert(addr.IP.String())
 		}
 
-		d := diff(i.IPs, actualIPs)
+		toAdd := wantedIPs.Difference(actualIPs)
+		toRemove := actualIPs.Difference(wantedIPs)
 
-		f.log.Info("reconciling ips for", "network", n.Networkid, "adding", d.toAdd, "removing", d.toRemove)
-		for _, add := range d.toAdd {
+		// do not remove IPs that were initially used during machine allocation!
+		toRemove.Delete(n.Ips...)
+
+		f.log.Info("reconciling ips for", "network", n.Networkid, "adding", toAdd, "removing", toRemove)
+		for add := range toAdd {
 			addr, _ := netlink.ParseAddr(fmt.Sprintf("%s/32", add))
 			err = netlink.AddrAdd(link, addr)
 			if err != nil {
@@ -205,14 +212,7 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 			}
 		}
 
-	nextIp:
-		for _, delete := range d.toRemove {
-			// do not remove IPs that were initially used during machine allocation!
-			for _, fixedIP := range n.Ips {
-				if delete == fixedIP {
-					continue nextIp
-				}
-			}
+		for delete := range toRemove {
 			addr, _ := netlink.ParseAddr(fmt.Sprintf("%s/32", delete))
 			err = netlink.AddrDel(link, addr)
 			if err != nil {

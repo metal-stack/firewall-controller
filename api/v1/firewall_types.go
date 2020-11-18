@@ -153,26 +153,30 @@ type FirewallNetwork struct {
 	Vrf                 *int64   `json:"vrf"`
 }
 
-func (d *Data) marshalText() ([]byte, error) {
-	return json.Marshal(d)
-}
-
 // Sign builds a signature for firewall data
 func (d *Data) Sign(privateKey *rsa.PrivateKey) (string, error) {
-	b, err := d.marshalText()
+	b, err := json.Marshal(d)
 	if err != nil {
 		return "", fmt.Errorf("could not marshal data: %s, err: %w", string(b), err)
 	}
-	return sign.Sign(privateKey, b)
+	sig, err := sign.Sign(privateKey, b)
+	if err != nil {
+		return "", fmt.Errorf("could not sign data: %s, err: %w", string(b), err)
+	}
+	return sig, nil
 }
 
 // Verify checks the firewall data against a given signature with public key
 func (d *Data) Verify(pubKey *rsa.PublicKey, sig string) (bool, error) {
-	b, err := d.marshalText()
+	b, err := json.Marshal(d)
 	if err != nil {
 		return false, fmt.Errorf("could not marshal data: %s, err: %w", string(b), err)
 	}
-	return sign.VerifySignature(pubKey, sig, b)
+	v, err := sign.VerifySignature(pubKey, sig, b)
+	if err != nil {
+		return false, fmt.Errorf("could not verify data: %s, err: %w", string(b), err)
+	}
+	return v, nil
 }
 
 func init() {
