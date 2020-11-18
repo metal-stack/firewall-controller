@@ -61,7 +61,7 @@ table ip firewall {
 	}
 
 	chain postrouting {
-        type nat hook postrouting priority -1; policy accept;
+		type nat hook postrouting priority -1; policy accept;
 		ip saddr { 10.0.0.0/8 } oifname "vlan104009" counter snat 185.1.2.3 comment "snat internet"
-    }
+	}
 }

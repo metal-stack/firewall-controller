@@ -110,9 +110,9 @@ func (f *Firewall) Reconcile() error {
 	}
 	defer os.Remove(tmpFile.Name())
 
-	err = f.reconcileIfaceAddresses()
-	if err != nil {
-		return err
+	errors := f.reconcileIfaceAddresses()
+	if errors.ErrorOrNil() != nil {
+		return errors.Unwrap()
 	}
 
 	desired := tmpFile.Name()
@@ -120,13 +120,16 @@ func (f *Firewall) Reconcile() error {
 	if err != nil {
 		return err
 	}
+
 	if equal(f.ipv4RuleFile(), desired) {
 		return nil
 	}
+
 	err = os.Rename(desired, f.ipv4RuleFile())
 	if err != nil {
 		return err
 	}
+
 	if f.dryRun {
 		return nil
 	}
@@ -166,7 +169,7 @@ func (f *Firewall) validate(file string) error {
 	return nil
 }
 
-func (f *Firewall) reconcileIfaceAddresses() error {
+func (f *Firewall) reconcileIfaceAddresses() *multierror.Error {
 	var errors *multierror.Error
 
 	for _, n := range f.networkMap {
@@ -204,6 +207,9 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 		toRemove.Delete(n.Ips...)
 
 		f.log.Info("reconciling ips for", "network", n.Networkid, "adding", toAdd, "removing", toRemove)
+		if f.dryRun {
+			continue
+		}
 		for add := range toAdd {
 			addr, _ := netlink.ParseAddr(fmt.Sprintf("%s/32", add))
 			err = netlink.AddrAdd(link, addr)

@@ -63,14 +63,13 @@ table ip firewall {
 		counter comment "count and log dropped packets"
 		limit rate 10/second counter name drop_total log prefix "nftables-firewall-dropped: "
 	}
-    {{- if gt (len .SnatRules) 0 }}
+{{- if gt (len .SnatRules) 0 }}
 
 	chain postrouting {
-        type nat hook postrouting priority -1; policy accept;
-        
+		type nat hook postrouting priority -1; policy accept;
 		{{- range .SnatRules }}
 		{{ . }}
         {{- end }}
-    }
-	{{- end }}
+	}
+{{- end }}
 }

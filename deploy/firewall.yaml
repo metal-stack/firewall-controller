@@ -56,3 +56,4 @@ spec:
     underlay: true
     networktype: external
     vrf: 0
+  signature: ""

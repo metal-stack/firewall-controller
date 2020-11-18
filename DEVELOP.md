@@ -20,7 +20,7 @@
 make
 
 # start the controller
-bin/firewall-controller --hosts-file ./hosts --enable-signature-check=false
+bin/firewall-controller --hosts-file ./hosts --enable-signature-check=false --enable-IDS=false
 
 # install kind (k8s in docker)
 

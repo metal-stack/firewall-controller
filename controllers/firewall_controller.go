@@ -384,7 +384,7 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 
 		switch *n.Networktype {
 		case mn.PrivatePrimaryUnshared:
-			fallthrough
+			privateNet = &n
 		case mn.PrivatePrimaryShared:
 			privateNet = &n
 		}
@@ -442,17 +442,19 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 
 // updateStatus updates the status field for this firewall
 func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Firewall, log logr.Logger) error {
-	c := collector.NewNFTablesCollector(&r.Log)
-	ruleStats := c.CollectRuleStats()
+	if !f.Spec.DryRun {
+		c := collector.NewNFTablesCollector(&r.Log)
+		ruleStats := c.CollectRuleStats()
 
-	f.Status.FirewallStats = firewallv1.FirewallStats{
-		RuleStats: ruleStats,
+		f.Status.FirewallStats = firewallv1.FirewallStats{
+			RuleStats: ruleStats,
+		}
+		deviceStats, err := c.CollectDeviceStats()
+		if err != nil {
+			return err
+		}
+		f.Status.FirewallStats.DeviceStats = deviceStats
 	}
-	deviceStats, err := c.CollectDeviceStats()
-	if err != nil {
-		return err
-	}
-	f.Status.FirewallStats.DeviceStats = deviceStats
 
 	idsStats := firewallv1.IDSStatsByDevice{}
 	if r.EnableIDS { // checks the CLI-flag
