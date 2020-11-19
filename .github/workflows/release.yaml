@@ -24,7 +24,7 @@ jobs:
     - uses: actions/checkout@v1
     - name: Build the Docker images
       run: |
-        export GITHUB_TAG_NAME=${GITHUB_HEAD_REF##*/}
+        export GITHUB_TAG_NAME=${GITHUB_REF##*/}
         docker login -u metalstackci -p ${{ secrets.DOCKER_HUB_TOKEN }}
         make docker-build
         make docker-push
