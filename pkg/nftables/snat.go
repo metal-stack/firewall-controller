@@ -43,6 +43,22 @@ func snatRules(f *Firewall) (nftablesRules, error) {
 				return nil, fmt.Errorf("could not parse ip %s", i)
 			}
 
+			innets := false
+			for _, prefix := range n.Prefixes {
+				_, cidr, err := net.ParseCIDR(prefix)
+				if err != nil {
+					return nil, fmt.Errorf("could not parse cidr %s", prefix)
+				}
+
+				if cidr.Contains(ip) {
+					innets = true
+					break
+				}
+			}
+
+			if !innets {
+				return nil, fmt.Errorf("ip %s is not in any prefix of network %s", i, s.NetworkID)
+			}
 			hmap = append(hmap, fmt.Sprintf("%d : %s", k, ip.String()))
 		}
 
