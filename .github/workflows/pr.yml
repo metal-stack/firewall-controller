@@ -4,17 +4,12 @@ on:
   pull_request:
     branches:
       - master
-    types:
-      - assigned
-      - edited
 
 jobs:
   integration:
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v1
-    - uses: olegtarasov/get-tag@v1
-      id: tagName
     - name: run integration tests
       run: |
         sudo apt install -y --no-install-recommends nftables iproute2 kmod
@@ -27,11 +22,9 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v1
-    - uses: olegtarasov/get-tag@v1
-      id: tagName
     - name: build the Docker images
       run: |
-        export GITHUB_TAG_NAME=${GITHUB_REF##*/}
+        export GITHUB_TAG_NAME=${GITHUB_HEAD_REF##*/}
         docker login -u metalstackci -p ${{ secrets.DOCKER_HUB_TOKEN }}
         make docker-build
         make docker-push

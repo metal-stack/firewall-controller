@@ -27,6 +27,7 @@ import (
 
 	"github.com/metal-stack/firewall-controller/controllers"
 	"github.com/metal-stack/firewall-controller/controllers/crd"
+	"github.com/metal-stack/metal-lib/pkg/sign"
 	"github.com/metal-stack/v"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -58,9 +59,8 @@ func main() {
 		metricsAddr          string
 		enableLeaderElection bool
 		enableIDS            bool
+		enableSignatureCheck bool
 		hostsFile            string
-		serviceIP            string
-		privateVrfID         int64
 	)
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
@@ -68,8 +68,7 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.BoolVar(&enableIDS, "enable-IDS", true, "Set this to false to exclude IDS.")
 	flag.StringVar(&hostsFile, "hosts-file", "/etc/hosts", "The hosts file to manipulate for the droptailer.")
-	flag.StringVar(&serviceIP, "service-ip", "172.17.0.1", "The ip where firewall services are exposed.")
-	flag.Int64Var(&privateVrfID, "private-vrf", 0, "the vrf id of the private network.")
+	flag.BoolVar(&enableSignatureCheck, "enable-signature-check", true, "Set this to false to ignore signature checking.")
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
@@ -140,13 +139,26 @@ func main() {
 	}
 
 	// Firewall Reconciler
+	caData := mgr.GetConfig().CAData
+	caCert, err := sign.DecodeCertificate(caData)
+	if err != nil {
+		setupLog.Error(err, "unable to decode ca certificate")
+		os.Exit(1)
+	}
+
+	caPubKey, err := sign.ExtractPubKey(caCert)
+	if err != nil {
+		setupLog.Error(err, "unable to extract rsa pub key from ca certificate")
+		os.Exit(1)
+	}
+
 	if err = (&controllers.FirewallReconciler{
-		Client:       mgr.GetClient(),
-		Log:          ctrl.Log.WithName("controllers").WithName("Firewall"),
-		Scheme:       mgr.GetScheme(),
-		ServiceIP:    serviceIP,
-		PrivateVrfID: privateVrfID,
-		EnableIDS:    enableIDS,
+		Client:               mgr.GetClient(),
+		Log:                  ctrl.Log.WithName("controllers").WithName("Firewall"),
+		Scheme:               mgr.GetScheme(),
+		EnableIDS:            enableIDS,
+		EnableSignatureCheck: enableSignatureCheck,
+		CAPubKey:             caPubKey,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Firewall")
 		os.Exit(1)

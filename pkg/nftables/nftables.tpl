@@ -38,8 +38,8 @@ table ip firewall {
 		ip daddr @internal_prefixes iifname "vrf{{ .PrivateVrfID }}" counter name internal_out
 
 		# rate limits
-		{{- range .RateLimits }}
-		meta iifname "{{ .Interface }}" limit rate over {{ .Rate }} mbytes/second counter name drop_ratelimit drop
+		{{- range .RateLimitRules }}
+		{{ . }}
 		{{- end }}
 
 		# state dependent rules
@@ -51,16 +51,25 @@ table ip firewall {
 		ip protocol icmp icmp type { destination-unreachable, router-solicitation, router-advertisement, time-exceeded, parameter-problem } counter accept comment "accept icmp"
 
 		# dynamic ingress rules
-		{{- range .Ingress }}
+		{{- range .ForwardingRules.Ingress }}
 		{{ . }}
 		{{- end }}
 
 		# dynamic egress rules
-		{{- range .Egress }}
+		{{- range .ForwardingRules.Egress }}
 		{{ . }}
 		{{- end }}
 
 		counter comment "count and log dropped packets"
 		limit rate 10/second counter name drop_total log prefix "nftables-firewall-dropped: "
 	}
+{{- if gt (len .SnatRules) 0 }}
+
+	chain postrouting {
+		type nat hook postrouting priority -1; policy accept;
+		{{- range .SnatRules }}
+		{{ . }}
+        {{- end }}
+	}
+{{- end }}
 }

@@ -1,20 +1,22 @@
 package nftables
 
 import (
-	"bytes"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"os/exec"
-	"strings"
-	"text/template"
 
+	"github.com/go-logr/logr"
+	"github.com/hashicorp/go-multierror"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+
+	// using blank import for static files included with statik
 	_ "github.com/metal-stack/firewall-controller/pkg/nftables/statik"
-	"github.com/rakyll/statik/fs"
+	mn "github.com/metal-stack/metal-lib/pkg/net"
+	"github.com/vishvananda/netlink"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 const (
@@ -26,68 +28,74 @@ const (
 
 // Firewall assembles nftable rules based on k8s entities
 type Firewall struct {
-	Ingress          []string
-	Egress           []string
-	RateLimits       []firewallv1.RateLimit
-	Ipv4RuleFile     string
-	DryRun           bool
-	InternalPrefixes string
-	statikFS         http.FileSystem
-	PrivateVrfID     int64
+	log logr.Logger
+
+	spec                       firewallv1.FirewallSpec
+	clusterwideNetworkPolicies *firewallv1.ClusterwideNetworkPolicyList
+	services                   *corev1.ServiceList
+
+	primaryPrivateNet *firewallv1.FirewallNetwork
+	networkMap        networkMap
+
+	dryRun bool
+}
+
+type networkMap map[string]firewallv1.FirewallNetwork
+
+type nftablesRules []string
+
+type forwardingRules struct {
+	Ingress nftablesRules
+	Egress  nftablesRules
 }
 
 // NewDefaultFirewall creates a new default nftables firewall.
-func NewDefaultFirewall(vrfID int64) *Firewall {
+func NewDefaultFirewall() *Firewall {
 	defaultSpec := firewallv1.FirewallSpec{}
-	return NewFirewall(&firewallv1.ClusterwideNetworkPolicyList{}, &v1.ServiceList{}, defaultSpec, vrfID)
+	return NewFirewall(&firewallv1.ClusterwideNetworkPolicyList{}, &v1.ServiceList{}, defaultSpec, nil)
 }
 
 // NewFirewall creates a new nftables firewall object based on k8s entities
-func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.ServiceList, spec firewallv1.FirewallSpec, vrfID int64) *Firewall {
-	ingress := []string{}
-	egress := []string{}
-
-	for _, np := range nps.Items {
-		if len(np.Spec.Egress) > 0 {
-			egress = append(egress, egressForNetworkPolicy(np)...)
+func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.ServiceList, spec firewallv1.FirewallSpec, log logr.Logger) *Firewall {
+	networkMap := networkMap{}
+	var primaryPrivateNet *firewallv1.FirewallNetwork
+	for i, n := range spec.FirewallNetworks {
+		if n.Networktype == nil {
+			continue
 		}
-		if len(np.Spec.Ingress) > 0 {
-			ingress = append(ingress, ingressForNetworkPolicy(np)...)
+		if *n.Networktype == mn.PrivatePrimaryShared || *n.Networktype == mn.PrivatePrimaryUnshared {
+			primaryPrivateNet = &spec.FirewallNetworks[i]
 		}
-	}
-	for _, svc := range svcs.Items {
-		ingress = append(ingress, ingressForService(svc)...)
-	}
-	statikFS, err := fs.NewWithNamespace("tpl")
-	if err != nil {
-		panic(err)
+		networkMap[*n.Networkid] = n
 	}
 
-	ipv4File := defaultIpv4RuleFile
-	if spec.Ipv4RuleFile != "" {
-		ipv4File = spec.Ipv4RuleFile
-	}
 	return &Firewall{
-		Egress:           uniqueSorted(egress),
-		Ingress:          uniqueSorted(ingress),
-		RateLimits:       spec.RateLimits,
-		Ipv4RuleFile:     ipv4File,
-		DryRun:           spec.DryRun,
-		InternalPrefixes: strings.Join(spec.InternalPrefixes, ", "),
-		statikFS:         statikFS,
-		PrivateVrfID:     vrfID,
+		spec:                       spec,
+		clusterwideNetworkPolicies: nps,
+		services:                   svcs,
+		primaryPrivateNet:          primaryPrivateNet,
+		networkMap:                 networkMap,
+		dryRun:                     spec.DryRun,
+		log:                        log,
 	}
+}
+
+func (f *Firewall) ipv4RuleFile() string {
+	if f.spec.Ipv4RuleFile != "" {
+		return f.spec.Ipv4RuleFile
+	}
+	return defaultIpv4RuleFile
 }
 
 // Flush flushes the nftables rules that were deduced from a k8s resources
 // after that the firewall is a "plain metal firewall" with default policy accept in the forward chain.
 func (f *Firewall) Flush() error {
-	_, err := os.Stat(f.Ipv4RuleFile)
+	_, err := os.Stat(f.ipv4RuleFile())
 	if os.IsNotExist(err) {
 		return f.reload()
 	}
 	// only remove if rule file exists
-	err = os.Remove(f.Ipv4RuleFile)
+	err = os.Remove(f.ipv4RuleFile())
 	if err != nil {
 		return fmt.Errorf("could not delete ipv4 rule file: %w", err)
 	}
@@ -102,19 +110,27 @@ func (f *Firewall) Reconcile() error {
 	}
 	defer os.Remove(tmpFile.Name())
 
+	err = f.reconcileIfaceAddresses()
+	if err != nil {
+		return err
+	}
+
 	desired := tmpFile.Name()
 	err = f.renderFile(desired)
 	if err != nil {
 		return err
 	}
-	if equal(f.Ipv4RuleFile, desired) {
+
+	if equal(f.ipv4RuleFile(), desired) {
 		return nil
 	}
-	err = os.Rename(desired, f.Ipv4RuleFile)
+
+	err = os.Rename(desired, f.ipv4RuleFile())
 	if err != nil {
 		return err
 	}
-	if f.DryRun {
+
+	if f.dryRun {
 		return nil
 	}
 	err = f.reload()
@@ -125,11 +141,16 @@ func (f *Firewall) Reconcile() error {
 }
 
 func (f *Firewall) renderFile(file string) error {
-	err := f.write(file)
+	fd, err := newFirewallRenderingData(f)
 	if err != nil {
 		return err
 	}
-	if f.DryRun {
+
+	err = fd.write(file)
+	if err != nil {
+		return err
+	}
+	if f.dryRun {
 		return nil
 	}
 	err = f.validate(file)
@@ -139,49 +160,6 @@ func (f *Firewall) renderFile(file string) error {
 	return nil
 }
 
-func (f *Firewall) write(file string) error {
-	c, err := f.renderString()
-	if err != nil {
-		return err
-	}
-	err = ioutil.WriteFile(file, []byte(c), 0644)
-	if err != nil {
-		return fmt.Errorf("error writing to nftables file '%s': %w", file, err)
-	}
-	return nil
-}
-
-func (f *Firewall) renderString() (string, error) {
-	var b bytes.Buffer
-
-	tplString, err := f.readTpl()
-	if err != nil {
-		return "", err
-	}
-
-	tpl := template.Must(template.New("v4").Parse(tplString))
-
-	err = tpl.Execute(&b, f)
-	if err != nil {
-		return "", err
-	}
-
-	return b.String(), nil
-}
-
-func (f *Firewall) readTpl() (string, error) {
-	r, err := f.statikFS.Open("/nftables.tpl")
-	if err != nil {
-		return "", err
-	}
-	defer r.Close()
-	bytes, err := ioutil.ReadAll(r)
-	if err != nil {
-		return "", err
-	}
-	return string(bytes), nil
-}
-
 func (f *Firewall) validate(file string) error {
 	c := exec.Command(nftBin, "-c", "-f", file)
 	out, err := c.CombinedOutput()
@@ -189,6 +167,70 @@ func (f *Firewall) validate(file string) error {
 		return fmt.Errorf("nftables file '%s' is invalid: %s, err: %w", file, string(out), err)
 	}
 	return nil
+}
+
+func (f *Firewall) reconcileIfaceAddresses() error {
+	var errors *multierror.Error
+
+	for _, n := range f.networkMap {
+		if n.Networktype == nil {
+			continue
+		}
+
+		if *n.Networktype != mn.External {
+			continue
+		}
+
+		wantedIPs := sets.NewString()
+		for _, i := range f.spec.EgressRules {
+			if i.NetworkID == *n.Networkid {
+				wantedIPs.Insert(i.IPs...)
+				break
+			}
+		}
+
+		link, _ := netlink.LinkByName(fmt.Sprintf("vlan%d", *n.Vrf))
+		addrs, err := netlink.AddrList(link, netlink.FAMILY_V4)
+		if err != nil {
+			errors = multierror.Append(errors, err)
+			continue
+		}
+
+		actualIPs := sets.NewString()
+		for _, addr := range addrs {
+			actualIPs.Insert(addr.IP.String())
+		}
+
+		toAdd := wantedIPs.Difference(actualIPs)
+		toRemove := actualIPs.Difference(wantedIPs)
+
+		// do not remove IPs that were initially used during machine allocation!
+		toRemove.Delete(n.Ips...)
+
+		if f.dryRun {
+			f.log.Info("skipping reconciling ips for", "network", n.Networkid, "adding", toAdd, "removing", toRemove)
+			continue
+		}
+		f.log.Info("reconciling ips for", "network", n.Networkid, "adding", toAdd, "removing", toRemove)
+
+		for add := range toAdd {
+			addr, _ := netlink.ParseAddr(fmt.Sprintf("%s/32", add))
+			err = netlink.AddrAdd(link, addr)
+			if err != nil {
+				errors = multierror.Append(errors, err)
+			}
+		}
+
+		for delete := range toRemove {
+			addr, _ := netlink.ParseAddr(fmt.Sprintf("%s/32", delete))
+			err = netlink.AddrDel(link, addr)
+			if err != nil {
+				errors = multierror.Append(errors, err)
+			}
+		}
+	}
+
+	return errors.ErrorOrNil()
 }
 
 func (f *Firewall) reload() error {

@@ -1,111 +1,14 @@
 package nftables
 
 import (
-	"io/ioutil"
 	"net/http"
 	"os/exec"
-	"path"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	_ "github.com/metal-stack/firewall-controller/pkg/nftables/statik"
 	"github.com/rakyll/statik/fs"
 )
-
-func TestFirewall_renderString(t *testing.T) {
-	statikFS, _ := fs.NewWithNamespace("tpl")
-	type fields struct {
-		Ingress          []string
-		Egress           []string
-		RateLimits       []firewallv1.RateLimit
-		Ipv4RuleFile     string
-		DryRun           bool
-		statikFS         http.FileSystem
-		InternalPrefixes string
-		PrivateVrfID     int64
-	}
-	tests := []struct {
-		name     string
-		fields   fields
-		validate bool
-		want     string
-		wantErr  bool
-	}{
-		{
-			name: "simple",
-			fields: fields{
-				Egress:       []string{"egress rule"},
-				Ingress:      []string{"ingress rule"},
-				Ipv4RuleFile: "nftables.v4",
-				RateLimits: []firewallv1.RateLimit{
-					{
-						Interface: "eth0",
-						Rate:      10,
-					},
-				},
-				statikFS:         statikFS,
-				InternalPrefixes: "1.2.3.4",
-				PrivateVrfID:     int64(42),
-			},
-			wantErr: false,
-		},
-		{
-			name: "more-rules",
-			fields: fields{
-				Egress:       []string{"egress rule 1", "egress rule 2"},
-				Ingress:      []string{"ingress rule 1", "ingress rule 2"},
-				Ipv4RuleFile: "nftables.v4",
-				RateLimits: []firewallv1.RateLimit{
-					{
-						Interface: "eth0",
-						Rate:      10,
-					},
-				},
-				statikFS:         statikFS,
-				InternalPrefixes: "1.2.3.0/24, 2.3.4.0/8",
-				PrivateVrfID:     int64(42),
-			},
-			wantErr: false,
-		},
-		{
-			name: "validated",
-			fields: fields{
-				Egress:           []string{"ip daddr == 1.2.3.4"},
-				Ingress:          []string{"ip saddr == 1.2.3.4"},
-				Ipv4RuleFile:     "nftables.v4",
-				statikFS:         statikFS,
-				InternalPrefixes: "1.2.3.4",
-				PrivateVrfID:     int64(42),
-			},
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			f := &Firewall{
-				Ingress:          tt.fields.Ingress,
-				Egress:           tt.fields.Egress,
-				RateLimits:       tt.fields.RateLimits,
-				Ipv4RuleFile:     tt.fields.Ipv4RuleFile,
-				DryRun:           tt.fields.DryRun,
-				statikFS:         tt.fields.statikFS,
-				InternalPrefixes: tt.fields.InternalPrefixes,
-				PrivateVrfID:     tt.fields.PrivateVrfID,
-			}
-			got, err := f.renderString()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Firewall.renderString() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			rendered, _ := ioutil.ReadFile(path.Join("test_data", tt.name+".nftable.v4"))
-			want := string(rendered)
-			if got != want {
-				t.Errorf("Firewall.renderString() diff: %v", cmp.Diff(got, want))
-			}
-		})
-	}
-}
 
 // TestFirewallValidateRulesIntegration is a integration test an is skipped during normal unit testing
 // this is achieved by running the test with go test -short
@@ -125,7 +28,7 @@ func TestFirewallValidateRulesIntegration(t *testing.T) {
 		DryRun           bool
 		statikFS         http.FileSystem
 		InternalPrefixes string
-		PrivateVrfID     int64
+		PrivateVrfID     uint
 	}
 	tests := []struct {
 		name     string
@@ -142,22 +45,22 @@ func TestFirewallValidateRulesIntegration(t *testing.T) {
 				Ipv4RuleFile:     "nftables.v4",
 				statikFS:         statikFS,
 				InternalPrefixes: "1.2.3.4",
-				PrivateVrfID:     int64(42),
+				PrivateVrfID:     uint(42),
 			},
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f := &Firewall{
-				Ingress:          tt.fields.Ingress,
-				Egress:           tt.fields.Egress,
-				RateLimits:       tt.fields.RateLimits,
-				Ipv4RuleFile:     tt.fields.Ipv4RuleFile,
-				DryRun:           tt.fields.DryRun,
+			f := &firewallRenderingData{
+				ForwardingRules: forwardingRules{
+					Ingress: tt.fields.Ingress,
+					Egress:  tt.fields.Egress,
+				},
 				statikFS:         tt.fields.statikFS,
 				InternalPrefixes: tt.fields.InternalPrefixes,
-				PrivateVrfID:     tt.fields.PrivateVrfID,
+				// RateLimitRules:   tt.fields.RateLimitRules,
+				PrivateVrfID: tt.fields.PrivateVrfID,
 			}
 			got, err := f.renderString()
 			if (err != nil) != tt.wantErr {

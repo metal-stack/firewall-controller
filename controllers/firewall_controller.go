@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"crypto/rsa"
 	"fmt"
 	"reflect"
 	"time"
@@ -45,18 +46,19 @@ import (
 	"github.com/metal-stack/firewall-controller/pkg/collector"
 	"github.com/metal-stack/firewall-controller/pkg/nftables"
 	"github.com/metal-stack/firewall-controller/pkg/suricata"
+	mn "github.com/metal-stack/metal-lib/pkg/net"
 	networking "k8s.io/api/networking/v1"
 )
 
 // FirewallReconciler reconciles a Firewall object
 type FirewallReconciler struct {
 	client.Client
-	recorder     record.EventRecorder
-	Log          logr.Logger
-	Scheme       *runtime.Scheme
-	ServiceIP    string
-	PrivateVrfID int64
-	EnableIDS    bool
+	recorder             record.EventRecorder
+	Log                  logr.Logger
+	Scheme               *runtime.Scheme
+	EnableIDS            bool
+	EnableSignatureCheck bool
+	CAPubKey             *rsa.PublicKey
 }
 
 const (
@@ -91,7 +93,7 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	var f firewallv1.Firewall
 	if err := r.Get(ctx, req.NamespacedName, &f); err != nil {
 		if apierrors.IsNotFound(err) {
-			defaultFw := nftables.NewDefaultFirewall(r.PrivateVrfID)
+			defaultFw := nftables.NewDefaultFirewall()
 			log.Info("flushing k8s firewall rules")
 			err := defaultFw.Flush()
 			if err == nil {
@@ -126,7 +128,7 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	log.Info("reconciling firewall services")
-	if err = r.reconcileFirewallServices(ctx, log); err != nil {
+	if err = r.reconcileFirewallServices(ctx, f, log); err != nil {
 		errors = multierror.Append(errors, err)
 	}
 
@@ -146,8 +148,9 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 }
 
 // validateFirewall validates a firewall object:
-// it must be a singularity in a fixed namespace
-// and for the triggered reconcilation requests
+// - it must be a singularity in a fixed namespace
+// - and for the triggered reconcilation request
+// - the signature is valid (when signature checking is enabled)
 func (r *FirewallReconciler) validateFirewall(ctx context.Context, f firewallv1.Firewall) error {
 	if f.Namespace != firewallNamespace {
 		return fmt.Errorf("firewall must be defined in namespace %s otherwise it won't take effect", firewallNamespace)
@@ -155,6 +158,19 @@ func (r *FirewallReconciler) validateFirewall(ctx context.Context, f firewallv1.
 
 	if f.Name != firewallName {
 		return fmt.Errorf("firewall object is a singularity - it must have the name %s", firewallName)
+	}
+
+	if !r.EnableSignatureCheck {
+		return nil
+	}
+
+	ok, err := f.Spec.Data.Verify(r.CAPubKey, f.Spec.Signature)
+	if err != nil {
+		return fmt.Errorf("firewall spec could not be verified with signature: %w", err)
+	}
+
+	if !ok {
+		return fmt.Errorf("firewall object was tampered; could not verify the values given in the firewall spec")
 	}
 
 	return nil
@@ -275,9 +291,7 @@ func (r *FirewallReconciler) reconcileRules(ctx context.Context, f firewallv1.Fi
 		return err
 	}
 
-	nftablesFirewall := nftables.NewFirewall(&clusterNPs, &services, f.Spec, r.PrivateVrfID)
-	log.Info("loaded rules", "ingress", len(nftablesFirewall.Ingress), "egress", len(nftablesFirewall.Egress))
-
+	nftablesFirewall := nftables.NewFirewall(&clusterNPs, &services, f.Spec, log)
 	if err := nftablesFirewall.Reconcile(); err != nil {
 		return err
 	}
@@ -292,7 +306,7 @@ type firewallService struct {
 }
 
 // reconcileFirewallServices reconciles the services and endpoints exposed by the firewall
-func (r *FirewallReconciler) reconcileFirewallServices(ctx context.Context, log logr.Logger) error {
+func (r *FirewallReconciler) reconcileFirewallServices(ctx context.Context, f firewallv1.Firewall, log logr.Logger) error {
 	services := []firewallService{
 		{
 			name:      nodeExporterService,
@@ -308,7 +322,7 @@ func (r *FirewallReconciler) reconcileFirewallServices(ctx context.Context, log 
 
 	var errors *multierror.Error
 	for _, s := range services {
-		err := r.reconcileFirewallService(ctx, s, log)
+		err := r.reconcileFirewallService(ctx, s, f, log)
 		if err != nil {
 			errors = multierror.Append(errors, err)
 		}
@@ -317,7 +331,7 @@ func (r *FirewallReconciler) reconcileFirewallServices(ctx context.Context, log 
 }
 
 // reconcileFirewallService reconciles a single service that is to be exposed at the firewall.
-func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s firewallService, log logr.Logger) error {
+func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s firewallService, f firewallv1.Firewall, log logr.Logger) error {
 	nn := types.NamespacedName{Name: s.name, Namespace: firewallNamespace}
 	meta := metav1.ObjectMeta{
 		Name:      s.name,
@@ -363,13 +377,35 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 		}
 	}
 
+	var privateNet *firewallv1.FirewallNetwork
+	for _, n := range f.Spec.FirewallNetworks {
+		if n.Networktype == nil {
+			continue
+		}
+
+		switch *n.Networktype {
+		case mn.PrivatePrimaryUnshared:
+			privateNet = &n
+		case mn.PrivatePrimaryShared:
+			privateNet = &n
+		}
+	}
+
+	if privateNet == nil {
+		return fmt.Errorf("firewall networks contain no private network")
+	}
+
+	if len(privateNet.Ips) < 1 {
+		return fmt.Errorf("private firewall network contains no ip")
+	}
+
 	endpoints := v1.Endpoints{
 		ObjectMeta: meta,
 		Subsets: []v1.EndpointSubset{
 			{
 				Addresses: []corev1.EndpointAddress{
 					{
-						IP: r.ServiceIP,
+						IP: privateNet.Ips[0],
 					},
 				},
 				Ports: []v1.EndpointPort{
@@ -407,17 +443,19 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 
 // updateStatus updates the status field for this firewall
 func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Firewall, log logr.Logger) error {
-	c := collector.NewNFTablesCollector(&r.Log)
-	ruleStats := c.CollectRuleStats()
+	if !f.Spec.DryRun {
+		c := collector.NewNFTablesCollector(&r.Log)
+		ruleStats := c.CollectRuleStats()
 
-	f.Status.FirewallStats = firewallv1.FirewallStats{
-		RuleStats: ruleStats,
+		f.Status.FirewallStats = firewallv1.FirewallStats{
+			RuleStats: ruleStats,
+		}
+		deviceStats, err := c.CollectDeviceStats()
+		if err != nil {
+			return err
+		}
+		f.Status.FirewallStats.DeviceStats = deviceStats
 	}
-	deviceStats, err := c.CollectDeviceStats()
-	if err != nil {
-		return err
-	}
-	f.Status.FirewallStats.DeviceStats = deviceStats
 
 	idsStats := firewallv1.IDSStatsByDevice{}
 	if r.EnableIDS { // checks the CLI-flag
