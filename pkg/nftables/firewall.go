@@ -110,9 +110,9 @@ func (f *Firewall) Reconcile() error {
 	}
 	defer os.Remove(tmpFile.Name())
 
-	errors := f.reconcileIfaceAddresses()
-	if errors.ErrorOrNil() != nil {
-		return errors.Unwrap()
+	err = f.reconcileIfaceAddresses()
+	if err != nil {
+		return err
 	}
 
 	desired := tmpFile.Name()
@@ -169,7 +169,7 @@ func (f *Firewall) validate(file string) error {
 	return nil
 }
 
-func (f *Firewall) reconcileIfaceAddresses() *multierror.Error {
+func (f *Firewall) reconcileIfaceAddresses() error {
 	var errors *multierror.Error
 
 	for _, n := range f.networkMap {
@@ -177,7 +177,7 @@ func (f *Firewall) reconcileIfaceAddresses() *multierror.Error {
 			continue
 		}
 
-		if *n.Networktype == mn.Underlay {
+		if *n.Networktype != mn.External {
 			continue
 		}
 
@@ -193,6 +193,7 @@ func (f *Firewall) reconcileIfaceAddresses() *multierror.Error {
 		addrs, err := netlink.AddrList(link, netlink.FAMILY_V4)
 		if err != nil {
 			errors = multierror.Append(errors, err)
+			continue
 		}
 
 		actualIPs := sets.NewString()
@@ -206,10 +207,12 @@ func (f *Firewall) reconcileIfaceAddresses() *multierror.Error {
 		// do not remove IPs that were initially used during machine allocation!
 		toRemove.Delete(n.Ips...)
 
-		f.log.Info("reconciling ips for", "network", n.Networkid, "adding", toAdd, "removing", toRemove)
 		if f.dryRun {
+			f.log.Info("skipping reconciling ips for", "network", n.Networkid, "adding", toAdd, "removing", toRemove)
 			continue
 		}
+		f.log.Info("reconciling ips for", "network", n.Networkid, "adding", toAdd, "removing", toRemove)
+
 		for add := range toAdd {
 			addr, _ := netlink.ParseAddr(fmt.Sprintf("%s/32", add))
 			err = netlink.AddrAdd(link, addr)
@@ -226,7 +229,8 @@ func (f *Firewall) reconcileIfaceAddresses() *multierror.Error {
 			}
 		}
 	}
-	return errors
+
+	return errors.ErrorOrNil()
 }
 
 func (f *Firewall) reload() error {
