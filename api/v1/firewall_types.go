@@ -76,6 +76,8 @@ type Data struct {
 	EgressRules []EgressRuleSNAT `json:"egressRules,omitempty"`
 	// FirewallNetworks holds the networks known at the metal-api for this firewall machine
 	FirewallNetworks []FirewallNetwork `json:"firewallNetworks,omitempty"`
+	// ControllerVersion holds the firewall-controller version to reconcile.
+	ControllerVersion string `json:"controllerVersion,omitempty"`
 }
 
 // FirewallStatus defines the observed state of Firewall

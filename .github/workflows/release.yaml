@@ -1,9 +1,9 @@
-name: Docker Image from release tags
+name: release
 
 on:
-  push:
-    tags:
-      - "v*"
+  release:
+    types:
+      - published
 
 jobs:
   integration:
@@ -21,10 +21,35 @@ jobs:
     needs: integration
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
+    - name: Make tag
+      run: echo "GITHUB_TAG_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
+    - name: Get release
+      id: get_release
+      uses: bruceadams/get-release@v1.2.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     - name: Build the Docker images
       run: |
-        export GITHUB_TAG_NAME=${GITHUB_REF##*/}
         docker login -u metalstackci -p ${{ secrets.DOCKER_HUB_TOKEN }}
         make docker-build
         make docker-push
+        make firewall-controller
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1.0.2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release.outputs.upload_url }}
+        asset_path: bin/firewall-controller
+        asset_name: firewall-controller
+        asset_content_type: application/octet-stream
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1.0.2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release.outputs.upload_url }}
+        asset_path: bin/firewall-controller.sha256
+        asset_name: firewall-controller.sha256
+        asset_content_type: application/octet-stream

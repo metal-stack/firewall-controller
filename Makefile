@@ -2,7 +2,7 @@
 SHA := $(shell git rev-parse --short=8 HEAD)
 GITVERSION := $(shell git describe --long --all)
 BUILDDATE := $(shell GO111MODULE=off go run ${COMMONDIR}/time.go)
-VERSION := $(or ${VERSION},$(shell git describe --tags --exact-match 2> /dev/null || git symbolic-ref -q --short HEAD || git rev-parse --short HEAD))
+VERSION := $(or ${GITHUB_TAG_NAME},$(shell git describe --tags --exact-match 2> /dev/null || git symbolic-ref -q --short HEAD || git rev-parse --short HEAD))
 
 # Image URL to use all building/pushing image targets
 DOCKER_TAG := $(or ${GITHUB_TAG_NAME}, latest)
@@ -44,6 +44,7 @@ firewall-controller: statik generate fmt vet test
 			-X 'github.com/metal-stack/v.BuildDate=$(BUILDDATE)'" \
 		-o bin/firewall-controller main.go
 	strip bin/firewall-controller
+	sha256sum bin/firewall-controller > bin/firewall-controller.sha256
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet manifests
