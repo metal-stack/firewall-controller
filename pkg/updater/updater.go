@@ -26,8 +26,12 @@ const (
 
 // UpdateToSpecVersion updates the firewall-controller binary to the version specified in the firewall spec.
 func UpdateToSpecVersion(f firewallv1.Firewall, log logr.Logger) error {
-	if f.Spec.ControllerVersion == "" || f.Spec.ControllerVersion == v.Version {
-		log.Info("firewall-controller version %s is already in place", f.Spec.ControllerVersion)
+	if f.Spec.ControllerVersion == "" {
+		return nil
+	}
+
+	if f.Spec.ControllerVersion == v.Version {
+		log.Info("firewall-controller version %s is already in place", v.Version)
 		return nil
 	}
 
