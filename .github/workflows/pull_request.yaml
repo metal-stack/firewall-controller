@@ -1,7 +1,7 @@
-name: Docker Image from master
+name: Docker Image from PR
 
 on:
-  push:
+  pull_request:
     branches:
       - master
 
@@ -9,7 +9,8 @@ jobs:
   integration:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
+
     - name: run integration tests
       run: |
         sudo apt install -y --no-install-recommends nftables iproute2 kmod
@@ -17,18 +18,37 @@ jobs:
         sudo ip link add vrf42 type dummy
         sudo ip link add vlan42 type dummy
         sudo make test-all clean
+
   build:
     needs: integration
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
+
+    - name: Figure out if running fork PR
+      id: fork
+      run: '["${{ secrets.DOCKER_REGISTRY_TOKEN }}" == ""] && echo "::set-output name=is_fork_pr::true" || echo "::set-output name=is_fork_pr::false"'
+
     - name: Docker Login
       uses: docker/login-action@v1
       with:
         registry: ${{ secrets.DOCKER_REGISTRY }}
         username: ${{ secrets.DOCKER_REGISTRY_USER }}
         password: ${{ secrets.DOCKER_REGISTRY_TOKEN }}
-    - name: build the Docker images
+      if: steps.fork.outputs.is_fork_pr == 'false'
+
+    - name: Lint
+      uses: golangci/golangci-lint-action@v2
+      with:
+        version: v1.32.2
+
+    - name: Build
       run: |
+        export GITHUB_TAG_NAME=${GITHUB_HEAD_REF##*/}
         make docker-build
+
+    - name: Push
+      run: |
+        export GITHUB_TAG_NAME=${GITHUB_HEAD_REF##*/}
         make docker-push
+      if: steps.fork.outputs.is_fork_pr == 'false'
