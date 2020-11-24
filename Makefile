@@ -6,7 +6,7 @@ VERSION := $(or ${GITHUB_TAG_NAME},$(shell git describe --tags --exact-match 2> 
 
 # Image URL to use all building/pushing image targets
 DOCKER_TAG := $(or ${GITHUB_TAG_NAME}, latest)
-DOCKER_IMG ?= metalstack/firewall-controller:${DOCKER_TAG}
+DOCKER_IMG ?= ghcr.io/metal-stack/firewall-controller:${DOCKER_TAG}
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
