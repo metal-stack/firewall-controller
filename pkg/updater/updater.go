@@ -42,9 +42,13 @@ func UpdateToSpecVersion(f firewallv1.Firewall, log logr.Logger) error {
 	}
 
 	binaryReader, checksum, err := fetchGithubAssetAndChecksum(asset)
+	if err != nil {
+		return fmt.Errorf("could not fetch github asset and checksum for firewall-controller version %s, err: %w", f.Spec.ControllerVersion, err)
+	}
+
 	err = replaceBinary(binaryReader, checksum)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("could not replace firewall-controller with version %s, err: %w", f.Spec.ControllerVersion, err)
 	}
 
 	log.Info("replaced firewall-controller version %s with version %s - triggering restart of firewall-controller", v.Version, f.Spec.ControllerVersion)
