@@ -32,7 +32,7 @@ func UpdateToSpecVersion(f firewallv1.Firewall, log logr.Logger, recorder record
 	}
 
 	if f.Spec.ControllerVersion == v.Version {
-		log.Info("firewall-controller version %s is already in place", v.Version)
+		log.Info("firewall-controller version is already in place", "version", v.Version)
 		return nil
 	}
 
