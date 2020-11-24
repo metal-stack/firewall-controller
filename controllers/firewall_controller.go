@@ -46,6 +46,7 @@ import (
 	"github.com/metal-stack/firewall-controller/pkg/collector"
 	"github.com/metal-stack/firewall-controller/pkg/nftables"
 	"github.com/metal-stack/firewall-controller/pkg/suricata"
+	"github.com/metal-stack/firewall-controller/pkg/updater"
 	mn "github.com/metal-stack/metal-lib/pkg/net"
 	networking "k8s.io/api/networking/v1"
 )
@@ -109,6 +110,13 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		r.recorder.Event(&f, "Warning", "Unapplicable", err.Error())
 		// don't requeue invalid firewall objects
 		return done, err
+	}
+
+	log.Info("reconciling firewall-controller")
+	err := updater.UpdateToSpecVersion(f, log, r.recorder)
+	if err != nil {
+		r.recorder.Eventf(&f, "Warning", "Self-Reconcilation", "failed with error: %v", err)
+		return requeue, err
 	}
 
 	i, err := time.ParseDuration(f.Spec.Interval)

@@ -177,7 +177,7 @@ func readCRDsFromVFS() (map[string][]byte, error) {
 	}
 	crdMap := make(map[string][]byte)
 	err = fs.Walk(statikFS, "/", func(path string, info os.FileInfo, err error) error {
-		setupLog.Info("p", "path", path)
+		setupLog.Info("walk", "path", path)
 		if info.IsDir() {
 			return nil
 		}
@@ -186,7 +186,7 @@ func readCRDsFromVFS() (map[string][]byte, error) {
 			return fmt.Errorf("unable to readfile:%v", readerr)
 		}
 		crdMap[path] = b
-		setupLog.Info("crd", "path", path, "info", info)
+		setupLog.Info("crd", "path", path)
 		return nil
 	})
 	if err != nil {
