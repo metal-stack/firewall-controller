@@ -15,6 +15,7 @@ import (
 	"github.com/google/go-github/github"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/v"
+	"k8s.io/client-go/tools/record"
 )
 
 const (
@@ -25,7 +26,7 @@ const (
 )
 
 // UpdateToSpecVersion updates the firewall-controller binary to the version specified in the firewall spec.
-func UpdateToSpecVersion(f firewallv1.Firewall, log logr.Logger) error {
+func UpdateToSpecVersion(f firewallv1.Firewall, log logr.Logger, recorder record.EventRecorder) error {
 	if f.Spec.ControllerVersion == "" {
 		return nil
 	}
@@ -35,7 +36,7 @@ func UpdateToSpecVersion(f firewallv1.Firewall, log logr.Logger) error {
 		return nil
 	}
 
-	log.Info("replacing firewall-controller version %s with version %s", v.Version, f.Spec.ControllerVersion)
+	recorder.Eventf(&f, "Normal", "Self-Reconcilation", "replacing firewall-controller version %s with version %s", v.Version, f.Spec.ControllerVersion)
 	asset, err := determineGithubAsset(f.Spec.ControllerVersion)
 	if err != nil {
 		return err
@@ -51,8 +52,9 @@ func UpdateToSpecVersion(f firewallv1.Firewall, log logr.Logger) error {
 		return fmt.Errorf("could not replace firewall-controller with version %s, err: %w", f.Spec.ControllerVersion, err)
 	}
 
-	log.Info("replaced firewall-controller version %s with version %s - triggering restart of firewall-controller", v.Version, f.Spec.ControllerVersion)
+	recorder.Eventf(&f, "Normal", "Self-Reconcilation", "replaced firewall-controller version %s with version %s successfully", v.Version, f.Spec.ControllerVersion)
 
+	// after a successful self-reconcilation of the firewall-controller binary we want to get restarted by exiting and letting systemd restart the process.
 	os.Exit(0)
 	return nil
 }
@@ -128,7 +130,7 @@ func copyToTempFile(binaryReader io.ReadCloser) (string, error) {
 	}
 	defer binaryReader.Close()
 
-	err = os.Chmod(file.Name(), 0764)
+	err = os.Chmod(file.Name(), 0755)
 	if err != nil {
 		return "", err
 	}

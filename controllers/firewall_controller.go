@@ -112,8 +112,10 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return done, err
 	}
 
-	err := updater.UpdateToSpecVersion(f, log)
+	log.Info("reconciling firewall-controller")
+	err := updater.UpdateToSpecVersion(f, log, r.recorder)
 	if err != nil {
+		r.recorder.Eventf(&f, "Warning", "Self-Reconcilation", "failed with error: %v", err)
 		return requeue, err
 	}
 
