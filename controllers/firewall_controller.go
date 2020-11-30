@@ -442,7 +442,6 @@ func (r *FirewallReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		// don't trigger a reconcilation for status updates
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Watches(&source.Kind{Type: &firewallv1.ClusterwideNetworkPolicy{}}, triggerFirewallReconcilation).
-		Watches(&source.Kind{Type: &networking.NetworkPolicy{}}, triggerFirewallReconcilation).
 		Watches(&source.Kind{Type: &corev1.Service{}}, triggerFirewallReconcilation).
 		Complete(r)
 }
