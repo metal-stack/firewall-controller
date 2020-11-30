@@ -25,9 +25,6 @@ import (
 )
 
 func TestPolicySpec_Validate(t *testing.T) {
-	type fields struct {
-		Description string
-	}
 	tcp := corev1.ProtocolTCP
 	udp := corev1.ProtocolUDP
 	port1 := intstr.FromInt(8080)
