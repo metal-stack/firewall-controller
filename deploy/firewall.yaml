@@ -16,7 +16,7 @@ spec:
   egressRules:
   - networkid: internet
     ips:
-    - 212.34.80.1
+    - 185.1.2.4
   firewallNetworks:
   - asn: 4200003073
     destinationprefixes: []
@@ -26,8 +26,6 @@ spec:
     networkid: bc830818-2df1-4904-8c40-4322296d393d
     prefixes:
       - 10.0.16.0/22
-    private: true
-    underlay: false
     networktype: privateprimaryunshared
     vrf: 3981
   - asn: 4200003073
@@ -40,8 +38,6 @@ spec:
     prefixes:
       - 185.1.2.0/24
       - 185.27.0.0/22
-    private: false
-    underlay: false
     networktype: external
     vrf: 104009
   - asn: 4200003073
@@ -52,8 +48,6 @@ spec:
     networkid: underlay-vagrant-lab
     prefixes:
       - 10.0.12.0/22
-    private: false
-    underlay: true
     networktype: external
     vrf: 0
   signature: ""

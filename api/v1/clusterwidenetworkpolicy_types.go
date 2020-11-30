@@ -116,7 +116,8 @@ func (p *PolicySpec) Validate() error {
 	for _, i := range p.Ingress {
 		errors = multierror.Append(errors, validatePorts(i.Ports), validateIPBlocks(i.From))
 	}
-	return multierror.Flatten(errors)
+
+	return errors.ErrorOrNil()
 }
 
 func validatePorts(ports []networking.NetworkPolicyPort) *multierror.Error {
@@ -152,7 +153,7 @@ func validateIPBlocks(blocks []networking.IPBlock) *multierror.Error {
 				continue
 			}
 
-			if blockNet.Contains(exceptIP) {
+			if !blockNet.Contains(exceptIP) {
 				errors = multierror.Append(errors, fmt.Errorf("%v is not contained in the IP CIDR %v", exceptIP, blockNet))
 				continue
 			}

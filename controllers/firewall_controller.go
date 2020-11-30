@@ -451,19 +451,30 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 
 // updateStatus updates the status field for this firewall
 func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Firewall, log logr.Logger) error {
-	if !f.Spec.DryRun {
-		c := collector.NewNFTablesCollector(&r.Log)
-		ruleStats := c.CollectRuleStats()
-
+	if f.Spec.DryRun {
 		f.Status.FirewallStats = firewallv1.FirewallStats{
-			RuleStats: ruleStats,
+			RuleStats:   firewallv1.RuleStatsByAction{},
+			DeviceStats: firewallv1.DeviceStatsByDevice{},
+			IDSStats:    firewallv1.IDSStatsByDevice{},
 		}
-		deviceStats, err := c.CollectDeviceStats()
-		if err != nil {
-			return err
+		f.Status.Updated.Time = time.Now()
+		if err := r.Status().Update(ctx, &f); err != nil {
+			return fmt.Errorf("unable to update firewall status, err: %w", err)
 		}
-		f.Status.FirewallStats.DeviceStats = deviceStats
+		return nil
 	}
+
+	c := collector.NewNFTablesCollector(&r.Log)
+	ruleStats := c.CollectRuleStats()
+
+	f.Status.FirewallStats = firewallv1.FirewallStats{
+		RuleStats: ruleStats,
+	}
+	deviceStats, err := c.CollectDeviceStats()
+	if err != nil {
+		return err
+	}
+	f.Status.FirewallStats.DeviceStats = deviceStats
 
 	idsStats := firewallv1.IDSStatsByDevice{}
 	if r.EnableIDS { // checks the CLI-flag
