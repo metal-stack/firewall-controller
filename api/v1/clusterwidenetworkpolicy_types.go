@@ -17,8 +17,14 @@ limitations under the License.
 package v1
 
 import (
+	"fmt"
+	"net"
+
+	"github.com/hashicorp/go-multierror"
+	corev1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // ClusterwideNetworkPolicy contains the desired state for a cluster wide network policy to be applied.
@@ -99,6 +105,66 @@ type EgressRule struct {
 	// allows traffic only if the traffic matches at least one item in the to list.
 	// +optional
 	To []networking.IPBlock `json:"to,omitempty"`
+}
+
+// Validate validates the spec of a ClusterwideNetworkPolicy
+func (p *PolicySpec) Validate() error {
+	var errors *multierror.Error
+	for _, e := range p.Egress {
+		errors = multierror.Append(errors, validatePorts(e.Ports), validateIPBlocks(e.To))
+	}
+	for _, i := range p.Ingress {
+		errors = multierror.Append(errors, validatePorts(i.Ports), validateIPBlocks(i.From))
+	}
+	return multierror.Flatten(errors)
+}
+
+func validatePorts(ports []networking.NetworkPolicyPort) *multierror.Error {
+	var errors *multierror.Error
+	for _, p := range ports {
+		if p.Port != nil && p.Port.Type != intstr.Int {
+			errors = multierror.Append(errors, fmt.Errorf("only int ports are supported, but %v given", p.Port))
+		}
+
+		if p.Protocol != nil {
+			proto := *p.Protocol
+			if proto != corev1.ProtocolUDP && proto != corev1.ProtocolTCP {
+				errors = multierror.Append(errors, fmt.Errorf("only TCP and UDP are supported as protocol, but %v given", proto))
+			}
+		}
+	}
+	return errors
+}
+
+func validateIPBlocks(blocks []networking.IPBlock) *multierror.Error {
+	var errors *multierror.Error
+	for _, b := range blocks {
+		_, blockNet, err := net.ParseCIDR(b.CIDR)
+		if err != nil {
+			errors = multierror.Append(errors, fmt.Errorf("%v is not a valid IP CIDR", b.CIDR))
+			continue
+		}
+
+		for _, e := range b.Except {
+			exceptIP, exceptNet, err := net.ParseCIDR(b.CIDR)
+			if err != nil {
+				errors = multierror.Append(errors, fmt.Errorf("%v is not a valid IP CIDR", e))
+				continue
+			}
+
+			if blockNet.Contains(exceptIP) {
+				errors = multierror.Append(errors, fmt.Errorf("%v is not contained in the IP CIDR %v", exceptIP, blockNet))
+				continue
+			}
+
+			blockSize, _ := blockNet.Mask.Size()
+			exceptSize, _ := exceptNet.Mask.Size()
+			if exceptSize > blockSize {
+				errors = multierror.Append(errors, fmt.Errorf("netmask size of network to be excluded must be smaller than netmask of the block CIDR"))
+			}
+		}
+	}
+	return errors
 }
 
 func init() {
