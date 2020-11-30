@@ -94,7 +94,7 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	var f firewallv1.Firewall
 	if err := r.Get(ctx, req.NamespacedName, &f); err != nil {
 		if apierrors.IsNotFound(err) {
-			defaultFw := nftables.NewDefaultFirewall()
+			defaultFw := nftables.NewDefaultFirewall(nil)
 			log.Info("flushing k8s firewall rules")
 			err := defaultFw.Flush()
 			if err == nil {

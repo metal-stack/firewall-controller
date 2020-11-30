@@ -50,9 +50,9 @@ type forwardingRules struct {
 }
 
 // NewDefaultFirewall creates a new default nftables firewall.
-func NewDefaultFirewall() *Firewall {
+func NewDefaultFirewall(log logr.Logger) *Firewall {
 	defaultSpec := firewallv1.FirewallSpec{}
-	return NewFirewall(&firewallv1.ClusterwideNetworkPolicyList{}, &v1.ServiceList{}, defaultSpec, nil)
+	return NewFirewall(&firewallv1.ClusterwideNetworkPolicyList{}, &v1.ServiceList{}, defaultSpec, log)
 }
 
 // NewFirewall creates a new nftables firewall object based on k8s entities
@@ -110,12 +110,27 @@ func (f *Firewall) Reconcile() error {
 	}
 	defer os.Remove(tmpFile.Name())
 
+	// Make sure that there is at least a default nftables rule file existing.
+	// This prevents situations where firewall machines are initially deployed / exchanged and
+	// later reconcilation parts fail to generate a proper file.
+	desired := tmpFile.Name()
+	if _, err := os.Stat(f.ipv4RuleFile()); os.IsNotExist(err) {
+		def := NewDefaultFirewall(f.log)
+		err = def.renderFile(desired)
+		if err != nil {
+			return err
+		}
+		err = os.Rename(desired, f.ipv4RuleFile())
+		if err != nil {
+			return err
+		}
+	}
+
 	err = f.reconcileIfaceAddresses()
 	if err != nil {
 		return err
 	}
 
-	desired := tmpFile.Name()
 	err = f.renderFile(desired)
 	if err != nil {
 		return err
@@ -130,9 +145,6 @@ func (f *Firewall) Reconcile() error {
 		return err
 	}
 
-	if f.dryRun {
-		return nil
-	}
 	err = f.reload()
 	if err != nil {
 		return err
@@ -150,9 +162,6 @@ func (f *Firewall) renderFile(file string) error {
 	if err != nil {
 		return err
 	}
-	if f.dryRun {
-		return nil
-	}
 	err = f.validate(file)
 	if err != nil {
 		return err
@@ -161,6 +170,10 @@ func (f *Firewall) renderFile(file string) error {
 }
 
 func (f *Firewall) validate(file string) error {
+	if f.dryRun {
+		return nil
+	}
+
 	c := exec.Command(nftBin, "-c", "-f", file)
 	out, err := c.CombinedOutput()
 	if err != nil {
@@ -234,6 +247,10 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 }
 
 func (f *Firewall) reload() error {
+	if f.dryRun {
+		return nil
+	}
+
 	c := exec.Command(systemctlBin, "reload", nftablesService)
 	err := c.Run()
 	if err != nil {
