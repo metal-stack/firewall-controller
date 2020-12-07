@@ -74,6 +74,10 @@ func DetermineGithubAsset(githubTag string) (*github.ReleaseAsset, error) {
 		}
 	}
 
+	if rel == nil {
+		return nil, fmt.Errorf("could not find release with tag %s", githubTag)
+	}
+
 	var asset *github.ReleaseAsset
 	for _, ra := range rel.Assets {
 		if ra.GetName() == gitHubArtifact {
