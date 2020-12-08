@@ -45,15 +45,21 @@ const clusterwideNPNamespace = "firewall"
 func (r *ClusterwideNetworkPolicyReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 
+	var clusterNP firewallv1.ClusterwideNetworkPolicy
+	if err := r.Get(ctx, req.NamespacedName, &clusterNP); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
 	// if network policy does not belong to the namespace where clusterwide network policies are stored:
 	// update status with error message
 	if req.Namespace != clusterwideNPNamespace {
-		var clusterNP firewallv1.ClusterwideNetworkPolicy
-		if err := r.Get(ctx, req.NamespacedName, &clusterNP); err != nil {
-			return ctrl.Result{}, client.IgnoreNotFound(err)
-		}
-
 		r.recorder.Event(&clusterNP, "Warning", "Unapplicable", fmt.Sprintf("cluster wide network policies must be defined in namespace %s otherwise they won't take effect", clusterwideNPNamespace))
+		return ctrl.Result{}, nil
+	}
+
+	err := clusterNP.Spec.Validate()
+	if err != nil {
+		r.recorder.Event(&clusterNP, "Warning", "Unapplicable", fmt.Sprintf("cluster wide network policy is not valid: %v", err))
 		return ctrl.Result{}, nil
 	}
 

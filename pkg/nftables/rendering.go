@@ -25,6 +25,10 @@ type firewallRenderingData struct {
 func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 	ingress, egress := nftablesRules{}, nftablesRules{}
 	for _, np := range f.clusterwideNetworkPolicies.Items {
+		err := np.Spec.Validate()
+		if err != nil {
+			continue
+		}
 		i, e := clusterwideNetworkPolicyRules(np)
 		ingress = append(ingress, i...)
 		egress = append(egress, e...)

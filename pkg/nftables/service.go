@@ -2,10 +2,21 @@ package nftables
 
 import (
 	"fmt"
+	"net"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 )
+
+func isCIDR(cidr string) bool {
+	_, _, err := net.ParseCIDR(cidr)
+	return err != nil
+}
+
+func isIP(ip string) bool {
+	i := net.ParseIP(ip)
+	return i != nil
+}
 
 // serviceRules generates nftables rules base on a k8s service definition
 func serviceRules(svc corev1.Service) nftablesRules {
@@ -14,14 +25,24 @@ func serviceRules(svc corev1.Service) nftablesRules {
 	}
 
 	from := []string{}
+	for _, lbsr := range svc.Spec.LoadBalancerSourceRanges {
+		if !isCIDR(lbsr) && !isIP(lbsr) {
+			continue
+		}
+	}
+
 	from = append(from, svc.Spec.LoadBalancerSourceRanges...)
 	to := []string{}
 	if svc.Spec.Type == corev1.ServiceTypeLoadBalancer {
 		if svc.Spec.LoadBalancerIP != "" {
-			to = append(to, svc.Spec.LoadBalancerIP)
+			if isIP(svc.Spec.LoadBalancerIP) {
+				to = append(to, svc.Spec.LoadBalancerIP)
+			}
 		}
 		for _, e := range svc.Status.LoadBalancer.Ingress {
-			to = append(to, e.IP)
+			if isIP(e.IP) {
+				to = append(to, e.IP)
+			}
 		}
 	}
 
