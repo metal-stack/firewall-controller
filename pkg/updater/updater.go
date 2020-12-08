@@ -37,12 +37,12 @@ func UpdateToSpecVersion(f firewallv1.Firewall, log logr.Logger, recorder record
 	}
 
 	recorder.Eventf(&f, "Normal", "Self-Reconcilation", "replacing firewall-controller version %s with version %s", v.Version, f.Spec.ControllerVersion)
-	asset, err := determineGithubAsset(f.Spec.ControllerVersion)
+	asset, err := DetermineGithubAsset(f.Spec.ControllerVersion)
 	if err != nil {
 		return err
 	}
 
-	binaryReader, checksum, err := fetchGithubAssetAndChecksum(asset)
+	binaryReader, checksum, err := FetchGithubAssetAndChecksum(asset)
 	if err != nil {
 		return fmt.Errorf("could not fetch github asset and checksum for firewall-controller version %s, err: %w", f.Spec.ControllerVersion, err)
 	}
@@ -59,7 +59,7 @@ func UpdateToSpecVersion(f firewallv1.Firewall, log logr.Logger, recorder record
 	return nil
 }
 
-func determineGithubAsset(githubTag string) (*github.ReleaseAsset, error) {
+func DetermineGithubAsset(githubTag string) (*github.ReleaseAsset, error) {
 	client := github.NewClient(nil)
 	releases, _, err := client.Repositories.ListReleases(context.Background(), gitHubOwner, gitHubRepo, &github.ListOptions{})
 	if err != nil {
@@ -72,6 +72,10 @@ func determineGithubAsset(githubTag string) (*github.ReleaseAsset, error) {
 			rel = r
 			break
 		}
+	}
+
+	if rel == nil {
+		return nil, fmt.Errorf("could not find release with tag %s", githubTag)
 	}
 
 	var asset *github.ReleaseAsset
@@ -88,7 +92,7 @@ func determineGithubAsset(githubTag string) (*github.ReleaseAsset, error) {
 	return asset, nil
 }
 
-func fetchGithubAssetAndChecksum(ra *github.ReleaseAsset) (io.ReadCloser, string, error) {
+func FetchGithubAssetAndChecksum(ra *github.ReleaseAsset) (io.ReadCloser, string, error) {
 	checksum, err := slurpFile(ra.GetBrowserDownloadURL() + ".sha256")
 	if err != nil {
 		return nil, "", fmt.Errorf("could not slurp checksum file for asset %s, err: %w", ra.GetBrowserDownloadURL(), err)
