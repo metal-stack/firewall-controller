@@ -37,8 +37,6 @@ type ClusterwideNetworkPolicyReconciler struct {
 	recorder record.EventRecorder
 }
 
-const clusterwideNPNamespace = "firewall"
-
 // Reconcile ClusterwideNetworkPolicy and creates nftables rules accordingly
 // +kubebuilder:rbac:groups=metal-stack.io,resources=clusterwidenetworkpolicies,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=metal-stack.io,resources=clusterwidenetworkpolicies/status,verbs=get;update;patch
@@ -52,8 +50,8 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(req ctrl.Request) (ctrl.R
 
 	// if network policy does not belong to the namespace where clusterwide network policies are stored:
 	// update status with error message
-	if req.Namespace != clusterwideNPNamespace {
-		r.recorder.Event(&clusterNP, "Warning", "Unapplicable", fmt.Sprintf("cluster wide network policies must be defined in namespace %s otherwise they won't take effect", clusterwideNPNamespace))
+	if req.Namespace != firewallv1.ClusterwideNetworkPolicyNamespace {
+		r.recorder.Event(&clusterNP, "Warning", "Unapplicable", fmt.Sprintf("cluster wide network policies must be defined in namespace %s otherwise they won't take effect", firewallv1.ClusterwideNetworkPolicyNamespace))
 		return ctrl.Result{}, nil
 	}
 

@@ -45,6 +45,11 @@ type ClusterwideNetworkPolicyList struct {
 	Items           []ClusterwideNetworkPolicy `json:"items"`
 }
 
+const (
+	// ClusterwideNetworkPolicyNamespace defines the namespace CNWPs are expected.
+	ClusterwideNetworkPolicyNamespace = "firewall"
+)
+
 // PolicySpec defines the rules to create for ingress and egress
 type PolicySpec struct {
 	// Description is a free form string, it can be used by the creator of
