@@ -19,12 +19,16 @@ import (
 )
 
 const (
-	namespace               = "firewall"
-	secretName              = "droptailer-client"
-	secretKeyCertificate    = "droptailer-client.crt"
+	namespace = "firewall"
+	//nolint
+	secretName = "droptailer-client"
+	//nolint
+	secretKeyCertificate = "droptailer-client.crt"
+	//nolint
 	secretKeyCertificateKey = "droptailer-client.key"
-	secretKeyCaCertificate  = "ca.crt"
-	defaultCertificateBase  = "/etc/droptailer-client"
+	//nolint
+	secretKeyCaCertificate = "ca.crt"
+	defaultCertificateBase = "/etc/droptailer-client"
 )
 
 // DroptailerReconciler reconciles a Droptailer object
@@ -90,6 +94,7 @@ func (r *DroptailerReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 	var droptailerPod *corev1.Pod
 	for _, p := range pods.Items {
+		p := p
 		if strings.HasPrefix(p.Name, "droptailer") && p.Status.Phase == corev1.PodRunning {
 			droptailerPod = &p
 			break
@@ -107,7 +112,7 @@ func (r *DroptailerReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		err := r.hosts.Save()
 		if err != nil {
 			log.Error(err, "could not write droptailer hosts entry")
-			return requeue, fmt.Errorf("could not write droptailer hosts entry:%v", err)
+			return requeue, fmt.Errorf("could not write droptailer hosts entry:%w", err)
 		}
 		r.oldPodIP = podIP
 	}
@@ -127,9 +132,9 @@ func (r *DroptailerReconciler) writeSecret(secret corev1.Secret) error {
 			return fmt.Errorf("could not find key in secret key:%s", k)
 		}
 		f := path.Join(certificateBase, k)
-		err := ioutil.WriteFile(f, v, 0640)
+		err := ioutil.WriteFile(f, v, 0600)
 		if err != nil {
-			return fmt.Errorf("could not write secret to certificate base folder:%v", err)
+			return fmt.Errorf("could not write secret to certificate base folder:%w", err)
 		}
 	}
 	return nil

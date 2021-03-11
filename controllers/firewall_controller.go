@@ -331,7 +331,7 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 		if n.Networktype == nil {
 			continue
 		}
-
+		n := n
 		switch *n.Networktype {
 		case mn.PrivatePrimaryUnshared:
 			privateNet = &n

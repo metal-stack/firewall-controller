@@ -80,6 +80,7 @@ func DetermineGithubAsset(githubTag string) (*github.ReleaseAsset, error) {
 
 	var asset *github.ReleaseAsset
 	for _, ra := range rel.Assets {
+		ra := ra
 		if ra.GetName() == gitHubArtifact {
 			asset = &ra
 			break
@@ -98,6 +99,8 @@ func FetchGithubAssetAndChecksum(ra *github.ReleaseAsset) (io.ReadCloser, string
 		return nil, "", fmt.Errorf("could not slurp checksum file for asset %s, err: %w", ra.GetBrowserDownloadURL(), err)
 	}
 
+	// FIXME: https://github.com/sonatard/noctx#how-to-fix
+	//nolint
 	resp, err := http.Get(ra.GetBrowserDownloadURL())
 	if err != nil {
 		return nil, "", fmt.Errorf("could not download asset %s, err: %w", ra.GetBrowserDownloadURL(), err)
@@ -155,6 +158,7 @@ func validateChecksum(filename string, checksum string) error {
 }
 
 func slurpFile(url string) (string, error) {
+	//nolint
 	resp, err := http.Get(url)
 	if err != nil {
 		return "", err

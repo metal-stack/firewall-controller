@@ -74,6 +74,7 @@ func TestRateLimitRules(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			f := NewFirewall(nil, nil, tt.input, nil)
 			got := rateLimitRules(f)
