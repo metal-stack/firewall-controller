@@ -13,16 +13,9 @@ import (
 	"github.com/txn2/txeh"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 const (
@@ -53,8 +46,7 @@ const (
 // Reconcile droptailer with certificate and droptailer-server ip from pod inspection
 // +kubebuilder:rbac:groups=metal-stack.io,resources=Droptailers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=metal-stack.io,resources=Droptailers/status,verbs=get;update;patch
-func (r *DroptailerReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
+func (r *DroptailerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("Droptailer", req.NamespacedName)
 	requeue := ctrl.Result{
 		RequeueAfter: droptailerReconcileInterval,
@@ -171,27 +163,8 @@ func (r *DroptailerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		r.certificateBase = certificateBase
 	}
 
-	genericPredicate := predicate.Funcs{
-		GenericFunc: func(e event.GenericEvent) bool {
-			return e.Meta.GetNamespace() == namespace
-		},
-	}
-
-	mapToDroptailerReconcilation := handler.ToRequestsFunc(
-		func(a handler.MapObject) []reconcile.Request {
-			return []reconcile.Request{
-				{NamespacedName: types.NamespacedName{
-					Name:      "trigger-reconcilation-for-droptailer",
-					Namespace: namespace,
-				}},
-			}
-		})
-	triggerDroptailerReconcilation := &handler.EnqueueRequestsFromMapFunc{
-		ToRequests: mapToDroptailerReconcilation,
-	}
-
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&corev1.Pod{}, builder.WithPredicates(genericPredicate)).
-		Watches(&source.Kind{Type: &corev1.Secret{}}, triggerDroptailerReconcilation).
+		For(&corev1.Pod{}).
+		For(&corev1.Secret{}).
 		Complete(r)
 }

@@ -40,9 +40,7 @@ type ClusterwideNetworkPolicyReconciler struct {
 // Reconcile ClusterwideNetworkPolicy and creates nftables rules accordingly
 // +kubebuilder:rbac:groups=metal-stack.io,resources=clusterwidenetworkpolicies,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=metal-stack.io,resources=clusterwidenetworkpolicies/status,verbs=get;update;patch
-func (r *ClusterwideNetworkPolicyReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
-
+func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var clusterNP firewallv1.ClusterwideNetworkPolicy
 	if err := r.Get(ctx, req.NamespacedName, &clusterNP); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)

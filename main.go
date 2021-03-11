@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -85,16 +86,16 @@ func main() {
 		setupLog.Error(err, "unable to start firewall-controller manager")
 		os.Exit(1)
 	}
-	stopCh := ctrl.SetupSignalHandler()
+
 	go func() {
 		setupLog.Info("starting firewall-controller", "version", v.V)
-		if err := mgr.Start(stopCh); err != nil {
+		if err := mgr.Start(context.Background()); err != nil {
 			setupLog.Error(err, "problem running firewall-controller")
 			panic(err)
 		}
 	}()
 
-	if started := mgr.GetCache().WaitForCacheSync(stopCh); !started {
+	if started := mgr.GetCache().WaitForCacheSync(context.Background()); !started {
 		panic("not all started")
 	}
 
@@ -155,6 +156,7 @@ func main() {
 	if err = (&controllers.FirewallReconciler{
 		Client:               mgr.GetClient(),
 		Log:                  ctrl.Log.WithName("controllers").WithName("Firewall"),
+		Recorder:             mgr.GetEventRecorderFor("FirewallController"),
 		Scheme:               mgr.GetScheme(),
 		EnableIDS:            enableIDS,
 		EnableSignatureCheck: enableSignatureCheck,
@@ -164,9 +166,6 @@ func main() {
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
-
-	// FIXME howto cope with OS signals ?
-	<-stopCh
 }
 
 func readCRDsFromVFS() (map[string][]byte, error) {
