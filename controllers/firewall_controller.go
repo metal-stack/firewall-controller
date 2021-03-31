@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/rsa"
 	"fmt"
+	"io/ioutil"
 	"reflect"
 	"time"
 
@@ -49,6 +50,8 @@ import (
 	"github.com/metal-stack/firewall-controller/pkg/updater"
 	mn "github.com/metal-stack/metal-lib/pkg/net"
 	networking "k8s.io/api/networking/v1"
+
+	"github.com/metal-stack/metal-networker/pkg/netconf"
 )
 
 // FirewallReconciler reconciles a Firewall object
@@ -127,6 +130,10 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	var errors *multierror.Error
 	log.Info("reconciling nftables rules")
 	if err = r.reconcileRules(ctx, f, log); err != nil {
+		errors = multierror.Append(errors, err)
+	}
+
+	if err = r.reconcileNetworkPrefixes(ctx, f, log); err != nil {
 		errors = multierror.Append(errors, err)
 	}
 
@@ -217,6 +224,36 @@ func convert(np networking.NetworkPolicy) (*firewallv1.ClusterwideNetworkPolicy,
 		Egress: newEgresses,
 	}
 	return &cwnp, nil
+}
+
+// reconcileNetworkPrefixes reconciles the network settings for this firewall
+func (r *FirewallReconciler) reconcileNetworkPrefixes(ctx context.Context, f firewallv1.Firewall, log logr.Logger) error {
+	kb := netconf.NewKnowledgeBase("/etc/metal/install.yaml")
+
+	networkMap := map[string]firewallv1.FirewallNetwork{}
+	for _, n := range f.Spec.FirewallNetworks {
+		if n.Networktype == nil {
+			continue
+		}
+		networkMap[*n.Networkid] = n
+	}
+
+	old := kb
+	for _, n := range kb.Networks {
+		n.Prefixes = networkMap[*n.Networkid].Prefixes
+	}
+
+	if reflect.DeepEqual(old, kb) {
+		// nothing to do here
+		return nil
+	}
+
+	tmpFile, err := ioutil.TempFile("/tmp", "frr.conf")
+	if err != nil {
+		return err
+	}
+	tmpFile.Close()
+	netconf.NewFrrConfigApplier(netconf.Firewall, kb, tmpFile.Name())
 }
 
 // reconcileRules reconciles the nftable rules for this firewall
