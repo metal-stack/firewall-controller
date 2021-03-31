@@ -254,6 +254,7 @@ func (r *FirewallReconciler) reconcileNetworkPrefixes(ctx context.Context, f fir
 	}
 	tmpFile.Close()
 	netconf.NewFrrConfigApplier(netconf.Firewall, kb, tmpFile.Name())
+	return nil
 }
 
 // reconcileRules reconciles the nftable rules for this firewall
