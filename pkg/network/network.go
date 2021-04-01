@@ -97,7 +97,7 @@ func readTpl(tplName string) (*template.Template, error) {
 
 	t, err := template.New(tplName).Parse(string(s))
 	if err != nil {
-		return nil, fmt.Errorf("could not parse tempalte %v from statik: %w", tplName, err)
+		return nil, fmt.Errorf("could not parse template %v from statik: %w", tplName, err)
 	}
 
 	return t, nil
