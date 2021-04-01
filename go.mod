@@ -4,9 +4,9 @@ go 1.15
 
 require (
 	cloud.google.com/go v0.72.0 // indirect
-	github.com/go-logr/logr v0.3.0
+	github.com/go-logr/logr v0.4.0
 	github.com/go-logr/zapr v0.3.0 // indirect
-	github.com/google/go-cmp v0.5.4
+	github.com/google/go-cmp v0.5.5
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
@@ -16,12 +16,10 @@ require (
 	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/ks2211/go-suricata v0.0.0-20200823200910-986ce1470707
 	github.com/mdlayher/netlink v1.1.1 // indirect
-	github.com/metal-stack/metal-lib v0.6.9
+	github.com/metal-stack/metal-go v0.14.0
+	github.com/metal-stack/metal-lib v0.7.2
 	github.com/metal-stack/metal-networker v0.6.2-0.20210331141635-12bda8cce0b9
-	github.com/metal-stack/v v1.0.2
-	github.com/onsi/ginkgo v1.14.2 // indirect
-	github.com/prometheus/common v0.14.0 // indirect
-	github.com/prometheus/procfs v0.2.0 // indirect
+	github.com/metal-stack/v v1.0.3
 	github.com/rakyll/statik v0.1.7
 	github.com/txn2/txeh v1.3.0
 	github.com/vishvananda/netlink v1.1.0
