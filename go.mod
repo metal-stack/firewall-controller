@@ -18,7 +18,7 @@ require (
 	github.com/mdlayher/netlink v1.1.1 // indirect
 	github.com/metal-stack/metal-go v0.14.0
 	github.com/metal-stack/metal-lib v0.7.2
-	github.com/metal-stack/metal-networker v0.6.2-0.20210331141635-12bda8cce0b9
+	github.com/metal-stack/metal-networker v0.6.2-0.20210406084831-decec21c5643
 	github.com/metal-stack/v v1.0.3
 	github.com/rakyll/statik v0.1.7
 	github.com/txn2/txeh v1.3.0

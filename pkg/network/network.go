@@ -23,7 +23,7 @@ const (
 
 // ReconcileNetwork reconciles the network settings for a firewall
 // in the current stage it only changes the FRR-Configuration when network prefixes or FRR template changes
-func ReconcileNetwork(f firewallv1.Firewall, log logr.Logger) error {
+func ReconcileNetwork(f firewallv1.Firewall, log logr.Logger) (bool, error) {
 	kb := netconf.NewKnowledgeBase(MetalKnowledgeBase)
 
 	networkMap := map[string]firewallv1.FirewallNetwork{}
@@ -44,7 +44,7 @@ func ReconcileNetwork(f firewallv1.Firewall, log logr.Logger) error {
 
 	tmpFile, err := tmpFile("frr.conf")
 	if err != nil {
-		return fmt.Errorf("error during network reconcilation %v: %w", tmpFile, err)
+		return false, fmt.Errorf("error during network reconcilation %v: %w", tmpFile, err)
 	}
 	defer func() {
 		os.Remove(tmpFile)
@@ -53,15 +53,15 @@ func ReconcileNetwork(f firewallv1.Firewall, log logr.Logger) error {
 	a := netconf.NewFrrConfigApplier(netconf.Firewall, kb, tmpFile)
 	tpl, err := readTpl(netconf.TplFirewallFRR)
 	if err != nil {
-		return fmt.Errorf("error during network reconcilation: %v: %w", tmpFile, err)
+		return false, fmt.Errorf("error during network reconcilation: %v: %w", tmpFile, err)
 	}
 
-	err = a.Apply(*tpl, tmpFile, FrrConfig, true)
+	changed, err := a.Apply(*tpl, tmpFile, FrrConfig, true)
 	if err != nil {
-		return fmt.Errorf("error during network reconcilation: %v: %w", tmpFile, err)
+		return changed, fmt.Errorf("error during network reconcilation: %v: %w", tmpFile, err)
 	}
 
-	return nil
+	return changed, nil
 }
 
 func tmpFile(prefix string) (string, error) {

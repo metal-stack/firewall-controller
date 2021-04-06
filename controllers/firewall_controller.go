@@ -132,7 +132,14 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	log.Info("reconciling network settings")
-	if err = r.reconcileNetwork(ctx, f, log); err != nil {
+	changed, err := network.ReconcileNetwork(f, log)
+	if changed && err == nil {
+		r.recorder.Event(&f, "Info", "Network settings", "reconcilation succeeded (frr.conf)")
+	} else if changed && err != nil {
+		r.recorder.Event(&f, "Info", "Network settings", fmt.Sprintf("reconcilation failed (frr.conf): %v", err))
+	}
+
+	if err != nil {
 		errors = multierror.Append(errors, err)
 	}
 
@@ -223,11 +230,6 @@ func convert(np networking.NetworkPolicy) (*firewallv1.ClusterwideNetworkPolicy,
 		Egress: newEgresses,
 	}
 	return &cwnp, nil
-}
-
-// reconcileNetwork reconciles the network settings for this firewall
-func (r *FirewallReconciler) reconcileNetwork(ctx context.Context, f firewallv1.Firewall, log logr.Logger) error {
-	return network.ReconcileNetwork(f, log)
 }
 
 // reconcileRules reconciles the nftable rules for this firewall
