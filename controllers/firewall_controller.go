@@ -136,7 +136,7 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	if changed && err == nil {
 		r.recorder.Event(&f, "Info", "Network settings", "reconcilation succeeded (frr.conf)")
 	} else if changed && err != nil {
-		r.recorder.Event(&f, "Info", "Network settings", fmt.Sprintf("reconcilation failed (frr.conf): %v", err))
+		r.recorder.Event(&f, "Warning", "Network settings", fmt.Sprintf("reconcilation failed (frr.conf): %v", err))
 	}
 
 	if err != nil {
