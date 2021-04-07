@@ -27,7 +27,7 @@ jobs:
 
     - name: Get release
       id: get_release
-      uses: bruceadams/get-release@v1.2.1
+      uses: bruceadams/get-release@v1.2.2
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -38,13 +38,17 @@ jobs:
         username: ${{ secrets.DOCKER_REGISTRY_USER }}
         password: ${{ secrets.DOCKER_REGISTRY_TOKEN }}
 
+    - name: Build
+      run: |
+        make
+
     - name: Lint
       uses: golangci/golangci-lint-action@v2
       with:
         version: v1.32.2
         args: --timeout=3m
 
-    - name: Build the Docker images
+    - name: Build and Push Docker Image
       run: |
         export GITHUB_TAG_NAME=${GITHUB_REF##*/}
         make docker-build

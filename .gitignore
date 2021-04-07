@@ -31,3 +31,5 @@ nftables.v4
 *.swp
 *.swo
 *~
+
+pkg/network/frr.firewall.tpl

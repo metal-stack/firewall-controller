@@ -9,6 +9,9 @@ DOCKER_TAG := $(or ${GITHUB_TAG_NAME}, latest)
 DOCKER_IMG ?= ghcr.io/metal-stack/firewall-controller:${DOCKER_TAG}
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true"
+# this version is used to include template from the metal-networker to the firewall-controller
+# version should be not that far away from the compile dependency in go.mod
+METAL_NETWORKER_VERSION := v0.6.1
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -30,7 +33,7 @@ test-integration: generate fmt vet manifests
 	go test ./... -v Integration
 
 clean:
-	rm -rf bin/* statik/statik.go
+	rm -rf bin/* statik/statik.go pkg/network/frr.firewall.tpl
 
 # Build firewall-controller binary
 firewall-controller: statik generate fmt vet test
@@ -65,7 +68,7 @@ deploy: manifests
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./api/...;./controllers/..." output:crd:artifacts:config=config/crd/bases
 
 # Run go fmt against code
 fmt:
@@ -77,6 +80,8 @@ vet:
 
 # Generate code
 generate: controller-gen statik manifests
+	wget https://raw.githubusercontent.com/metal-stack/metal-networker/${METAL_NETWORKER_VERSION}/internal/netconf/tpl/frr.firewall.tpl -O ./pkg/network/frr.firewall.tpl
+	$(STATIK) -src=pkg/network -include='*.tpl' -dest=pkg/network -ns networker
 	$(STATIK) -src=pkg/nftables -include='*.tpl' -dest=pkg/nftables -ns tpl
 	$(STATIK) -src=config/crd/bases -ns crd
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."

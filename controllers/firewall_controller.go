@@ -44,6 +44,7 @@ import (
 
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/pkg/collector"
+	"github.com/metal-stack/firewall-controller/pkg/network"
 	"github.com/metal-stack/firewall-controller/pkg/nftables"
 	"github.com/metal-stack/firewall-controller/pkg/suricata"
 	"github.com/metal-stack/firewall-controller/pkg/updater"
@@ -127,6 +128,18 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	var errors *multierror.Error
 	log.Info("reconciling nftables rules")
 	if err = r.reconcileRules(ctx, f, log); err != nil {
+		errors = multierror.Append(errors, err)
+	}
+
+	log.Info("reconciling network settings")
+	changed, err := network.ReconcileNetwork(f, log)
+	if changed && err == nil {
+		r.recorder.Event(&f, "Info", "Network settings", "reconcilation succeeded (frr.conf)")
+	} else if changed && err != nil {
+		r.recorder.Event(&f, "Warning", "Network settings", fmt.Sprintf("reconcilation failed (frr.conf): %v", err))
+	}
+
+	if err != nil {
 		errors = multierror.Append(errors, err)
 	}
 
