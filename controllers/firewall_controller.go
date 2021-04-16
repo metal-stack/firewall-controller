@@ -35,7 +35,10 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/hashicorp/go-multierror"
 
@@ -130,9 +133,9 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	log.Info("reconciling network settings")
 	changed, err := network.ReconcileNetwork(f, log)
 	if changed && err == nil {
-		r.recorder.Event(&f, "Normal", "Network settings", "reconcilation succeeded (frr.conf)")
+		r.Recorder.Event(&f, "Normal", "Network settings", "reconcilation succeeded (frr.conf)")
 	} else if changed && err != nil {
-		r.recorder.Event(&f, "Warning", "Network settings", fmt.Sprintf("reconcilation failed (frr.conf): %v", err))
+		r.Recorder.Event(&f, "Warning", "Network settings", fmt.Sprintf("reconcilation failed (frr.conf): %v", err))
 	}
 
 	if err != nil {
@@ -276,7 +279,11 @@ func (r *FirewallReconciler) reconcileFirewallServices(ctx context.Context, f fi
 			errors = multierror.Append(errors, err)
 		}
 	}
-	return errors
+
+	if errors.Len() > 0 {
+		return errors
+	}
+	return nil
 }
 
 // reconcileFirewallService reconciles a single service that is to be exposed at the firewall.
@@ -444,11 +451,22 @@ func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Fire
 
 // SetupWithManager configures this controller to watch for the CRDs in a specific namespace
 func (r *FirewallReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.Recorder = mgr.GetEventRecorderFor("FirewallController")
+	mapToFirewallReconcilation := handler.MapFunc(
+		func(o client.Object) []reconcile.Request {
+			return []reconcile.Request{
+				{NamespacedName: types.NamespacedName{
+					Name:      firewallName,
+					Namespace: firewallNamespace,
+				}},
+			}
+		})
+	triggerFirewallReconcilation := handler.EnqueueRequestsFromMapFunc(mapToFirewallReconcilation)
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&firewallv1.Firewall{}).
 		// don't trigger a reconcilation for status updates
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
-		For(&firewallv1.ClusterwideNetworkPolicy{}).
-		For(&corev1.Service{}).
+		Watches(&source.Kind{Type: &firewallv1.ClusterwideNetworkPolicy{}}, triggerFirewallReconcilation).
+		Watches(&source.Kind{Type: &corev1.Service{}}, triggerFirewallReconcilation).
 		Complete(r)
 }

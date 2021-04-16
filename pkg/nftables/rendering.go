@@ -66,7 +66,7 @@ func (d *firewallRenderingData) write(file string) error {
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile(file, []byte(c), 0644)
+	err = ioutil.WriteFile(file, []byte(c), 0600)
 	if err != nil {
 		return fmt.Errorf("error writing to nftables file '%s': %w", file, err)
 	}
