@@ -35,6 +35,9 @@ test-integration: generate fmt vet manifests
 clean:
 	rm -rf bin/* statik/statik.go pkg/network/frr.firewall.tpl
 
+lint:
+	docker run --rm -v $(pwd):/app -w /app golangci/golangci-lint:v1.39.0 golangci-lint run -v -p bugs
+
 # Build firewall-controller binary
 firewall-controller: statik generate fmt vet test
 	CGO_ENABLED=0 go build \

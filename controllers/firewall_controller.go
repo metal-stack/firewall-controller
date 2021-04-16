@@ -55,7 +55,7 @@ import (
 // FirewallReconciler reconciles a Firewall object
 type FirewallReconciler struct {
 	client.Client
-	recorder             record.EventRecorder
+	Recorder             record.EventRecorder
 	Log                  logr.Logger
 	Scheme               *runtime.Scheme
 	EnableIDS            bool
@@ -85,8 +85,7 @@ var done = ctrl.Result{}
 // - updating the firewall object with nftable rule statistics grouped by action
 // +kubebuilder:rbac:groups=metal-stack.io,resources=firewalls,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=metal-stack.io,resources=firewalls/status,verbs=get;update;patch
-func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
+func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("firewall", req.NamespacedName)
 	requeue := ctrl.Result{
 		RequeueAfter: firewallReconcileInterval,
@@ -108,15 +107,15 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	if err := r.validateFirewall(ctx, f); err != nil {
-		r.recorder.Event(&f, "Warning", "Unapplicable", err.Error())
+		r.Recorder.Event(&f, "Warning", "Unapplicable", err.Error())
 		// don't requeue invalid firewall objects
 		return done, err
 	}
 
 	log.Info("reconciling firewall-controller")
-	err := updater.UpdateToSpecVersion(f, log, r.recorder)
+	err := updater.UpdateToSpecVersion(f, log, r.Recorder)
 	if err != nil {
-		r.recorder.Eventf(&f, "Warning", "Self-Reconcilation", "failed with error: %v", err)
+		r.Recorder.Eventf(&f, "Warning", "Self-Reconcilation", "failed with error: %v", err)
 		return requeue, err
 	}
 
@@ -134,9 +133,9 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	log.Info("reconciling network settings")
 	changed, err := network.ReconcileNetwork(f, log)
 	if changed && err == nil {
-		r.recorder.Event(&f, "Normal", "Network settings", "reconcilation succeeded (frr.conf)")
+		r.Recorder.Event(&f, "Normal", "Network settings", "reconcilation succeeded (frr.conf)")
 	} else if changed && err != nil {
-		r.recorder.Event(&f, "Warning", "Network settings", fmt.Sprintf("reconcilation failed (frr.conf): %v", err))
+		r.Recorder.Event(&f, "Warning", "Network settings", fmt.Sprintf("reconcilation failed (frr.conf): %v", err))
 	}
 
 	if err != nil {
@@ -154,11 +153,11 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	if errors.ErrorOrNil() != nil {
-		r.recorder.Event(&f, "Warning", "Error", multierror.Flatten(errors).Error())
+		r.Recorder.Event(&f, "Warning", "Error", multierror.Flatten(errors).Error())
 		return requeue, errors
 	}
 
-	r.recorder.Event(&f, "Normal", "Reconciled", "nftables rules and statistics successfully")
+	r.Recorder.Event(&f, "Normal", "Reconciled", "nftables rules and statistics successfully")
 	log.Info("reconciled firewall")
 	return requeue, nil
 }
@@ -280,7 +279,11 @@ func (r *FirewallReconciler) reconcileFirewallServices(ctx context.Context, f fi
 			errors = multierror.Append(errors, err)
 		}
 	}
-	return errors
+
+	if errors.Len() > 0 {
+		return errors
+	}
+	return nil
 }
 
 // reconcileFirewallService reconciles a single service that is to be exposed at the firewall.
@@ -335,7 +338,7 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 		if n.Networktype == nil {
 			continue
 		}
-
+		n := n
 		switch *n.Networktype {
 		case mn.PrivatePrimaryUnshared:
 			privateNet = &n
@@ -448,9 +451,9 @@ func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Fire
 
 // SetupWithManager configures this controller to watch for the CRDs in a specific namespace
 func (r *FirewallReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.recorder = mgr.GetEventRecorderFor("FirewallController")
-	mapToFirewallReconcilation := handler.ToRequestsFunc(
-		func(a handler.MapObject) []reconcile.Request {
+	r.Recorder = mgr.GetEventRecorderFor("FirewallController")
+	mapToFirewallReconcilation := handler.MapFunc(
+		func(o client.Object) []reconcile.Request {
 			return []reconcile.Request{
 				{NamespacedName: types.NamespacedName{
 					Name:      firewallName,
@@ -458,9 +461,7 @@ func (r *FirewallReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				}},
 			}
 		})
-	triggerFirewallReconcilation := &handler.EnqueueRequestsFromMapFunc{
-		ToRequests: mapToFirewallReconcilation,
-	}
+	triggerFirewallReconcilation := handler.EnqueueRequestsFromMapFunc(mapToFirewallReconcilation)
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&firewallv1.Firewall{}).
 		// don't trigger a reconcilation for status updates

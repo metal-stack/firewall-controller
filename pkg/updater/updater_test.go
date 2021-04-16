@@ -29,6 +29,7 @@ func Test_copyToTempFileAndValidateChecksum(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			rc, _ := os.Open("./test")
 			tmpFile, err := copyToTempFile(rc)
