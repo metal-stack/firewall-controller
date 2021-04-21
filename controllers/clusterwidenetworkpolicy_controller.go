@@ -21,12 +21,16 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	"github.com/metal-stack/firewall-controller/pkg/nftables"
 )
 
 // ClusterwideNetworkPolicyReconciler reconciles a ClusterwideNetworkPolicy object
@@ -42,6 +46,8 @@ type ClusterwideNetworkPolicyReconciler struct {
 // +kubebuilder:rbac:groups=metal-stack.io,resources=clusterwidenetworkpolicies,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=metal-stack.io,resources=clusterwidenetworkpolicies/status,verbs=get;update;patch
 func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	log := r.Log.WithValues("cwnp", req.Name)
+
 	var clusterNP firewallv1.ClusterwideNetworkPolicy
 	if err := r.Get(ctx, req.NamespacedName, &clusterNP); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
@@ -50,17 +56,63 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, req 
 	// if network policy does not belong to the namespace where clusterwide network policies are stored:
 	// update status with error message
 	if req.Namespace != firewallv1.ClusterwideNetworkPolicyNamespace {
-		r.recorder.Event(&clusterNP, corev1.EventTypeWarning, "Unapplicable", fmt.Sprintf("cluster wide network policies must be defined in namespace %s otherwise they won't take effect", firewallv1.ClusterwideNetworkPolicyNamespace))
+		r.recorder.Event(
+			&clusterNP,
+			corev1.EventTypeWarning,
+			"Unapplicable",
+			fmt.Sprintf("cluster wide network policies must be defined in namespace %s otherwise they won't take effect", firewallv1.ClusterwideNetworkPolicyNamespace),
+		)
 		return ctrl.Result{}, nil
 	}
 
 	err := clusterNP.Spec.Validate()
 	if err != nil {
-		r.recorder.Event(&clusterNP, corev1.EventTypeWarning, "Unapplicable", fmt.Sprintf("cluster wide network policy is not valid: %v", err))
+		r.recorder.Event(
+			&clusterNP,
+			corev1.EventTypeWarning,
+			"Unapplicable",
+			fmt.Sprintf("cluster wide network policy is not valid: %v", err),
+		)
 		return ctrl.Result{}, nil
 	}
 
-	return ctrl.Result{}, nil
+	return r.reconcileRules(ctx, log, req)
+}
+
+func (r *ClusterwideNetworkPolicyReconciler) reconcileRules(ctx context.Context, log logr.Logger, req ctrl.Request) (ctrl.Result, error) {
+	var firewall firewallv1.Firewall
+	if err := r.Get(ctx, req.NamespacedName, &firewall); err != nil {
+		if apierrors.IsNotFound(err) {
+			defaultFw := nftables.NewDefaultFirewall()
+			log.Info("flushing k8s firewall rules")
+			err := defaultFw.Flush()
+			if err == nil {
+				return done, nil
+			}
+			return ctrl.Result{
+				RequeueAfter: firewallReconcileInterval,
+			}, err
+		}
+
+		return done, client.IgnoreNotFound(err)
+	}
+
+	var clusterNPs firewallv1.ClusterwideNetworkPolicyList
+	if err := r.List(ctx, &clusterNPs, client.InNamespace(firewallv1.ClusterwideNetworkPolicyNamespace)); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	var services v1.ServiceList
+	if err := r.List(ctx, &services); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	nftablesFirewall := nftables.NewFirewall(&clusterNPs, &services, firewall.Spec, log)
+	if err := nftablesFirewall.Reconcile(); err != nil {
+		return done, err
+	}
+
+	return done, nil
 }
 
 // SetupWithManager configures this controller to watch for ClusterwideNetworkPolicy CRD

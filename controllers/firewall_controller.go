@@ -67,7 +67,6 @@ type FirewallReconciler struct {
 
 const (
 	firewallReconcileInterval = time.Second * 10
-	firewallNamespace         = "firewall"
 	firewallName              = "firewall"
 
 	nftablesExporterService   = "node-exporter"
@@ -82,7 +81,7 @@ const (
 var done = ctrl.Result{}
 
 // Reconcile reconciles a firewall by:
-// - reading ClusterwideNetworkPolicies and Services of type Loadbalancer
+// - reading Services of type Loadbalancer
 // - rendering nftables rules
 // - updating the firewall object with nftable rule statistics grouped by action
 // +kubebuilder:rbac:groups=metal-stack.io,resources=firewalls,verbs=get;list;watch;create;update;patch;delete
@@ -169,8 +168,8 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 // - and for the triggered reconcilation request
 // - the signature is valid (when signature checking is enabled)
 func (r *FirewallReconciler) validateFirewall(f firewallv1.Firewall) error {
-	if f.Namespace != firewallNamespace {
-		return fmt.Errorf("firewall must be defined in namespace %s otherwise it won't take effect", firewallNamespace)
+	if f.Namespace != firewallv1.ClusterwideNetworkPolicyNamespace {
+		return fmt.Errorf("firewall must be defined in namespace %s otherwise it won't take effect", firewallv1.ClusterwideNetworkPolicyNamespace)
 	}
 
 	if f.Name != firewallName {
@@ -198,7 +197,7 @@ func convert(np networking.NetworkPolicy) (*firewallv1.ClusterwideNetworkPolicy,
 	cwnp := firewallv1.ClusterwideNetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      np.Name,
-			Namespace: firewallNamespace,
+			Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
 		},
 	}
 	newEgresses := []firewallv1.EgressRule{}
@@ -286,10 +285,10 @@ func (r *FirewallReconciler) reconcileFirewallServices(ctx context.Context, f fi
 
 // reconcileFirewallService reconciles a single service that is to be exposed at the firewall.
 func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s firewallService, f firewallv1.Firewall) error {
-	nn := types.NamespacedName{Name: s.name, Namespace: firewallNamespace}
+	nn := types.NamespacedName{Name: s.name, Namespace: firewallv1.ClusterwideNetworkPolicyNamespace}
 	meta := metav1.ObjectMeta{
 		Name:      s.name,
-		Namespace: firewallNamespace,
+		Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
 		Labels:    map[string]string{exporterLabelKey: s.name},
 	}
 
@@ -456,7 +455,7 @@ func (r *FirewallReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return []reconcile.Request{
 			{NamespacedName: types.NamespacedName{
 				Name:      firewallName,
-				Namespace: firewallNamespace,
+				Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
 			}},
 		}
 	})
@@ -467,7 +466,6 @@ func (r *FirewallReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&firewallv1.Firewall{}, builder.WithPredicates(namespacePredicate)).
 		// don't trigger a reconcilation for status updates
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
-		Watches(&source.Kind{Type: &firewallv1.ClusterwideNetworkPolicy{}}, triggerFirewallReconcilation).
 		Watches(&source.Kind{Type: &corev1.Service{}}, triggerFirewallReconcilation).
 		Complete(r)
 }

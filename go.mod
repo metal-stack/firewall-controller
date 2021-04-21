@@ -12,9 +12,12 @@ require (
 	github.com/metal-stack/metal-lib v0.11.2
 	github.com/metal-stack/metal-networker v0.30.3
 	github.com/metal-stack/v v1.0.3
+	github.com/miekg/dns v1.0.14
+	github.com/rakyll/statik v0.1.7
 	github.com/txn2/txeh v1.3.0
 	github.com/vishvananda/netlink v1.2.1-beta.2
 	go.uber.org/zap v1.23.0
+	golang.org/x/sys v0.2.0
 	k8s.io/api v0.25.0
 	k8s.io/apiextensions-apiserver v0.25.0
 	k8s.io/apimachinery v0.25.0
@@ -78,10 +81,10 @@ require (
 	go.mongodb.org/mongo-driver v1.11.0 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
+	golang.org/x/crypto v0.0.0-20220919173607-35f4265a4bc0 // indirect
 	golang.org/x/net v0.2.0 // indirect
 	golang.org/x/oauth2 v0.2.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
-	golang.org/x/sys v0.2.0 // indirect
 	golang.org/x/term v0.2.0 // indirect
 	golang.org/x/text v0.4.0 // indirect
 	golang.org/x/time v0.2.0 // indirect
