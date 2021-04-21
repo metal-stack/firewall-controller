@@ -20,8 +20,11 @@ require (
 	github.com/metal-stack/metal-lib v0.7.2
 	github.com/metal-stack/metal-networker v0.6.4
 	github.com/metal-stack/v v1.0.3
+	github.com/miekg/dns v1.0.14
+	github.com/rakyll/statik v0.1.7
 	github.com/txn2/txeh v1.3.0
 	github.com/vishvananda/netlink v1.1.0
+	golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e // indirect
 	gomodules.xyz/jsonpatch/v2 v2.1.0 // indirect
 	k8s.io/api v0.18.9
