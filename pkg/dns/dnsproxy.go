@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/miekg/dns"
 	dnsgo "github.com/miekg/dns"
 	"golang.org/x/sys/unix"
@@ -21,50 +22,55 @@ const (
 )
 
 type DNSProxy struct {
+	log     logr.Logger
+	port    uint
 	cache   *DNSCache
 	handler dnsgo.Handler
 }
 
-func NewDNSProxy(cache *DNSCache) DNSProxy {
+func NewDNSProxy(port uint, log logr.Logger, cache *DNSCache) DNSProxy {
 	// Init DNS clients
 	// SingleInflight is enabled, otherwise it suppressing retries
 	udpClient := &dns.Client{Net: "udp", Timeout: DNSTimeout, SingleInflight: false}
 	tcpClient := &dns.Client{Net: "tcp", Timeout: DNSTimeout, SingleInflight: false}
 	handler := &DNSProxyHandler{
-		udpClient: udpClient,
-		tcpClient: tcpClient,
+		log:         log.WithName("DNS handler"),
+		udpClient:   udpClient,
+		tcpClient:   tcpClient,
+		updateCache: getUpdateCacheFunc(log, cache),
 	}
 
 	return DNSProxy{
+		log:     log,
+		port:    port,
 		cache:   cache,
 		handler: handler,
 	}
 }
 
-func (p DNSProxy) Run() {
+func (p DNSProxy) Run() error {
 	// Start DNS servers
-	udpConn, tcpListener, err := bindToAddr("", 8882, true, true)
+	udpConn, tcpListener, err := p.bindToPort()
 	if err != nil {
-		fmt.Println(err)
+		return fmt.Errorf("failed to bind to port: %w", err)
 	}
-	udpServer := &dns.Server{PacketConn: udpConn, Addr: udpConn.LocalAddr().String(), Net: "udp", Handler: handler}
-	tcpServer := &dns.Server{Listener: tcpListener, Addr: udpConn.LocalAddr().String(), Net: "tcp", Handler: handler}
 
+	udpServer := &dns.Server{PacketConn: udpConn, Addr: udpConn.LocalAddr().String(), Net: "udp", Handler: p.handler}
 	go func() {
-		fmt.Println("Starting UDP server")
+		p.log.Info("starting UDP server")
 		if err := udpServer.ActivateAndServe(); err != nil {
-			fmt.Printf("Failed to start UDP server: %s\n", err)
+			p.log.Error(err, "failed to start UDP server")
 		}
 	}()
 
+	tcpServer := &dns.Server{Listener: tcpListener, Addr: udpConn.LocalAddr().String(), Net: "tcp", Handler: p.handler}
 	go func() {
-		fmt.Println("Starting TCP server")
+		p.log.Info("starting TCP server")
 		if err := tcpServer.ActivateAndServe(); err != nil {
-			fmt.Println("Failed to start TCP server: %s\n", err)
+			p.log.Error(err, "failed to start TCP server")
 		}
 	}()
 
-	fmt.Println("Server started")
 	// Watch for termination signal
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
@@ -73,15 +79,27 @@ func (p DNSProxy) Run() {
 
 	udpServer.Shutdown()
 	tcpServer.Shutdown()
+
+	return nil
 }
 
-// bindToAddr attempts to bind to address and port for both UDP and TCP. If
-// port is 0 a random open port is assigned and the same one is used for UDP
-// and TCP.
-func bindToAddr(address string, port uint16, ipv4, ipv6 bool) (*net.UDPConn, *net.TCPListener, error) {
+func getUpdateCacheFunc(log logr.Logger, cache *DNSCache) func(lookupTime time.Time, response *dnsgo.Msg) {
+	return func(lookupTime time.Time, response *dnsgo.Msg) {
+		if response.Response && response.Rcode == dnsgo.RcodeSuccess {
+			if cache.Update(lookupTime, response) {
+				log.WithValues(reqIdLogField, response.Id).Info("cache updated")
+			}
+		}
+	}
+}
+
+// bindToPort attempts to bind to port for both UDP and TCP
+func (p DNSProxy) bindToPort() (*net.UDPConn, *net.TCPListener, error) {
 	var err error
 	var listener net.Listener
 	var conn net.PacketConn
+	bindAddr := net.JoinHostPort("", strconv.Itoa(int(p.port)))
+
 	defer func() {
 		if err != nil {
 			if listener != nil {
@@ -93,31 +111,29 @@ func bindToAddr(address string, port uint16, ipv4, ipv6 bool) (*net.UDPConn, *ne
 		}
 	}()
 
-	bindAddr := net.JoinHostPort(address, strconv.Itoa(int(port)))
-
-	listener, err = listenConfig(0x0B00, ipv4, ipv6).Listen(context.Background(),
-		"tcp", bindAddr)
+	listener, err = listenConfig().Listen(context.Background(), "tcp", bindAddr)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	conn, err = listenConfig(0x0B00, ipv4, ipv6).ListenPacket(context.Background(),
-		"udp", listener.Addr().String())
+	conn, err = listenConfig().ListenPacket(context.Background(), "udp", listener.Addr().String())
 	if err != nil {
 		return nil, nil, err
 	}
+
+	p.log.Info("DNS proxy bound to address", "address", bindAddr)
 
 	return conn.(*net.UDPConn), listener.(*net.TCPListener), nil
 }
 
-func listenConfig(mark int, ipv4, ipv6 bool) *net.ListenConfig {
+func listenConfig() *net.ListenConfig {
 	return &net.ListenConfig{
 		Control: func(network, address string, c syscall.RawConn) error {
 			var opErr error
 			err := c.Control(func(fd uintptr) {
-				opErr = transparentSetsockopt(int(fd), ipv4, ipv6)
-				if opErr == nil && mark != 0 {
-					opErr = unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_MARK, mark)
+				opErr = transparentSetsockopt(int(fd))
+				if opErr == nil {
+					opErr = unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_MARK, 0x0B00)
 				}
 				if opErr == nil {
 					opErr = unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_REUSEADDR, 1)
@@ -134,25 +150,24 @@ func listenConfig(mark int, ipv4, ipv6 bool) *net.ListenConfig {
 		}}
 }
 
-func transparentSetsockopt(fd int, ipv4, ipv6 bool) error {
+func transparentSetsockopt(fd int) error {
 	var err4, err6 error
-	if ipv6 {
-		err6 = unix.SetsockoptInt(fd, unix.SOL_IPV6, unix.IPV6_TRANSPARENT, 1)
-		if err6 == nil {
-			err6 = unix.SetsockoptInt(fd, unix.SOL_IPV6, unix.IPV6_RECVORIGDSTADDR, 1)
-		}
-		if err6 != nil {
-			return err6
-		}
+
+	err6 = unix.SetsockoptInt(fd, unix.SOL_IPV6, unix.IPV6_TRANSPARENT, 1)
+	if err6 == nil {
+		err6 = unix.SetsockoptInt(fd, unix.SOL_IPV6, unix.IPV6_RECVORIGDSTADDR, 1)
 	}
-	if ipv4 {
-		err4 = unix.SetsockoptInt(fd, unix.SOL_IP, unix.IP_TRANSPARENT, 1)
-		if err4 == nil {
-			err4 = unix.SetsockoptInt(fd, unix.SOL_IP, unix.IP_RECVORIGDSTADDR, 1)
-		}
-		if err4 != nil {
-			return err4
-		}
+	if err6 != nil {
+		return err6
 	}
+
+	err4 = unix.SetsockoptInt(fd, unix.SOL_IP, unix.IP_TRANSPARENT, 1)
+	if err4 == nil {
+		err4 = unix.SetsockoptInt(fd, unix.SOL_IP, unix.IP_RECVORIGDSTADDR, 1)
+	}
+	if err4 != nil {
+		return err4
+	}
+
 	return nil
 }
