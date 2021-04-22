@@ -24,8 +24,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/metal-stack/metal-lib/pkg/sign"
-	"github.com/metal-stack/v"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -33,9 +31,14 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	"github.com/metal-stack/metal-lib/pkg/sign"
+	"github.com/metal-stack/v"
+
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/controllers"
 	"github.com/metal-stack/firewall-controller/controllers/crd"
+	"github.com/metal-stack/firewall-controller/pkg/dns"
+	_ "github.com/metal-stack/firewall-controller/statik"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -64,6 +67,8 @@ func main() {
 		enableIDS            bool
 		enableSignatureCheck bool
 		hostsFile            string
+		runDNS               bool
+		dnsPort              uint
 	)
 	flag.BoolVar(&isVersion, "v", false, "Show firewall-controller version")
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
@@ -73,6 +78,8 @@ func main() {
 	flag.BoolVar(&enableIDS, "enable-IDS", true, "Set this to false to exclude IDS.")
 	flag.StringVar(&hostsFile, "hosts-file", "/etc/hosts", "The hosts file to manipulate for the droptailer.")
 	flag.BoolVar(&enableSignatureCheck, "enable-signature-check", true, "Set this to false to ignore signature checking.")
+	flag.BoolVar(&runDNS, "run-dns", false, "Set this to true to enable DNS based policies and run DNS proxy")
+	flag.UintVar(&dnsPort, "dns-port", 1053, "Specify port to which DNS proxy should be bound")
 	flag.Parse()
 
 	if isVersion {
@@ -125,6 +132,15 @@ func main() {
 	if err != nil {
 		setupLog.Error(err, "unable to wait for created crds of firewall-controller")
 		os.Exit(1)
+	}
+
+	// Start DNS proxy if runDNS is specified
+	var dnsCache *dns.DNSCache
+	if runDNS {
+		dnsCache = &dns.DNSCache{}
+
+		dnsProxy := dns.NewDNSProxy(dnsPort, ctrl.Log.WithName("DNS proxy"), dnsCache)
+		dnsProxy.Run()
 	}
 
 	// Droptailer Reconciler
