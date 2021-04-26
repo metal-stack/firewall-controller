@@ -1,13 +1,10 @@
 package nftables
 
 import (
-	"net/http"
 	"os/exec"
 	"testing"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
-	_ "github.com/metal-stack/firewall-controller/pkg/nftables/statik"
-	"github.com/rakyll/statik/fs"
 )
 
 // TestFirewallValidateRulesIntegration is a integration test an is skipped during normal unit testing
@@ -19,14 +16,12 @@ func TestFirewallValidateRulesIntegration(t *testing.T) {
 		t.Skip("skipping integration test")
 	}
 
-	statikFS, _ := fs.NewWithNamespace("tpl")
 	type fields struct {
 		Ingress          []string
 		Egress           []string
 		RateLimits       []firewallv1.RateLimit
 		Ipv4RuleFile     string
 		DryRun           bool
-		statikFS         http.FileSystem
 		InternalPrefixes string
 		PrivateVrfID     uint
 	}
@@ -43,7 +38,6 @@ func TestFirewallValidateRulesIntegration(t *testing.T) {
 				Egress:           []string{"ip daddr == 1.2.3.4"},
 				Ingress:          []string{"ip saddr == 1.2.3.4"},
 				Ipv4RuleFile:     "nftables.v4",
-				statikFS:         statikFS,
 				InternalPrefixes: "1.2.3.4",
 				PrivateVrfID:     uint(42),
 			},
@@ -57,7 +51,6 @@ func TestFirewallValidateRulesIntegration(t *testing.T) {
 					Ingress: tt.fields.Ingress,
 					Egress:  tt.fields.Egress,
 				},
-				statikFS:         tt.fields.statikFS,
 				InternalPrefixes: tt.fields.InternalPrefixes,
 				// RateLimitRules:   tt.fields.RateLimitRules,
 				PrivateVrfID: tt.fields.PrivateVrfID,

@@ -4,11 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"strings"
 	"text/template"
-
-	"github.com/rakyll/statik/fs"
 )
 
 // firewallRenderingData holds the data available in the nftables template
@@ -18,8 +15,6 @@ type firewallRenderingData struct {
 	SnatRules        nftablesRules
 	InternalPrefixes string
 	PrivateVrfID     uint
-
-	statikFS http.FileSystem
 }
 
 func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
@@ -43,13 +38,7 @@ func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 		return &firewallRenderingData{}, err
 	}
 
-	statikFS, err := fs.NewWithNamespace("tpl")
-	if err != nil {
-		panic(err)
-	}
-
 	return &firewallRenderingData{
-		statikFS:         statikFS,
 		PrivateVrfID:     uint(*f.primaryPrivateNet.Vrf),
 		InternalPrefixes: strings.Join(f.spec.InternalPrefixes, ", "),
 		ForwardingRules: forwardingRules{
@@ -92,7 +81,7 @@ func (d *firewallRenderingData) renderString() (string, error) {
 }
 
 func (d *firewallRenderingData) readTpl() (string, error) {
-	r, err := d.statikFS.Open("/nftables.tpl")
+	r, err := templates.Open("nftables.tpl")
 	if err != nil {
 		return "", err
 	}

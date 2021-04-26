@@ -33,10 +33,10 @@ test-integration: generate fmt vet manifests
 	go test ./... -v Integration
 
 clean:
-	rm -rf bin/* statik/statik.go pkg/network/frr.firewall.tpl
+	rm -rf bin/* pkg/network/frr.firewall.tpl
 
 # Build firewall-controller binary
-firewall-controller: statik generate fmt vet test
+firewall-controller: generate fmt vet test
 	CGO_ENABLED=0 go build \
 		-tags netgo \
 		-trimpath \
@@ -79,11 +79,8 @@ vet:
 	go vet ./...
 
 # Generate code
-generate: controller-gen statik manifests
+generate: controller-gen manifests
 	wget https://raw.githubusercontent.com/metal-stack/metal-networker/${METAL_NETWORKER_VERSION}/internal/netconf/tpl/frr.firewall.tpl -O ./pkg/network/frr.firewall.tpl
-	$(STATIK) -src=pkg/network -include='*.tpl' -dest=pkg/network -ns networker
-	$(STATIK) -src=pkg/nftables -include='*.tpl' -dest=pkg/nftables -ns tpl
-	$(STATIK) -src=config/crd/bases -ns crd
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 # Build the docker image
@@ -110,21 +107,4 @@ ifeq (, $(shell which controller-gen))
 CONTROLLER_GEN=$(GOBIN)/controller-gen
 else
 CONTROLLER_GEN=$(shell which controller-gen)
-endif
-
-# find or download statik
-.PHONY: statik
-statik:
-ifeq (, $(shell which statik))
-	@{ \
-	set -e ;\
-	STATIK_TMP_DIR=$$(mktemp -d) ;\
-	cd $$STATIK_TMP_DIR ;\
-	go mod init tmp ;\
-	go get github.com/rakyll/statik ;\
-	rm -rf $$STATIK_TMP_DIR ;\
-	}
-STATIK=$(GOBIN)/statik
-else
-STATIK=$(shell which statik)
 endif

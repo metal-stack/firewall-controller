@@ -1,5 +1,5 @@
 # Build the firewall-controller binary
-FROM golang:1.15 as builder
+FROM golang:1.16 as builder
 
 ENV KUBEBUILDER_DOWNLOAD_URL=https://github.com/kubernetes-sigs/kubebuilder/releases/download
 ENV KUBEBUILDER_VER=2.3.1
@@ -25,11 +25,10 @@ COPY main.go main.go
 COPY api/ api/
 COPY controllers/ controllers/
 COPY pkg/ pkg/
-COPY statik/ statik/
 COPY hack/ hack/
 
 # Build
-RUN make test all
+RUN make test-all
 
 # Final Image
 FROM debian:10
