@@ -37,13 +37,13 @@ func (e *ipEntry) getNewAndDeletedIPs(ips []net.IP) (newIPs, deletedIPs []nftabl
 		if _, ok := currentIps[s]; ok {
 			currentIps[s] = true
 		} else {
-			newIPs = append(newIPs, nftables.SetElement{Val: ip})
+			newIPs = append(newIPs, nftables.SetElement{Key: ip})
 		}
 	}
 
 	for ip, exists := range currentIps {
 		if !exists {
-			deletedIPs = append(deletedIPs, nftables.SetElement{Val: net.ParseIP(ip)})
+			deletedIPs = append(deletedIPs, nftables.SetElement{Key: net.ParseIP(ip)})
 		}
 	}
 
@@ -114,8 +114,7 @@ func (c *DNSCache) updateIPV4Entry(qname string, ips []net.IP, lookupTime time.T
 	}
 
 	if entry.ipv4 == nil {
-		setName, err = c.createNftSet(qname, nftables.TypeIPAddr)
-		if err != nil {
+		if setName, err = c.createNftSet(qname, nftables.TypeIPAddr); err != nil {
 			return fmt.Errorf("failed to create nft set: %w", err)
 		}
 		entry.ipv4 = &ipEntry{
@@ -131,7 +130,9 @@ func (c *DNSCache) updateIPV4Entry(qname string, ips []net.IP, lookupTime time.T
 
 	if newIPs != nil || deletedIPs != nil {
 		entry.ipv4.ips = ips
-		c.updateNftSet(newIPs, deletedIPs, setName, nftables.TypeIPAddr)
+		if err = c.updateNftSet(newIPs, deletedIPs, setName, nftables.TypeIPAddr); err != nil {
+			return fmt.Errorf("failed to update nft set: %w", err)
+		}
 	}
 
 	return nil
