@@ -1,24 +1,215 @@
 package dns
 
 import (
+	"crypto/md5"
+	"encoding/hex"
+	"fmt"
+	"math"
+	"net"
+	"strings"
 	"time"
+	"unicode"
 
+	"github.com/google/nftables"
 	dnsgo "github.com/miekg/dns"
 )
 
+const (
+	tableName = "firewall"
+)
+
+type ipEntry struct {
+	ips            []net.IP
+	lookupTime     time.Time
+	ttl            time.Duration
+	expirationTime time.Time
+	setName        string
+}
+
+func (e *ipEntry) getNewAndDeletedIPs(ips []net.IP) (newIPs, deletedIPs []nftables.SetElement) {
+	currentIps := make(map[string]bool, len(e.ips))
+	for _, ip := range e.ips {
+		currentIps[ip.String()] = false
+	}
+
+	for _, ip := range ips {
+		s := ip.String()
+		if _, ok := currentIps[s]; ok {
+			currentIps[s] = true
+		} else {
+			newIPs = append(newIPs, nftables.SetElement{Val: ip})
+		}
+	}
+
+	for ip, exists := range currentIps {
+		if !exists {
+			deletedIPs = append(deletedIPs, nftables.SetElement{Val: net.ParseIP(ip)})
+		}
+	}
+
+	return
+}
+
 type cacheEntry struct {
-	ips []string
-	ttl
+	ipv4 *ipEntry
+	ipv6 *ipEntry
 }
 
 type DNSCache struct {
 	fqdnToEntry map[string]cacheEntry
 }
 
-func (c *DNSCache) GetIPs(fqdn string) []string {}
+// TODO GetIPs returns list of IPs for FQDN
+func (c *DNSCache) GetIPs(fqdn string) []string {
+	return nil
+}
 
-func (c *DNSCache) GetIPsForRegex(regex string) []string {}
+// TODO GetIPsForRegex returns list of IPs for FQDN that match provided regex
+func (c *DNSCache) GetIPsForRegex(regex string) []string {
+	return nil
+}
 
-func (c *DNSCache) Update(lookupTime time.Time, msg *dnsgo.Msg) bool {
+// Update DNS cache.
+// It expects that there was only one question to DNS(majority of cases).
+// So it picks first qname and skips all others(if there is).
+func (c *DNSCache) Update(lookupTime time.Time, msg *dnsgo.Msg) error {
+	qname := strings.ToLower(msg.Question[0].Name)
 
+	ipv4 := []net.IP{}
+	ipv6 := []net.IP{}
+	minIPv4TTL := uint32(math.MaxUint32)
+	minIPv6TTL := uint32(math.MaxUint32)
+
+	for _, ans := range msg.Answer {
+		if strings.ToLower(ans.Header().Name) != qname {
+			continue
+		}
+
+		switch rr := ans.(type) {
+		case *dnsgo.A:
+			ipv4 = append(ipv4, rr.A)
+			if minIPv4TTL > rr.Hdr.Ttl {
+				minIPv4TTL = rr.Hdr.Ttl
+			}
+		case *dnsgo.AAAA:
+			ipv6 = append(ipv6, rr.AAAA)
+			if minIPv6TTL > rr.Hdr.Ttl {
+				minIPv6TTL = rr.Hdr.Ttl
+			}
+		}
+	}
+
+	return c.updateIPV4Entry(qname, ipv4, lookupTime, time.Duration(minIPv4TTL))
+}
+
+func (c *DNSCache) updateIPV4Entry(qname string, ips []net.IP, lookupTime time.Time, ttl time.Duration) error {
+	var (
+		setName string
+		err     error
+	)
+
+	entry, exists := c.fqdnToEntry[qname]
+	if !exists {
+		entry = cacheEntry{}
+	}
+
+	if entry.ipv4 == nil {
+		setName, err = c.createNftSet(qname, nftables.TypeIPAddr)
+		if err != nil {
+			return fmt.Errorf("failed to create nft set: %w", err)
+		}
+		entry.ipv4 = &ipEntry{
+			expirationTime: lookupTime.Add(ttl),
+			setName:        setName,
+		}
+	}
+
+	newIPs, deletedIPs := entry.ipv4.getNewAndDeletedIPs(ips)
+	if !entry.ipv4.expirationTime.After(time.Now()) {
+		entry.ipv4.expirationTime = lookupTime.Add(ttl)
+	}
+
+	if newIPs != nil || deletedIPs != nil {
+		entry.ipv4.ips = ips
+		c.updateNftSet(newIPs, deletedIPs, setName, nftables.TypeIPAddr)
+	}
+
+	return nil
+}
+
+// TODO
+func (c *DNSCache) updateIPV6Entry(qname string, ipv4 []net.IP, lookupTime time.Time, minIPv4TTL uint32) {
+
+}
+
+// createNftSet creates new Nftables set
+func (c *DNSCache) createNftSet(qname string, dataType nftables.SetDatatype) (setName string, err error) {
+	// TODO delete old table if exists
+	setName = createSetName(qname, dataType.Name)
+	conn := nftables.Conn{}
+
+	table := &nftables.Table{
+		Name:   tableName,
+		Family: nftables.TableFamilyINet,
+	}
+	set := &nftables.Set{
+		Table:   table,
+		Name:    setName,
+		KeyType: dataType,
+	}
+
+	if err = conn.AddSet(set, nil); err != nil {
+		return "", fmt.Errorf("failed to add set: %w", err)
+	}
+	if err = conn.Flush(); err != nil {
+		return "", fmt.Errorf("failed to save set: %w", err)
+	}
+
+	return setName, nil
+}
+
+// updateNftSet adds/deletes elements from Nftables set
+func (c *DNSCache) updateNftSet(
+	newIPs, deletedIPs []nftables.SetElement,
+	setName string,
+	dataType nftables.SetDatatype,
+) error {
+	conn := nftables.Conn{}
+
+	table := &nftables.Table{
+		Name:   tableName,
+		Family: nftables.TableFamilyINet,
+	}
+	set := &nftables.Set{
+		Table:   table,
+		Name:    setName,
+		KeyType: dataType,
+	}
+
+	if err := conn.SetAddElements(set, newIPs); err != nil {
+		return fmt.Errorf("failed to add set elements: %w", err)
+	}
+	if err := conn.SetDeleteElements(set, deletedIPs); err != nil {
+		return fmt.Errorf("failed to delete set elements: %w", err)
+
+	}
+
+	if err := conn.Flush(); err != nil {
+		return fmt.Errorf("failed to save changes to set: %w", err)
+	}
+	return nil
+}
+
+func createSetName(qname, dataType string) (setName string) {
+	md5Hash := md5.Sum([]byte(qname + dataType))
+	hex := hex.EncodeToString(md5Hash[:])
+
+	for i, c := range hex {
+		if !unicode.IsDigit(c) {
+			setName = hex[i : i+16]
+			break
+		}
+	}
+
+	return
 }
