@@ -86,8 +86,11 @@ func (p DNSProxy) Run() error {
 func getUpdateCacheFunc(log logr.Logger, cache *DNSCache) func(lookupTime time.Time, response *dnsgo.Msg) {
 	return func(lookupTime time.Time, response *dnsgo.Msg) {
 		if response.Response && response.Rcode == dnsgo.RcodeSuccess {
-			if cache.Update(lookupTime, response) {
-				log.WithValues(reqIdLogField, response.Id).Info("cache updated")
+			scopedLog := log.WithValues(reqIdLogField, response.Id)
+			if err := cache.Update(lookupTime, response); err != nil {
+				scopedLog.Error(err, "failed to update DNS cache")
+			} else {
+				scopedLog.Info("cache updated")
 			}
 		}
 	}
