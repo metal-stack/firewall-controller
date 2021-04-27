@@ -21,7 +21,7 @@ jobs:
         sudo modprobe dummy
         sudo ip link add vrf42 type dummy
         sudo ip link add vlan42 type dummy
-        sudo --preserve-env=GOROOT make test-all clean
+        sudo --preserve-env make test-all clean
 
   build:
     needs: integration
