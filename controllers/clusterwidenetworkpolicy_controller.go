@@ -22,7 +22,6 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
@@ -30,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	"github.com/metal-stack/firewall-controller/pkg/dns"
 	"github.com/metal-stack/firewall-controller/pkg/nftables"
 )
 
@@ -39,6 +39,7 @@ type ClusterwideNetworkPolicyReconciler struct {
 	client.Client
 	Log      logr.Logger
 	Scheme   *runtime.Scheme
+	Cache    *dns.DNSCache
 	recorder record.EventRecorder
 }
 
@@ -102,7 +103,7 @@ func (r *ClusterwideNetworkPolicyReconciler) reconcileRules(ctx context.Context,
 		return ctrl.Result{}, err
 	}
 
-	var services v1.ServiceList
+	var services corev1.ServiceList
 	if err := r.List(ctx, &services); err != nil {
 		return ctrl.Result{}, err
 	}

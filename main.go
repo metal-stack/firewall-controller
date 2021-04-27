@@ -24,15 +24,15 @@ import (
 	"os"
 	"time"
 
+	"github.com/metal-stack/metal-lib/pkg/sign"
+	"github.com/metal-stack/v"
+	"github.com/rakyll/statik/fs"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
-	"github.com/metal-stack/metal-lib/pkg/sign"
-	"github.com/metal-stack/v"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/controllers"
@@ -159,6 +159,7 @@ func main() {
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicy"),
 		Scheme: mgr.GetScheme(),
+		Cache:  dnsCache,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ClusterwideNetworkPolicy")
 		os.Exit(1)
