@@ -67,9 +67,12 @@ deploy: manifests
 	kustomize build config/default | kubectl apply -f -
 
 # Generate manifests e.g. CRD, RBAC etc.
-manifests: controller-gen
-	wget https://raw.githubusercontent.com/metal-stack/metal-networker/${METAL_NETWORKER_VERSION}/internal/netconf/tpl/frr.firewall.tpl -O ./pkg/network/frr.firewall.tpl
+manifests: controller-gen fetch-template
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+
+# Fetch firewall template
+fetch-template:
+	wget https://raw.githubusercontent.com/metal-stack/metal-networker/${METAL_NETWORKER_VERSION}/internal/netconf/tpl/frr.firewall.tpl -O ./pkg/network/frr.firewall.tpl
 
 # Run go fmt against code
 fmt:
