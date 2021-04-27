@@ -20,8 +20,6 @@ const (
 
 type ipEntry struct {
 	ips            []net.IP
-	lookupTime     time.Time
-	ttl            time.Duration
 	expirationTime time.Time
 	setName        string
 }
@@ -57,6 +55,7 @@ type cacheEntry struct {
 
 type DNSCache struct {
 	fqdnToEntry map[string]cacheEntry
+	setNames    map[string]struct{}
 }
 
 // TODO GetIPs returns list of IPs for FQDN
@@ -99,7 +98,14 @@ func (c *DNSCache) Update(lookupTime time.Time, msg *dnsgo.Msg) error {
 		}
 	}
 
-	return c.updateIPV4Entry(qname, ipv4, lookupTime, time.Duration(minIPv4TTL))
+	if err := c.updateIPV4Entry(qname, ipv4, lookupTime, time.Duration(minIPv4TTL)); err != nil {
+		return fmt.Errorf("failed to update IPv4 addresses: %w", err)
+	}
+	if err := c.updateIPV6Entry(qname, ipv6, lookupTime, time.Duration(minIPv6TTL)); err != nil {
+		return fmt.Errorf("failed to update IPv6 addresses: %w", err)
+	}
+
+	return nil
 }
 
 func (c *DNSCache) updateIPV4Entry(qname string, ips []net.IP, lookupTime time.Time, ttl time.Duration) error {
@@ -138,15 +144,45 @@ func (c *DNSCache) updateIPV4Entry(qname string, ips []net.IP, lookupTime time.T
 	return nil
 }
 
-// TODO
-func (c *DNSCache) updateIPV6Entry(qname string, ipv4 []net.IP, lookupTime time.Time, minIPv4TTL uint32) {
+func (c *DNSCache) updateIPV6Entry(qname string, ips []net.IP, lookupTime time.Time, ttl time.Duration) error {
+	var (
+		setName string
+		err     error
+	)
 
+	entry, exists := c.fqdnToEntry[qname]
+	if !exists {
+		entry = cacheEntry{}
+	}
+
+	if entry.ipv6 == nil {
+		if setName, err = c.createNftSet(qname, nftables.TypeIP6Addr); err != nil {
+			return fmt.Errorf("failed to create nft set: %w", err)
+		}
+		entry.ipv6 = &ipEntry{
+			expirationTime: lookupTime.Add(ttl),
+			setName:        setName,
+		}
+	}
+
+	newIPs, deletedIPs := entry.ipv6.getNewAndDeletedIPs(ips)
+	if !entry.ipv6.expirationTime.After(time.Now()) {
+		entry.ipv6.expirationTime = lookupTime.Add(ttl)
+	}
+
+	if newIPs != nil || deletedIPs != nil {
+		entry.ipv6.ips = ips
+		if err = c.updateNftSet(newIPs, deletedIPs, setName, nftables.TypeIP6Addr); err != nil {
+			return fmt.Errorf("failed to update nft set: %w", err)
+		}
+	}
+
+	return nil
 }
 
 // createNftSet creates new Nftables set
 func (c *DNSCache) createNftSet(qname string, dataType nftables.SetDatatype) (setName string, err error) {
-	// TODO delete old table if exists
-	setName = createSetName(qname, dataType.Name)
+	setName = c.createSetName(qname, dataType.Name, 0)
 	conn := nftables.Conn{}
 
 	table := &nftables.Table{
@@ -201,7 +237,7 @@ func (c *DNSCache) updateNftSet(
 	return nil
 }
 
-func createSetName(qname, dataType string) (setName string) {
+func (c *DNSCache) createSetName(qname, dataType string, suffix int) (setName string) {
 	md5Hash := md5.Sum([]byte(qname + dataType))
 	hex := hex.EncodeToString(md5Hash[:])
 
@@ -212,5 +248,11 @@ func createSetName(qname, dataType string) (setName string) {
 		}
 	}
 
+	// Check that set name isn't taken already
+	if _, ok := c.setNames[setName]; ok {
+		setName = c.createSetName(qname, dataType, suffix+1)
+	}
+
+	c.setNames[setName] = struct{}{}
 	return
 }
