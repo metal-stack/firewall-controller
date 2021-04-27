@@ -28,7 +28,7 @@ COPY pkg/ pkg/
 COPY hack/ hack/
 
 # Build
-RUN make test-all
+RUN make test all
 
 # Final Image
 FROM debian:10
