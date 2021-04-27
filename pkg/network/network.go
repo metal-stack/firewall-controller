@@ -82,6 +82,10 @@ func tmpFile(prefix string) (string, error) {
 
 func readTpl(tplName string) (*template.Template, error) {
 	contents, err := templates.ReadFile(tplName)
+	if err != nil {
+		return nil, err
+	}
+
 	t, err := template.New(tplName).Parse(string(contents))
 	if err != nil {
 		return nil, fmt.Errorf("could not parse template %v from embed.FS: %w", tplName, err)

@@ -280,7 +280,7 @@ func (r *FirewallReconciler) reconcileFirewallServices(ctx context.Context, f fi
 			errors = multierror.Append(errors, err)
 		}
 	}
-	return errors
+	return errors.ErrorOrNil()
 }
 
 // reconcileFirewallService reconciles a single service that is to be exposed at the firewall.
