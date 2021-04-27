@@ -17,6 +17,7 @@ jobs:
 
     - name: run integration tests
       run: |
+        which go
         sudo apt install -y --no-install-recommends nftables iproute2 kmod
         sudo modprobe dummy
         sudo ip link add vrf42 type dummy

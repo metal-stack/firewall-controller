@@ -101,6 +101,7 @@ ifeq (, $(shell which controller-gen))
 	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
 	cd $$CONTROLLER_GEN_TMP_DIR ;\
 	go env ;\
+	which go; \
 	go version ;\
 	ls -alh $$GOTOOLDIR ;\
 	go mod init tmp ;\
