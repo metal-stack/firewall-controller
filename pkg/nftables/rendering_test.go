@@ -6,12 +6,9 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	_ "github.com/metal-stack/firewall-controller/pkg/nftables/statik"
-	"github.com/rakyll/statik/fs"
 )
 
 func TestFirewallRenderingData_renderString(t *testing.T) {
-	statikFS, _ := fs.NewWithNamespace("tpl")
 	tests := []struct {
 		name    string
 		data    *firewallRenderingData
@@ -24,7 +21,6 @@ func TestFirewallRenderingData_renderString(t *testing.T) {
 					Egress:  []string{"egress rule"},
 					Ingress: []string{"ingress rule"},
 				},
-				statikFS:         statikFS,
 				InternalPrefixes: "1.2.3.4",
 				RateLimitRules:   []string{"meta iifname \"eth0\" limit rate over 10 mbytes/second counter name drop_ratelimit drop"},
 				SnatRules:        []string{},
@@ -39,7 +35,6 @@ func TestFirewallRenderingData_renderString(t *testing.T) {
 					Egress:  []string{"egress rule 1", "egress rule 2"},
 					Ingress: []string{"ingress rule 1", "ingress rule 2"},
 				},
-				statikFS:         statikFS,
 				InternalPrefixes: "1.2.3.0/24, 2.3.4.0/8",
 				RateLimitRules:   []string{"meta iifname \"eth0\" limit rate over 10 mbytes/second counter name drop_ratelimit drop"},
 				SnatRules:        []string{"ip saddr { 10.0.0.0/8 } oifname \"vlan104009\" counter snat 185.1.2.3 comment \"snat internet\""},
@@ -54,7 +49,6 @@ func TestFirewallRenderingData_renderString(t *testing.T) {
 					Egress:  []string{"ip daddr == 1.2.3.4"},
 					Ingress: []string{"ip saddr == 1.2.3.4"},
 				},
-				statikFS:         statikFS,
 				InternalPrefixes: "1.2.3.4",
 				RateLimitRules:   []string{},
 				SnatRules:        []string{},

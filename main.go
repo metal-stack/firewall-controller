@@ -17,13 +17,12 @@ limitations under the License.
 package main
 
 import (
+	"embed"
 	"flag"
 	"fmt"
+	"io/fs"
 	"os"
 	"time"
-
-	_ "github.com/metal-stack/firewall-controller/statik"
-	"github.com/rakyll/statik/fs"
 
 	"github.com/metal-stack/firewall-controller/controllers"
 	"github.com/metal-stack/firewall-controller/controllers/crd"
@@ -39,6 +38,9 @@ import (
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	// +kubebuilder:scaffold:imports
 )
+
+//go:embed config/crd/bases/*.yaml
+var crds embed.FS
 
 var (
 	scheme   = runtime.NewScheme()
@@ -170,18 +172,13 @@ func main() {
 }
 
 func readCRDsFromVFS() (map[string][]byte, error) {
-	statikFS, err := fs.NewWithNamespace("crd")
-	if err != nil {
-		setupLog.Error(err, "unable to create virtual fs")
-		return nil, err
-	}
 	crdMap := make(map[string][]byte)
-	err = fs.Walk(statikFS, "/", func(path string, info os.FileInfo, err error) error {
+	err := fs.WalkDir(crds, "/", func(path string, info os.DirEntry, err error) error {
 		setupLog.Info("walk", "path", path)
 		if info.IsDir() {
 			return nil
 		}
-		b, readerr := fs.ReadFile(statikFS, path)
+		b, readerr := fs.ReadFile(crds, path)
 		if readerr != nil {
 			return fmt.Errorf("unable to readfile:%v", readerr)
 		}

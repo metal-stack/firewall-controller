@@ -10,9 +10,8 @@ import (
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/metal-go/api/models"
 	"github.com/metal-stack/metal-networker/pkg/netconf"
-	"github.com/rakyll/statik/fs"
 
-	_ "github.com/metal-stack/firewall-controller/pkg/network/statik"
+	"embed"
 )
 
 const (
@@ -20,6 +19,9 @@ const (
 	FrrConfig          = "/etc/frr/frr.conf"
 	TmpPath            = "/var/tmp"
 )
+
+//go:embed *.tpl
+var templates embed.FS
 
 // ReconcileNetwork reconciles the network settings for a firewall
 // in the current stage it only changes the FRR-Configuration when network prefixes or FRR template changes
@@ -79,25 +81,14 @@ func tmpFile(prefix string) (string, error) {
 }
 
 func readTpl(tplName string) (*template.Template, error) {
-	statikFS, err := fs.NewWithNamespace("networker")
+	contents, err := templates.ReadFile(tplName)
 	if err != nil {
-		return nil, fmt.Errorf("could not open statik namespace tpl: %w", err)
+		return nil, err
 	}
 
-	r, err := statikFS.Open("/" + tplName)
+	t, err := template.New(tplName).Parse(string(contents))
 	if err != nil {
-		return nil, fmt.Errorf("could not open template %v from statik: %w", tplName, err)
-	}
-	defer r.Close()
-
-	s, err := ioutil.ReadAll(r)
-	if err != nil {
-		return nil, fmt.Errorf("could not read template %v from statik: %w", tplName, err)
-	}
-
-	t, err := template.New(tplName).Parse(string(s))
-	if err != nil {
-		return nil, fmt.Errorf("could not parse template %v from statik: %w", tplName, err)
+		return nil, fmt.Errorf("could not parse template %v from embed.FS: %w", tplName, err)
 	}
 
 	return t, nil

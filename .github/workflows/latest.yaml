@@ -10,6 +10,10 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v2
+    - name: Set up Go 1.16
+      uses: actions/setup-go@v2.1.3
+      with:
+        go-version: '1.16.x'
 
     - name: run integration tests
       run: |
@@ -17,13 +21,17 @@ jobs:
         sudo modprobe dummy
         sudo ip link add vrf42 type dummy
         sudo ip link add vlan42 type dummy
-        sudo make test-all clean
+        sudo "PATH=$PATH" --preserve-env=GOROOT make test-all clean
 
   build:
     needs: integration
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v2
+    - name: Set up Go 1.16
+      uses: actions/setup-go@v2.1.3
+      with:
+        go-version: '1.16.x'
 
     - name: Docker Login
       uses: docker/login-action@v1

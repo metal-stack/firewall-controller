@@ -1,6 +1,7 @@
 package nftables
 
 import (
+	"embed"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -10,8 +11,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 
-	// using blank import for static files included with statik
-	_ "github.com/metal-stack/firewall-controller/pkg/nftables/statik"
 	mn "github.com/metal-stack/metal-lib/pkg/net"
 	"github.com/vishvananda/netlink"
 	corev1 "k8s.io/api/core/v1"
@@ -25,6 +24,9 @@ const (
 	nftBin              = "/usr/sbin/nft"
 	systemctlBin        = "/bin/systemctl"
 )
+
+//go:embed *.tpl
+var templates embed.FS
 
 // Firewall assembles nftable rules based on k8s entities
 type Firewall struct {
