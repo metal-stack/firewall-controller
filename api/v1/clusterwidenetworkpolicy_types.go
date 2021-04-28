@@ -109,8 +109,29 @@ type EgressRule struct {
 	// empty or missing, this rule matches all destinations (traffic not restricted by
 	// destination). If this field is present and contains at least one item, this rule
 	// allows traffic only if the traffic matches at least one item in the to list.
+	// To rules can't contain ToFQDNs rules.
 	// +optional
 	To []networking.IPBlock `json:"to,omitempty"`
+
+	// List of FQDNs(fully qualified domain name) for outgoing traffic of a cluster for this rule.
+	// Items in this list are combined using a logical OR operation. This field is used as
+	// whitelist of DNS names. If none specified, rule will not be applied.
+	// ToFQDNs rules can't contain To rules.
+	// +optional
+	ToFQDNs []FQDNSelector `json:"toFQDNs,omitempty"`
+}
+
+// TODO add trailing dot?
+// FQDNSelector describes rules for matching DNS names.
+type FQDNSelector struct {
+	// MatchName matches FQDN.
+	// +kubebuilder:validation:Pattern=`^([-a-zA-Z0-9_]+[.]?)+$`
+	MatchName string `json:"matchName,omitempty"`
+
+	// MatchPattern allows using "*" to match DNS names.
+	// "*" matches 0 or more valid characters.
+	// +kubebuilder:validation:Pattern=`^([-a-zA-Z0-9_*]+[.]?)+$`
+	MatchPattern string `json:"matchPattern,omitempty"`
 }
 
 // Validate validates the spec of a ClusterwideNetworkPolicy

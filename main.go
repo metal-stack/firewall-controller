@@ -29,7 +29,6 @@ import (
 	_ "github.com/metal-stack/firewall-controller/statik"
 	"github.com/metal-stack/metal-lib/pkg/sign"
 	"github.com/metal-stack/v"
-	"github.com/rakyll/statik/fs"
 
 	"github.com/metal-stack/firewall-controller/pkg/dns"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"

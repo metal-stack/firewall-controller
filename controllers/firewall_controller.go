@@ -74,7 +74,12 @@ const (
 	exporterLabelKey          = "app"
 )
 
-var done = ctrl.Result{}
+var (
+	done            = ctrl.Result{}
+	firewallRequeue = ctrl.Result{
+		RequeueAfter: firewallReconcileInterval,
+	}
+)
 
 // Reconcile reconciles a firewall by:
 // - reading Services of type Loadbalancer
@@ -85,9 +90,7 @@ var done = ctrl.Result{}
 func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("firewall", req.NamespacedName)
-	requeue := ctrl.Result{
-		RequeueAfter: firewallReconcileInterval,
-	}
+	requeue := firewallRequeue
 
 	var f firewallv1.Firewall
 	if err := r.Get(ctx, req.NamespacedName, &f); err != nil {
@@ -123,11 +126,6 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	var errors *multierror.Error
-	log.Info("reconciling nftables rules")
-	if err = r.reconcileRules(ctx, f, log); err != nil {
-		errors = multierror.Append(errors, err)
-	}
-
 	log.Info("reconciling network settings")
 	changed, err := network.ReconcileNetwork(f, log)
 	if changed && err == nil {
