@@ -26,7 +26,6 @@ import (
 
 	"github.com/metal-stack/metal-lib/pkg/sign"
 	"github.com/metal-stack/v"
-	"github.com/rakyll/statik/fs"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"

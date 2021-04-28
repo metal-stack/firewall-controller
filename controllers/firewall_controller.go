@@ -78,7 +78,12 @@ const (
 	exporterLabelKey          = "app"
 )
 
-var done = ctrl.Result{}
+var (
+	done            = ctrl.Result{}
+	firewallRequeue = ctrl.Result{
+		RequeueAfter: firewallReconcileInterval,
+	}
+)
 
 // Reconcile reconciles a firewall by:
 // - reading Services of type Loadbalancer
@@ -88,9 +93,7 @@ var done = ctrl.Result{}
 // +kubebuilder:rbac:groups=metal-stack.io,resources=firewalls/status,verbs=get;update;patch
 func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("firewall", req.NamespacedName)
-	requeue := ctrl.Result{
-		RequeueAfter: firewallReconcileInterval,
-	}
+	requeue := firewallRequeue
 
 	var f firewallv1.Firewall
 	if err := r.Get(ctx, req.NamespacedName, &f); err != nil {
