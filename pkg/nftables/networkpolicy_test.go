@@ -4,11 +4,12 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/pointer"
+
+	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 )
 
 func port(p int) *intstr.IntOrString {
@@ -111,14 +112,15 @@ func TestClusterwideNetworkPolicyRules(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			ingress, egress := clusterwideNetworkPolicyRules(tt.input, false)
+			ingress, egress, _ := clusterwideNetworkPolicyRules(nil, tt.input, false)
 			if !cmp.Equal(ingress, tt.want.ingress) {
 				t.Errorf("clusterwideNetworkPolicyRules() ingress diff: %v", cmp.Diff(ingress, tt.want.ingress))
 			}
 			if !cmp.Equal(egress, tt.want.egress) {
 				t.Errorf("clusterwideNetworkPolicyRules() egress diff: %v", cmp.Diff(egress, tt.want.egress))
 			}
-			ingressAL, egressAL := clusterwideNetworkPolicyRules(tt.input, true)
+
+			ingressAL, egressAL, _ := clusterwideNetworkPolicyRules(nil, tt.input, true)
 			if !cmp.Equal(ingressAL, tt.want.ingressAL) {
 				t.Errorf("clusterwideNetworkPolicyRules() ingress with accessLog diff: %v", cmp.Diff(ingressAL, tt.want.ingressAL))
 			}
@@ -189,11 +191,11 @@ func TestClusterwideNetworkPolicyEgressRules(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			egress := clusterwideNetworkPolicyEgressRules(tt.input, false)
+			egress, _ := clusterwideNetworkPolicyEgressRules(nil, tt.input, false)
 			if !cmp.Equal(egress, tt.want.egress) {
 				t.Errorf("clusterwideNetworkPolicyEgressRules() diff: %v", cmp.Diff(egress, tt.want.egress))
 			}
-			egressAL := clusterwideNetworkPolicyEgressRules(tt.input, true)
+			egressAL, _ := clusterwideNetworkPolicyEgressRules(nil, tt.input, true)
 			if !cmp.Equal(egressAL, tt.want.egressAL) {
 				t.Errorf("clusterwideNetworkPolicyEgressRules() with accessLog diff: %v", cmp.Diff(egressAL, tt.want.egressAL))
 			}

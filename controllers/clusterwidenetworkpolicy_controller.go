@@ -18,30 +18,40 @@ package controllers
 
 import (
 	"context"
-	"fmt"
+	"reflect"
+	"sort"
+	"time"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/pkg/dns"
 	"github.com/metal-stack/firewall-controller/pkg/nftables"
 )
 
+const (
+	rulesReconcileInterval = 30 * time.Second
+)
+
 // ClusterwideNetworkPolicyReconciler reconciles a ClusterwideNetworkPolicy object
 // +kubebuilder:rbac:groups=metal-stack.io,resources=events,verbs=create;patch
 type ClusterwideNetworkPolicyReconciler struct {
 	client.Client
-	Log      logr.Logger
-	Scheme   *runtime.Scheme
-	Cache    *dns.DNSCache
-	recorder record.EventRecorder
+	Log         logr.Logger
+	Scheme      *runtime.Scheme
+	Cache       *dns.DNSCache
+	policySpecs map[string]firewallv1.PolicySpec
 }
 
 // Reconcile ClusterwideNetworkPolicy and creates nftables rules accordingly
@@ -50,88 +60,159 @@ type ClusterwideNetworkPolicyReconciler struct {
 func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("cwnp", req.Name)
 
-	var clusterNP firewallv1.ClusterwideNetworkPolicy
-	if err := r.Get(ctx, req.NamespacedName, &clusterNP); err != nil {
-		return done, client.IgnoreNotFound(err)
+	var cnwps firewallv1.ClusterwideNetworkPolicyList
+	if err := r.List(ctx, &cnwps, client.InNamespace(firewallv1.ClusterwideNetworkPolicyNamespace)); err != nil {
+		return done, err
 	}
 
-	// if network policy does not belong to the namespace where clusterwide network policies are stored:
-	// update status with error message
-	if req.Namespace != firewallv1.ClusterwideNetworkPolicyNamespace {
-		r.recorder.Event(
-			&clusterNP,
-			corev1.EventTypeWarning,
-			"Unapplicable",
-			fmt.Sprintf("cluster wide network policies must be defined in namespace %s otherwise they won't take effect", firewallv1.ClusterwideNetworkPolicyNamespace),
-		)
-		return done, nil
-	}
-
-	err := clusterNP.Spec.Validate()
-	if err != nil {
-		r.recorder.Event(
-			&clusterNP,
-			corev1.EventTypeWarning,
-			"Unapplicable",
-			fmt.Sprintf("cluster wide network policy is not valid: %v", err),
-		)
-		return done, nil
-	}
-
-	// Get Firewall resource
-	var f firewallv1.Firewall
-	namespacedName := types.NamespacedName{
-		Name:      firewallName,
-		Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
-	}
-	if err := r.Get(ctx, namespacedName, &f); err != nil {
-		if apierrors.IsNotFound(err) {
-			defaultFw := nftables.NewDefaultFirewall()
-			log.Info("flushing k8s firewall rules")
-			err := defaultFw.Flush()
-			if err == nil {
-				return done, nil
-			}
-			return firewallRequeue, err
-		}
-
-		return done, client.IgnoreNotFound(err)
-	}
-
-	if err := r.reconcileRules(ctx, f, log); err != nil {
-		return firewallRequeue, err
+	// Check if new sets added or CNWP specs updated
+	if r.isSpecsChanged(cnwps) || r.nftableSetsAdded() {
+		return r.reconcileRules(ctx, log, cnwps)
 	}
 
 	return done, nil
 }
 
-func (r *ClusterwideNetworkPolicyReconciler) reconcileRules(
-	ctx context.Context,
-	firewall firewallv1.Firewall,
-	log logr.Logger,
-) error {
-	var clusterNPs firewallv1.ClusterwideNetworkPolicyList
-	if err := r.List(ctx, &clusterNPs, client.InNamespace(firewallv1.ClusterwideNetworkPolicyNamespace)); err != nil {
-		return err
+func (r *ClusterwideNetworkPolicyReconciler) reconcileRules(ctx context.Context, log logr.Logger, cnwps firewallv1.ClusterwideNetworkPolicyList) (ctrl.Result, error) {
+	var f firewallv1.Firewall
+	nn := types.NamespacedName{
+		Name:      firewallName,
+		Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
+	}
+	if err := r.Get(ctx, nn, &f); err != nil {
+		if apierrors.IsNotFound(err) {
+			return done, err
+		}
+
+		return done, client.IgnoreNotFound(err)
 	}
 
 	var services corev1.ServiceList
 	if err := r.List(ctx, &services); err != nil {
-		return err
+		return done, err
 	}
 
-	nftablesFirewall := nftables.NewFirewall(&clusterNPs, &services, firewall.Spec, log)
+	nftablesFirewall := nftables.NewFirewall(&cnwps, &services, f.Spec, r.Cache, log)
 	if err := nftablesFirewall.Reconcile(); err != nil {
-		return err
+		return done, err
 	}
 
-	return nil
+	r.updateStatus(ctx, cnwps)
+
+	return done, nil
 }
 
-// SetupWithManager configures this controller to watch for ClusterwideNetworkPolicy CRD
+func (r *ClusterwideNetworkPolicyReconciler) updateStatus(ctx context.Context, cnwps firewallv1.ClusterwideNetworkPolicyList) {
+	r.Update(ctx, &cnwps)
+}
+
+func (r *ClusterwideNetworkPolicyReconciler) isSpecsChanged(cnwps firewallv1.ClusterwideNetworkPolicyList) bool {
+	for _, cnwp := range cnwps.Items {
+		nn := types.NamespacedName{
+			Name:      cnwp.Name,
+			Namespace: cnwp.Namespace,
+		}
+		spec, exists := r.policySpecs[nn.String()]
+		if !exists {
+			return true
+		}
+
+		ingressEqual := reflect.DeepEqual(cnwp.Spec.Ingress, spec.Ingress)
+		if !ingressEqual {
+			return true
+		}
+
+		egressEqual := true
+		for i, e := range cnwp.Spec.Egress {
+			old := spec.Egress[i]
+			egressEqual = reflect.DeepEqual(e.Ports, old.Ports)
+			egressEqual = egressEqual && reflect.DeepEqual(e.To, old.To)
+
+			for i, fqdn := range e.ToFQDNs {
+				o := old.ToFQDNs[i]
+				egressEqual = egressEqual && (fqdn.MatchName == o.MatchName)
+				egressEqual = egressEqual && (fqdn.MatchPattern == o.MatchPattern)
+			}
+		}
+		if !egressEqual {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (r *ClusterwideNetworkPolicyReconciler) nftableSetsAdded() bool {
+	// Aggregate all sets
+	for _, spec := range r.policySpecs {
+		for _, e := range spec.Egress {
+			if len(e.To) > 0 {
+				continue
+			}
+
+			for _, fqdn := range e.ToFQDNs {
+				sets := map[string]struct{}{}
+				for _, s := range fqdn.Sets {
+					sets[s] = struct{}{}
+				}
+
+				if fqdn.MatchName != "" {
+					if s, found := r.Cache.GetSetNameForFQDN(fqdn.MatchName); found {
+						sets[s] = struct{}{}
+					}
+				} else if fqdn.MatchPattern != "" {
+					for _, s := range r.Cache.GetSetNameForPattern(fqdn.MatchPattern) {
+						sets[s] = struct{}{}
+					}
+				}
+
+				unique := []string{}
+				for s := range sets {
+					unique = append(unique, s)
+				}
+
+				sort.Strings(unique)
+				sort.Strings(fqdn.Sets)
+
+				if !reflect.DeepEqual(unique, fqdn.Sets) {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
+}
+
+// SetupWithManager configures this controller to run in schedule
 func (r *ClusterwideNetworkPolicyReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.recorder = mgr.GetEventRecorderFor("FirewallController")
+	scheduleChan := make(chan event.GenericEvent)
+	mgr.Add(manager.RunnableFunc(func(c <-chan struct{}) error {
+		e := event.GenericEvent{}
+		ticker := time.NewTicker(rulesReconcileInterval)
+
+		for _ = range ticker.C {
+			scheduleChan <- e
+		}
+		return nil
+	}))
+
+	firewallHandler := &handler.EnqueueRequestsFromMapFunc{
+		ToRequests: handler.ToRequestsFunc(
+			func(a handler.MapObject) []reconcile.Request {
+				return []reconcile.Request{
+					{
+						NamespacedName: types.NamespacedName{
+							Name:      firewallName,
+							Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
+						},
+					},
+				}
+			},
+		),
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&firewallv1.ClusterwideNetworkPolicy{}).
+		Watches(&source.Channel{Source: scheduleChan}, firewallHandler).
 		Complete(r)
 }

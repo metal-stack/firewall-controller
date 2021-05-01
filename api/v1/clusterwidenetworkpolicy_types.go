@@ -132,6 +132,10 @@ type FQDNSelector struct {
 	// "*" matches 0 or more valid characters.
 	// +kubebuilder:validation:Pattern=`^([-a-zA-Z0-9_*]+[.]?)+$`
 	MatchPattern string `json:"matchPattern,omitempty"`
+
+	// Sets stores nftables sets used for rule
+	// +optional
+	Sets []string `json:"sets,omitempty"`
 }
 
 // Validate validates the spec of a ClusterwideNetworkPolicy

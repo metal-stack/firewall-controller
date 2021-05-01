@@ -140,6 +140,11 @@ spec:
                               names. "*" matches 0 or more valid characters.
                             pattern: ^([-a-zA-Z0-9_*]+[.]?)+$
                             type: string
+                          sets:
+                            description: Sets stores nftables sets used for rule
+                            items:
+                              type: string
+                            type: array
                         type: object
                       type: array
                   type: object

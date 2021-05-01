@@ -13,7 +13,6 @@ require (
 	github.com/metal-stack/metal-networker v0.30.3
 	github.com/metal-stack/v v1.0.3
 	github.com/miekg/dns v1.0.14
-	github.com/rakyll/statik v0.1.7
 	github.com/txn2/txeh v1.3.0
 	github.com/vishvananda/netlink v1.2.1-beta.2
 	go.uber.org/zap v1.23.0
