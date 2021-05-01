@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"regexp"
 	"strings"
 	"time"
 	"unicode"
@@ -15,7 +16,8 @@ import (
 )
 
 const (
-	tableName = "firewall"
+	tableName              = "firewall"
+	allowedDNSCharsREGroup = "[-a-zA-Z0-9_]"
 )
 
 type ipEntry struct {
@@ -58,13 +60,28 @@ type DNSCache struct {
 	setNames    map[string]struct{}
 }
 
-// TODO GetIPs returns list of IPs for FQDN
-func (c *DNSCache) GetIPs(fqdn string) []string {
-	return nil
+// GetSetNameForFQDN returns set name for FQDN
+func (c *DNSCache) GetSetNameForFQDN(fqdn string) (name string, found bool) {
+	entry, found := c.fqdnToEntry[fqdn]
+	if !found {
+		return "", false
+	}
+
+	return entry.ipv4.setName, true
 }
 
-// TODO GetIPsForRegex returns list of IPs for FQDN that match provided regex
-func (c *DNSCache) GetIPsForRegex(regex string) []string {
+// GetSetNameForRegex returns list of IPs for FQDN that match provided regex
+func (c *DNSCache) GetSetNameForPattern(pattern string) (sets []string) {
+	regex := toRegexp(pattern)
+
+	for n, e := range c.fqdnToEntry {
+		if matched, _ := regexp.MatchString(regex, n); !matched {
+			continue
+		}
+
+		sets = append(sets, e.ipv4.setName)
+	}
+
 	return nil
 }
 
@@ -255,4 +272,25 @@ func (c *DNSCache) createSetName(qname, dataType string, suffix int) (setName st
 
 	c.setNames[setName] = struct{}{}
 	return
+}
+
+// ToRegexp converts a pattern into a regexp string
+func toRegexp(pattern string) string {
+	pattern = strings.TrimSpace(pattern)
+	pattern = strings.ToLower(pattern)
+
+	// handle the * match-all case. This will filter down to the end.
+	if pattern == "*" {
+		return "(^(" + allowedDNSCharsREGroup + "+[.])+$)|(^[.]$)"
+	}
+
+	// base case. * becomes .*, but only for DNS valid characters
+	// NOTE: this only works because the case above does not leave the *
+	pattern = strings.Replace(pattern, "*", allowedDNSCharsREGroup+"*", -1)
+
+	// base case. "." becomes a literal .
+	pattern = strings.Replace(pattern, ".", "[.]", -1)
+
+	// Anchor the match to require the whole string to match this expression
+	return "^" + pattern + "$"
 }

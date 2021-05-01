@@ -87,7 +87,7 @@ func TestClusterwideNetworkPolicyRules(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ingress, egress := clusterwideNetworkPolicyRules(tt.input)
+			ingress, egress, _ := clusterwideNetworkPolicyRules(nil, tt.input)
 			if !cmp.Equal(ingress, tt.want.ingress) {
 				t.Errorf("clusterwideNetworkPolicyRules() ingress diff: %v", cmp.Diff(ingress, tt.want.ingress))
 			}
@@ -143,7 +143,7 @@ func TestClusterwideNetworkPolicyEgressRules(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := clusterwideNetworkPolicyEgressRules(tt.input)
+			got, _ := clusterwideNetworkPolicyEgressRules(nil, tt.input)
 			if !cmp.Equal(got, tt.want) {
 				t.Errorf("clusterwideNetworkPolicyEgressRules() diff: %v", cmp.Diff(got, tt.want))
 			}

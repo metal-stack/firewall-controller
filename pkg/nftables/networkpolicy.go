@@ -5,27 +5,28 @@ import (
 	"strings"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	"github.com/metal-stack/firewall-controller/pkg/dns"
 )
 
 // clusterwideNetworkPolicyRules generates nftables rules for a clusterwidenetworkpolicy
-func clusterwideNetworkPolicyRules(np firewallv1.ClusterwideNetworkPolicy) (nftablesRules, nftablesRules) {
-	ingress, egress := nftablesRules{}, nftablesRules{}
+func clusterwideNetworkPolicyRules(
+	cache *dns.DNSCache,
+	np firewallv1.ClusterwideNetworkPolicy,
+) (ingress nftablesRules, egress nftablesRules, updated firewallv1.ClusterwideNetworkPolicy) {
+	updated = np
+
 	if len(np.Spec.Egress) > 0 {
-		egress = append(egress, clusterwideNetworkPolicyEgressRules(np)...)
+		egress, updated = clusterwideNetworkPolicyEgressRules(cache, np)
 	}
 	if len(np.Spec.Ingress) > 0 {
 		ingress = append(ingress, clusterwideNetworkPolicyIngressRules(np)...)
 	}
-	return ingress, egress
+
+	return
 }
 
-func clusterwideNetworkPolicyIngressRules(np firewallv1.ClusterwideNetworkPolicy) nftablesRules {
-	ingress := np.Spec.Ingress
-	if ingress == nil {
-		return nil
-	}
-	rules := nftablesRules{}
-	for _, i := range ingress {
+func clusterwideNetworkPolicyIngressRules(np firewallv1.ClusterwideNetworkPolicy) (rules nftablesRules) {
+	for _, i := range np.Spec.Ingress {
 		allow := []string{}
 		except := []string{}
 		for _, ipBlock := range i.From {
@@ -57,16 +58,15 @@ func clusterwideNetworkPolicyIngressRules(np firewallv1.ClusterwideNetworkPolicy
 			rules = append(rules, assembleDestinationPortRule(common, "udp", udpPorts, comment+" udp"))
 		}
 	}
+
 	return uniqueSorted(rules)
 }
 
-func clusterwideNetworkPolicyEgressRules(np firewallv1.ClusterwideNetworkPolicy) nftablesRules {
-	egress := np.Spec.Egress
-	if egress == nil {
-		return nil
-	}
-	rules := nftablesRules{}
-	for _, e := range egress {
+func clusterwideNetworkPolicyEgressRules(
+	cache *dns.DNSCache,
+	np firewallv1.ClusterwideNetworkPolicy,
+) (rules nftablesRules, updated firewallv1.ClusterwideNetworkPolicy) {
+	for i, e := range np.Spec.Egress {
 		tcpPorts := []string{}
 		udpPorts := []string{}
 		for _, p := range e.Ports {
@@ -77,19 +77,30 @@ func clusterwideNetworkPolicyEgressRules(np firewallv1.ClusterwideNetworkPolicy)
 				udpPorts = append(udpPorts, fmt.Sprint(p.Port))
 			}
 		}
+
+		// Generate allow/except rules
 		allow := []string{}
 		except := []string{}
-		for _, ipBlock := range e.To {
-			allow = append(allow, ipBlock.CIDR)
-			except = append(except, ipBlock.Except...)
+		if len(e.To) > 0 {
+			allow, except = clusterwideNetworkPolicyEgressToRules(e)
+		} else if len(e.ToFQDNs) > 0 {
+			// Generate allow rules based on DNS selectors
+			allow, np.Spec.Egress[i] = clusterwideNetworkPolicyEgressToFQDNRules(cache, e)
 		}
+
 		ruleBase := []string{"ip saddr == @cluster_prefixes"}
 		if len(except) > 0 {
 			ruleBase = append(ruleBase, fmt.Sprintf("ip daddr != { %s }", strings.Join(except, ", ")))
 		}
 		if len(allow) > 0 {
-			if allow[0] != "0.0.0.0/0" {
-				ruleBase = append(ruleBase, fmt.Sprintf("ip daddr { %s }", strings.Join(allow, ", ")))
+			if len(e.To) > 0 {
+				if allow[0] != "0.0.0.0/0" {
+					ruleBase = append(ruleBase, fmt.Sprintf("ip daddr { %s }", strings.Join(allow, ", ")))
+				}
+			} else {
+				for _, a := range allow {
+					ruleBase = append(ruleBase, "ip daddr @%s", a)
+				}
 			}
 		}
 		comment := fmt.Sprintf("accept traffic for np %s", np.ObjectMeta.Name)
@@ -100,5 +111,45 @@ func clusterwideNetworkPolicyEgressRules(np firewallv1.ClusterwideNetworkPolicy)
 			rules = append(rules, assembleDestinationPortRule(ruleBase, "udp", udpPorts, comment+" udp"))
 		}
 	}
-	return uniqueSorted(rules)
+
+	return uniqueSorted(rules), np
+}
+
+func clusterwideNetworkPolicyEgressToRules(e firewallv1.EgressRule) (allow, except []string) {
+	for _, ipBlock := range e.To {
+		allow = append(allow, ipBlock.CIDR)
+		except = append(except, ipBlock.Except...)
+	}
+
+	return
+}
+
+func clusterwideNetworkPolicyEgressToFQDNRules(cache *dns.DNSCache, e firewallv1.EgressRule) (allow []string, updated firewallv1.EgressRule) {
+	for i, fqdn := range e.ToFQDNs {
+		sets := map[string]struct{}{}
+		for _, s := range fqdn.Sets {
+			sets[s] = struct{}{}
+		}
+
+		if fqdn.MatchName != "" {
+			if s, found := cache.GetSetNameForFQDN(fqdn.MatchName); found {
+				sets[s] = struct{}{}
+			}
+
+		} else if fqdn.MatchPattern != "" {
+			for _, s := range cache.GetSetNameForPattern(fqdn.MatchPattern) {
+				sets[s] = struct{}{}
+			}
+		}
+
+		fqdn.Sets = []string{}
+		for s := range sets {
+			allow = append(allow, s)
+			fqdn.Sets = append(fqdn.Sets, s)
+		}
+
+		e.ToFQDNs[i] = fqdn
+	}
+
+	return allow, e
 }
