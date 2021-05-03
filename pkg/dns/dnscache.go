@@ -8,16 +8,17 @@ import (
 	"net"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
 	"github.com/google/nftables"
+	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	dnsgo "github.com/miekg/dns"
 )
 
 const (
-	tableName              = "firewall"
-	allowedDNSCharsREGroup = "[-a-zA-Z0-9_]"
+	tableName = "firewall"
 )
 
 type ipEntry struct {
@@ -56,23 +57,62 @@ type cacheEntry struct {
 }
 
 type DNSCache struct {
+	sync.RWMutex
+
+	client      *dnsgo.Client
 	fqdnToEntry map[string]cacheEntry
 	setNames    map[string]struct{}
 }
 
-// GetSetNameForFQDN returns set name for FQDN
-func (c *DNSCache) GetSetNameForFQDN(fqdn string) (name string, found bool) {
-	entry, found := c.fqdnToEntry[fqdn]
-	if !found {
-		return "", false
+func NewDNSCache() *DNSCache {
+	return &DNSCache{
+		fqdnToEntry: map[string]cacheEntry{},
+		setNames:    map[string]struct{}{},
 	}
-
-	return entry.ipv4.setName, true
 }
 
-// GetSetNameForRegex returns list of IPs for FQDN that match provided regex
-func (c *DNSCache) GetSetNameForPattern(pattern string) (sets []string) {
-	regex := toRegexp(pattern)
+func (c *DNSCache) GetSetsForFQDN(fqdn firewallv1.FQDNSelector) (result []string) {
+	sets := map[string]struct{}{}
+	for _, s := range fqdn.Sets {
+		sets[s] = struct{}{}
+	}
+
+	if fqdn.MatchName != "" {
+		if s := c.getSetNameForFQDN(fqdn.GetMatchName()); s != "" {
+			sets[s] = struct{}{}
+		}
+
+	} else if fqdn.MatchPattern != "" {
+		for _, s := range c.getSetNameForRegex(fqdn.GetRegex()) {
+			sets[s] = struct{}{}
+		}
+	}
+
+	result = make([]string, 0, len(sets))
+	for s := range sets {
+		result = append(result, s)
+	}
+
+	return
+}
+
+// getSetNameForFQDN returns set name for FQDN
+func (c *DNSCache) getSetNameForFQDN(fqdn string) string {
+	c.RLock()
+	defer c.RUnlock()
+
+	entry, found := c.fqdnToEntry[fqdn]
+	if !found {
+		return ""
+	}
+
+	return entry.ipv4.setName
+}
+
+// getSetNameForRegex returns list of IPs for FQDN that match provided regex
+func (c *DNSCache) getSetNameForRegex(regex string) (sets []string) {
+	c.RLock()
+	defer c.RUnlock()
 
 	for n, e := range c.fqdnToEntry {
 		if matched, _ := regexp.MatchString(regex, n); !matched {
@@ -131,6 +171,9 @@ func (c *DNSCache) updateIPV4Entry(qname string, ips []net.IP, lookupTime time.T
 		err     error
 	)
 
+	c.Lock()
+	defer c.Unlock()
+
 	entry, exists := c.fqdnToEntry[qname]
 	if !exists {
 		entry = cacheEntry{}
@@ -166,6 +209,9 @@ func (c *DNSCache) updateIPV6Entry(qname string, ips []net.IP, lookupTime time.T
 		setName string
 		err     error
 	)
+
+	c.Lock()
+	defer c.Unlock()
 
 	entry, exists := c.fqdnToEntry[qname]
 	if !exists {
@@ -268,29 +314,9 @@ func (c *DNSCache) createSetName(qname, dataType string, suffix int) (setName st
 	// Check that set name isn't taken already
 	if _, ok := c.setNames[setName]; ok {
 		setName = c.createSetName(qname, dataType, suffix+1)
+		return
 	}
 
 	c.setNames[setName] = struct{}{}
 	return
-}
-
-// ToRegexp converts a pattern into a regexp string
-func toRegexp(pattern string) string {
-	pattern = strings.TrimSpace(pattern)
-	pattern = strings.ToLower(pattern)
-
-	// handle the * match-all case. This will filter down to the end.
-	if pattern == "*" {
-		return "(^(" + allowedDNSCharsREGroup + "+[.])+$)|(^[.]$)"
-	}
-
-	// base case. * becomes .*, but only for DNS valid characters
-	// NOTE: this only works because the case above does not leave the *
-	pattern = strings.Replace(pattern, "*", allowedDNSCharsREGroup+"*", -1)
-
-	// base case. "." becomes a literal .
-	pattern = strings.Replace(pattern, ".", "[.]", -1)
-
-	// Anchor the match to require the whole string to match this expression
-	return "^" + pattern + "$"
 }

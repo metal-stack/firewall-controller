@@ -151,25 +151,7 @@ func (r *ClusterwideNetworkPolicyReconciler) nftableSetsAdded() bool {
 			}
 
 			for _, fqdn := range e.ToFQDNs {
-				sets := map[string]struct{}{}
-				for _, s := range fqdn.Sets {
-					sets[s] = struct{}{}
-				}
-
-				if fqdn.MatchName != "" {
-					if s, found := r.Cache.GetSetNameForFQDN(fqdn.MatchName); found {
-						sets[s] = struct{}{}
-					}
-				} else if fqdn.MatchPattern != "" {
-					for _, s := range r.Cache.GetSetNameForPattern(fqdn.MatchPattern) {
-						sets[s] = struct{}{}
-					}
-				}
-
-				unique := []string{}
-				for s := range sets {
-					unique = append(unique, s)
-				}
+				unique := r.Cache.GetSetsForFQDN(fqdn)
 
 				sort.Strings(unique)
 				sort.Strings(fqdn.Sets)

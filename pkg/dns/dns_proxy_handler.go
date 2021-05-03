@@ -63,12 +63,12 @@ func (h *DNSProxyHandler) getFromTargetDNS(addr net.Addr, request *dnsgo.Msg) (*
 		return nil, fmt.Errorf("failed to determine transport protocol: %s", protocol)
 	}
 
-	// targetDNSAddr, err := getTargetDNSAddr(addr)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to get target DNS address: %w", err)
-	// }
+	targetDNSAddr, err := getTargetDNSAddr(addr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get target DNS address: %w", err)
+	}
 
-	response, _, err := client.Exchange(request, "8.8.8.8:53") //targetDNSAddr)
+	response, _, err := client.Exchange(request, targetDNSAddr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to call target DNS: %w", err)
 	}
