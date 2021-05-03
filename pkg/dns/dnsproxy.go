@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/miekg/dns"
 	dnsgo "github.com/miekg/dns"
 	"golang.org/x/sys/unix"
 )
@@ -31,8 +30,8 @@ type DNSProxy struct {
 func NewDNSProxy(port uint, log logr.Logger, cache *DNSCache) DNSProxy {
 	// Init DNS clients
 	// SingleInflight is enabled, otherwise it suppressing retries
-	udpClient := &dns.Client{Net: "udp", Timeout: DNSTimeout, SingleInflight: false}
-	tcpClient := &dns.Client{Net: "tcp", Timeout: DNSTimeout, SingleInflight: false}
+	udpClient := &dnsgo.Client{Net: "udp", Timeout: DNSTimeout, SingleInflight: false}
+	tcpClient := &dnsgo.Client{Net: "tcp", Timeout: DNSTimeout, SingleInflight: false}
 	handler := &DNSProxyHandler{
 		log:         log.WithName("DNS handler"),
 		udpClient:   udpClient,
@@ -55,7 +54,7 @@ func (p DNSProxy) Run() error {
 		return fmt.Errorf("failed to bind to port: %w", err)
 	}
 
-	udpServer := &dns.Server{PacketConn: udpConn, Addr: udpConn.LocalAddr().String(), Net: "udp", Handler: p.handler}
+	udpServer := &dnsgo.Server{PacketConn: udpConn, Addr: udpConn.LocalAddr().String(), Net: "udp", Handler: p.handler}
 	go func() {
 		p.log.Info("starting UDP server")
 		if err := udpServer.ActivateAndServe(); err != nil {
@@ -63,7 +62,7 @@ func (p DNSProxy) Run() error {
 		}
 	}()
 
-	tcpServer := &dns.Server{Listener: tcpListener, Addr: udpConn.LocalAddr().String(), Net: "tcp", Handler: p.handler}
+	tcpServer := &dnsgo.Server{Listener: tcpListener, Addr: udpConn.LocalAddr().String(), Net: "tcp", Handler: p.handler}
 	go func() {
 		p.log.Info("starting TCP server")
 		if err := tcpServer.ActivateAndServe(); err != nil {

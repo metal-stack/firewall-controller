@@ -37,7 +37,6 @@ import (
 	"github.com/metal-stack/firewall-controller/controllers"
 	"github.com/metal-stack/firewall-controller/controllers/crd"
 	"github.com/metal-stack/firewall-controller/pkg/dns"
-	_ "github.com/metal-stack/firewall-controller/statik"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -136,9 +135,10 @@ func main() {
 	// Start DNS proxy if runDNS is specified
 	var dnsCache *dns.DNSCache
 	if runDNS {
-		dnsCache = &dns.DNSCache{}
-
+		dnsCache = dns.NewDNSCache()
 		dnsProxy := dns.NewDNSProxy(dnsPort, ctrl.Log.WithName("DNS proxy"), dnsCache)
+
+		// TODO run in goroutine
 		dnsProxy.Run()
 	}
 

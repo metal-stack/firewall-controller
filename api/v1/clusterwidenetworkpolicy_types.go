@@ -19,12 +19,20 @@ package v1
 import (
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/hashicorp/go-multierror"
+	dnsgo "github.com/miekg/dns"
 	corev1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+)
+
+const (
+	// ClusterwideNetworkPolicyNamespace defines the namespace CNWPs are expected.
+	ClusterwideNetworkPolicyNamespace = "firewall"
+	allowedDNSCharsREGroup            = "[-a-zA-Z0-9_]"
 )
 
 // ClusterwideNetworkPolicy contains the desired state for a cluster wide network policy to be applied.
@@ -45,11 +53,6 @@ type ClusterwideNetworkPolicyList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []ClusterwideNetworkPolicy `json:"items"`
 }
-
-const (
-	// ClusterwideNetworkPolicyNamespace defines the namespace CNWPs are expected.
-	ClusterwideNetworkPolicyNamespace = "firewall"
-)
 
 // PolicySpec defines the rules to create for ingress and egress
 type PolicySpec struct {
@@ -121,7 +124,6 @@ type EgressRule struct {
 	ToFQDNs []FQDNSelector `json:"toFQDNs,omitempty"`
 }
 
-// TODO add trailing dot?
 // FQDNSelector describes rules for matching DNS names.
 type FQDNSelector struct {
 	// MatchName matches FQDN.
@@ -136,6 +138,30 @@ type FQDNSelector struct {
 	// Sets stores nftables sets used for rule
 	// +optional
 	Sets []string `json:"sets,omitempty"`
+}
+
+func (s FQDNSelector) GetMatchName() string {
+	return dnsgo.Fqdn(s.MatchName)
+}
+
+// GetRegex converts a MatchPattern into a regexp string
+func (s FQDNSelector) GetRegex() string {
+	// Handle "*" as match-all case
+	if s.MatchPattern == "*" {
+		return "(^(" + allowedDNSCharsREGroup + "+[.])+$)|(^[.]$)"
+	}
+
+	pattern := strings.TrimSpace(s.MatchPattern)
+	pattern = strings.ToLower(dnsgo.Fqdn(pattern))
+
+	// "*" -- match-all allowed chars
+	pattern = strings.Replace(pattern, "*", allowedDNSCharsREGroup+"*", -1)
+
+	// "." becomes a literal .
+	pattern = strings.Replace(pattern, ".", "[.]", -1)
+
+	// Anchor the match to require the whole string to match this expression
+	return "^" + pattern + "$"
 }
 
 // Validate validates the spec of a ClusterwideNetworkPolicy

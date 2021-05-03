@@ -120,28 +120,8 @@ func clusterwideNetworkPolicyEgressToRules(e firewallv1.EgressRule) (allow, exce
 
 func clusterwideNetworkPolicyEgressToFQDNRules(cache *dns.DNSCache, e firewallv1.EgressRule) (allow []string, updated firewallv1.EgressRule) {
 	for i, fqdn := range e.ToFQDNs {
-		sets := map[string]struct{}{}
-		for _, s := range fqdn.Sets {
-			sets[s] = struct{}{}
-		}
-
-		if fqdn.MatchName != "" {
-			if s, found := cache.GetSetNameForFQDN(fqdn.MatchName); found {
-				sets[s] = struct{}{}
-			}
-
-		} else if fqdn.MatchPattern != "" {
-			for _, s := range cache.GetSetNameForPattern(fqdn.MatchPattern) {
-				sets[s] = struct{}{}
-			}
-		}
-
-		fqdn.Sets = []string{}
-		for s := range sets {
-			allow = append(allow, s)
-			fqdn.Sets = append(fqdn.Sets, s)
-		}
-
+		fqdn.Sets = cache.GetSetsForFQDN(fqdn)
+		allow = append(allow, fqdn.Sets...)
 		e.ToFQDNs[i] = fqdn
 	}
 

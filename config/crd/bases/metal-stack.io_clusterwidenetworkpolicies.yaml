@@ -128,8 +128,8 @@ spec:
                         is used as whitelist of DNS names. If none specified, rule
                         will not be applied. ToFQDNs rules can't contain To rules.
                       items:
-                        description: TODO add trailing dot? FQDNSelector describes
-                          rules for matching DNS names.
+                        description: FQDNSelector describes rules for matching DNS
+                          names.
                         properties:
                           matchName:
                             description: MatchName matches FQDN.
