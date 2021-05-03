@@ -11,7 +11,7 @@ DOCKER_IMG ?= ghcr.io/metal-stack/firewall-controller:${DOCKER_TAG}
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 # this version is used to include template from the metal-networker to the firewall-controller
 # version should be not that far away from the compile dependency in go.mod
-METAL_NETWORKER_VERSION := v0.6.1
+METAL_NETWORKER_VERSION := v0.6.2
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -72,7 +72,7 @@ manifests: controller-gen fetch-template
 
 # Fetch firewall template
 fetch-template:
-	wget https://raw.githubusercontent.com/metal-stack/metal-networker/${METAL_NETWORKER_VERSION}/internal/netconf/tpl/frr.firewall.tpl -O ./pkg/network/frr.firewall.tpl
+	wget https://raw.githubusercontent.com/metal-stack/metal-networker/${METAL_NETWORKER_VERSION}/pkg/netconf/tpl/frr.firewall.tpl -O ./pkg/network/frr.firewall.tpl
 
 # Run go fmt against code
 fmt:
