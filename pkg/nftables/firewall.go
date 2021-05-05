@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
-	"github.com/metal-stack/firewall-controller/pkg/dns"
 
 	mn "github.com/metal-stack/metal-lib/pkg/net"
 	"github.com/vishvananda/netlink"
@@ -29,6 +28,11 @@ const (
 //go:embed *.tpl
 var templates embed.FS
 
+//go:generate mockgen -destination=./mocks/mock_fqdncache.go -package=mocks . FQDNCache
+type FQDNCache interface {
+	GetSetsForFQDN(fqdn firewallv1.FQDNSelector) (result []string)
+}
+
 // Firewall assembles nftable rules based on k8s entities
 type Firewall struct {
 	log logr.Logger
@@ -39,7 +43,7 @@ type Firewall struct {
 
 	primaryPrivateNet *firewallv1.FirewallNetwork
 	networkMap        networkMap
-	cache             *dns.DNSCache
+	cache             FQDNCache
 
 	dryRun                 bool
 	logAcceptedConnections bool
@@ -65,7 +69,7 @@ func NewFirewall(
 	nps *firewallv1.ClusterwideNetworkPolicyList,
 	svcs *corev1.ServiceList,
 	spec firewallv1.FirewallSpec,
-	cache *dns.DNSCache,
+	cache FQDNCache,
 	log logr.Logger,
 ) *Firewall {
 	networkMap := networkMap{}
