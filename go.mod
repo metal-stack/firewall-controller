@@ -27,6 +27,7 @@ require (
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e // indirect
 	gomodules.xyz/jsonpatch/v2 v2.1.0 // indirect
 	k8s.io/api v0.18.9
+	github.com/golang/mock v1.5.0
 	k8s.io/apiextensions-apiserver v0.18.9
 	k8s.io/apimachinery v0.18.9
 	k8s.io/client-go v0.18.9
