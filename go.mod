@@ -13,6 +13,8 @@ require (
 	github.com/metal-stack/metal-networker v0.30.3
 	github.com/metal-stack/v v1.0.3
 	github.com/miekg/dns v1.0.14
+	github.com/onsi/ginkgo v1.16.5
+	github.com/onsi/gomega v1.19.0
 	github.com/txn2/txeh v1.3.0
 	github.com/vishvananda/netlink v1.2.1-beta.2
 	go.uber.org/zap v1.23.0
@@ -99,4 +101,9 @@ require (
 	k8s.io/kube-openapi v0.0.0-20220803162953-67bda5d908f1 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
+)
+
+require (
+	github.com/nxadm/tail v1.4.8 // indirect
+	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 )
