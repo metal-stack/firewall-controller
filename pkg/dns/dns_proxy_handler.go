@@ -39,6 +39,7 @@ func (h *DNSProxyHandler) ServeDNS(w dnsgo.ResponseWriter, request *dnsgo.Msg) {
 	}()
 
 	scopedLog.Info("started processing request")
+	fmt.Println(w.LocalAddr())
 	response, err := h.getFromTargetDNS(w.LocalAddr(), request)
 	if err != nil {
 		scopedLog.Error(err, "failed to get DNS response")

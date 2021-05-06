@@ -1,6 +1,4 @@
 /*
-
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -24,7 +22,6 @@ import (
 
 	"github.com/go-logr/logr"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
-	"github.com/metal-stack/firewall-controller/pkg/dns"
 	"github.com/metal-stack/firewall-controller/pkg/nftables"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -47,10 +44,11 @@ const (
 // +kubebuilder:rbac:groups=metal-stack.io,resources=events,verbs=create;patch
 type ClusterwideNetworkPolicyReconciler struct {
 	client.Client
-	Log         logr.Logger
-	Scheme      *runtime.Scheme
-	Cache       *dns.DNSCache
-	policySpecs map[string]firewallv1.PolicySpec
+	Log            logr.Logger
+	Scheme         *runtime.Scheme
+	Cache          nftables.FQDNCache
+	CreateFirewall CreateFirewall
+	policySpecs    map[string]firewallv1.PolicySpec
 }
 
 // Reconcile ClusterwideNetworkPolicy and creates nftables rules accordingly
@@ -91,19 +89,13 @@ func (r *ClusterwideNetworkPolicyReconciler) reconcileRules(ctx context.Context,
 	if err := r.List(ctx, &services); err != nil {
 		return done, err
 	}
-
-	nftablesFirewall := nftables.NewFirewall(&cnwps, &services, f.Spec, r.Cache, log)
+	nftablesFirewall := r.CreateFirewall(&cnwps, &services, f.Spec, r.Cache, log)
 	if err := nftablesFirewall.Reconcile(); err != nil {
 		return done, err
 	}
-
-	r.updateStatus(ctx, cnwps)
+	r.Update(ctx, &cnwps)
 
 	return done, nil
-}
-
-func (r *ClusterwideNetworkPolicyReconciler) updateStatus(ctx context.Context, cnwps firewallv1.ClusterwideNetworkPolicyList) {
-	r.Update(ctx, &cnwps)
 }
 
 func (r *ClusterwideNetworkPolicyReconciler) isSpecsChanged(cnwps firewallv1.ClusterwideNetworkPolicyList) bool {

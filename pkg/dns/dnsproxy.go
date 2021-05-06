@@ -133,14 +133,19 @@ func listenConfig() *net.ListenConfig {
 		Control: func(network, address string, c syscall.RawConn) error {
 			var opErr error
 			err := c.Control(func(fd uintptr) {
-				opErr = transparentSetsockopt(int(fd))
+				addr, err := unix.GetsockoptIPMreq(int(fd), unix.IPPROTO_IP, 80)
+				fmt.Println(err)
+				opErr = unix.SetsockoptIPMreq(int(fd), unix.IPPROTO_IP, 80, addr)
+				fmt.Println(opErr)
 				if opErr == nil {
-					opErr = unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_MARK, 0x0B00)
-				}
-				if opErr == nil {
+					// Set SO_REUSEADDR option to avoid possible wait time before reusing local address
+					// More on that: https://stackoverflow.com/questions/3229860/what-is-the-meaning-of-so-reuseaddr-setsockopt-option-linux
 					opErr = unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_REUSEADDR, 1)
 				}
 				if opErr == nil {
+					// SO_REUSEPORT serves same purpose as SO_REUSEADDR.
+					// Added for portability reason.
+					// More on that: https://stackoverflow.com/questions/14388706/how-do-so-reuseaddr-and-so-reuseport-differ
 					opErr = unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_REUSEPORT, 1)
 				}
 			})
