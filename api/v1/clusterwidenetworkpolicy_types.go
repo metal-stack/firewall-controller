@@ -29,6 +29,7 @@ import (
 
 // ClusterwideNetworkPolicy contains the desired state for a cluster wide network policy to be applied.
 // +kubebuilder:object:root=true
+// +kubebuilder:resource:shortName=cwnp
 // +kubebuilder:subresource:status
 type ClusterwideNetworkPolicy struct {
 	metav1.TypeMeta   `json:",inline"`

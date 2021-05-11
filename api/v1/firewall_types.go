@@ -30,6 +30,7 @@ import (
 
 // Firewall is the Schema for the firewalls API
 // +kubebuilder:object:root=true
+// +kubebuilder:resource:shortName=fw
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Interval",type=string,JSONPath=`.spec.interval`
 // +kubebuilder:printcolumn:name="InternalPrefixes",type=string,JSONPath=`.spec.internalprefixes`
