@@ -4,50 +4,38 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"os"
-	"os/signal"
 	"strconv"
 	"syscall"
-	"time"
 
 	"github.com/go-logr/logr"
 	dnsgo "github.com/miekg/dns"
 	"golang.org/x/sys/unix"
 )
 
-const (
-	// DNSTimeout is the maximum time to wait for DNS responses to forwarded DNS requests.
-	DNSTimeout = 10 * time.Second
-)
+const ()
+
+type DNSHandler interface {
+	ServeDNS(w dnsgo.ResponseWriter, r *dnsgo.Msg)
+	UpdateDNSAddr(addr string)
+}
 
 type DNSProxy struct {
 	log     logr.Logger
 	port    uint
 	cache   *DNSCache
-	handler dnsgo.Handler
+	handler DNSHandler
 }
 
-func NewDNSProxy(port uint, log logr.Logger, cache *DNSCache) DNSProxy {
-	// Init DNS clients
-	// SingleInflight is enabled, otherwise it suppressing retries
-	udpClient := &dnsgo.Client{Net: "udp", Timeout: DNSTimeout, SingleInflight: false}
-	tcpClient := &dnsgo.Client{Net: "tcp", Timeout: DNSTimeout, SingleInflight: false}
-	handler := &DNSProxyHandler{
-		log:         log.WithName("DNS handler"),
-		udpClient:   udpClient,
-		tcpClient:   tcpClient,
-		updateCache: getUpdateCacheFunc(log, cache),
-	}
-
-	return DNSProxy{
+func NewDNSProxy(port uint, log logr.Logger, cache *DNSCache) *DNSProxy {
+	return &DNSProxy{
 		log:     log,
 		port:    port,
 		cache:   cache,
-		handler: handler,
+		handler: NewDNSProxyHandler(log, cache),
 	}
 }
 
-func (p DNSProxy) Run() error {
+func (p *DNSProxy) Run(stopCh <-chan struct{}) error {
 	// Start DNS servers
 	udpConn, tcpListener, err := p.bindToPort()
 	if err != nil {
@@ -70,11 +58,7 @@ func (p DNSProxy) Run() error {
 		}
 	}()
 
-	// Watch for termination signal
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-
-	<-sigChan
+	<-stopCh
 
 	udpServer.Shutdown()
 	tcpServer.Shutdown()
@@ -82,21 +66,12 @@ func (p DNSProxy) Run() error {
 	return nil
 }
 
-func getUpdateCacheFunc(log logr.Logger, cache *DNSCache) func(lookupTime time.Time, response *dnsgo.Msg) {
-	return func(lookupTime time.Time, response *dnsgo.Msg) {
-		if response.Response && response.Rcode == dnsgo.RcodeSuccess {
-			scopedLog := log.WithValues(reqIdLogField, response.Id)
-			if err := cache.Update(lookupTime, response); err != nil {
-				scopedLog.Error(err, "failed to update DNS cache")
-			} else {
-				scopedLog.Info("cache updated")
-			}
-		}
-	}
+func (p *DNSProxy) UpdateDNSAddr(addr string) {
+	p.handler.UpdateDNSAddr(addr)
 }
 
 // bindToPort attempts to bind to port for both UDP and TCP
-func (p DNSProxy) bindToPort() (*net.UDPConn, *net.TCPListener, error) {
+func (p *DNSProxy) bindToPort() (*net.UDPConn, *net.TCPListener, error) {
 	var err error
 	var listener net.Listener
 	var conn net.PacketConn
@@ -133,16 +108,9 @@ func listenConfig() *net.ListenConfig {
 		Control: func(network, address string, c syscall.RawConn) error {
 			var opErr error
 			err := c.Control(func(fd uintptr) {
-				addr, err := unix.GetsockoptIPMreq(int(fd), unix.IPPROTO_IP, 80)
-				fmt.Println(err)
-				opErr = unix.SetsockoptIPMreq(int(fd), unix.IPPROTO_IP, 80, addr)
-				fmt.Println(opErr)
-				if opErr == nil {
-					// Set SO_REUSEADDR option to avoid possible wait time before reusing local address
-					// More on that: https://stackoverflow.com/questions/3229860/what-is-the-meaning-of-so-reuseaddr-setsockopt-option-linux
-					opErr = unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_REUSEADDR, 1)
-				}
-				if opErr == nil {
+				// Set SO_REUSEADDR option to avoid possible wait time before reusing local address
+				// More on that: https://stackoverflow.com/questions/3229860/what-is-the-meaning-of-so-reuseaddr-setsockopt-option-linux
+				if opErr = unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_REUSEADDR, 1); opErr == nil {
 					// SO_REUSEPORT serves same purpose as SO_REUSEADDR.
 					// Added for portability reason.
 					// More on that: https://stackoverflow.com/questions/14388706/how-do-so-reuseaddr-and-so-reuseport-differ
@@ -155,26 +123,4 @@ func listenConfig() *net.ListenConfig {
 
 			return opErr
 		}}
-}
-
-func transparentSetsockopt(fd int) error {
-	var err4, err6 error
-
-	err6 = unix.SetsockoptInt(fd, unix.SOL_IPV6, unix.IPV6_TRANSPARENT, 1)
-	if err6 == nil {
-		err6 = unix.SetsockoptInt(fd, unix.SOL_IPV6, unix.IPV6_RECVORIGDSTADDR, 1)
-	}
-	if err6 != nil {
-		return err6
-	}
-
-	err4 = unix.SetsockoptInt(fd, unix.SOL_IP, unix.IP_TRANSPARENT, 1)
-	if err4 == nil {
-		err4 = unix.SetsockoptInt(fd, unix.SOL_IP, unix.IP_RECVORIGDSTADDR, 1)
-	}
-	if err4 != nil {
-		return err4
-	}
-
-	return nil
 }

@@ -57,6 +57,7 @@ type FirewallReconciler struct {
 	EnableIDS            bool
 	EnableSignatureCheck bool
 	CAPubKey             *rsa.PublicKey
+	DNSProxy             DNSProxy
 }
 
 const (
@@ -139,6 +140,11 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	log.Info("reconciling firewall services")
 	if err = r.reconcileFirewallServices(ctx, f, log); err != nil {
 		errors = multierror.Append(errors, err)
+	}
+
+	// If proxy is ON, update DNS address(if it's set in spec)
+	if r.DNSProxy != nil && f.Spec.Data.DNSAddr != "" {
+		r.DNSProxy.UpdateDNSAddr(f.Spec.Data.DNSAddr)
 	}
 
 	log.Info("updating status field")

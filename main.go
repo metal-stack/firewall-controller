@@ -79,6 +79,7 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	stopCh := ctrl.SetupSignalHandler()
 
 	restConfig := ctrl.GetConfigOrDie()
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
@@ -92,7 +93,6 @@ func main() {
 		setupLog.Error(err, "unable to start firewall-controller manager")
 		os.Exit(1)
 	}
-	stopCh := ctrl.SetupSignalHandler()
 	go func() {
 		setupLog.Info("starting firewall-controller", "version", v.V)
 		if err := mgr.Start(stopCh); err != nil {
@@ -125,13 +125,15 @@ func main() {
 	}
 
 	// Start DNS proxy if runDNS is specified
-	var dnsCache *dns.DNSCache
+	var (
+		dnsCache *dns.DNSCache
+		dnsProxy *dns.DNSProxy
+	)
 	if runDNS {
 		dnsCache = dns.NewDNSCache()
-		dnsProxy := dns.NewDNSProxy(dnsPort, ctrl.Log.WithName("DNS proxy"), dnsCache)
+		dnsProxy = dns.NewDNSProxy(dnsPort, ctrl.Log.WithName("DNS proxy"), dnsCache)
 
-		// TODO run in goroutine
-		dnsProxy.Run()
+		go dnsProxy.Run(stopCh)
 	}
 
 	// Droptailer Reconciler
@@ -177,13 +179,13 @@ func main() {
 		EnableIDS:            enableIDS,
 		EnableSignatureCheck: enableSignatureCheck,
 		CAPubKey:             caPubKey,
+		DNSProxy:             dnsProxy,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Firewall")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
-
-	// FIXME howto cope with OS signals ?
+	// Watch for termination signal
 	<-stopCh
 }
 

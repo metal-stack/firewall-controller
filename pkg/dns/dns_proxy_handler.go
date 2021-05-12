@@ -13,13 +13,32 @@ const (
 	queryLogField      = "query"
 	clientAddrLogField = "client-addr"
 	reqIdLogField      = "req-id"
+
+	// dnsTimeout is the maximum time to wait for DNS responses to forwarded DNS requests
+	dnsTimeout     = 10 * time.Second
+	defaultDNSAddr = "8.8.8.8:53"
 )
 
 type DNSProxyHandler struct {
 	log         logr.Logger
 	udpClient   *dnsgo.Client
 	tcpClient   *dnsgo.Client
+	dnsAddr     string
 	updateCache func(lookupTime time.Time, response *dnsgo.Msg)
+}
+
+func NewDNSProxyHandler(log logr.Logger, cache *DNSCache) *DNSProxyHandler {
+	// Init DNS clients
+	udpClient := &dnsgo.Client{Net: "udp", Timeout: dnsTimeout, SingleInflight: false}
+	tcpClient := &dnsgo.Client{Net: "tcp", Timeout: dnsTimeout, SingleInflight: false}
+
+	return &DNSProxyHandler{
+		log:         log.WithName("DNS handler"),
+		udpClient:   udpClient,
+		tcpClient:   tcpClient,
+		dnsAddr:     defaultDNSAddr,
+		updateCache: getUpdateCacheFunc(log, cache),
+	}
 }
 
 func (h *DNSProxyHandler) ServeDNS(w dnsgo.ResponseWriter, request *dnsgo.Msg) {
@@ -39,8 +58,7 @@ func (h *DNSProxyHandler) ServeDNS(w dnsgo.ResponseWriter, request *dnsgo.Msg) {
 	}()
 
 	scopedLog.Info("started processing request")
-	fmt.Println(w.LocalAddr())
-	response, err := h.getFromTargetDNS(w.LocalAddr(), request)
+	response, err := h.getDataFromDNS(w.LocalAddr(), request)
 	if err != nil {
 		scopedLog.Error(err, "failed to get DNS response")
 		err = w.WriteMsg(refusedMsg(request))
@@ -51,7 +69,11 @@ func (h *DNSProxyHandler) ServeDNS(w dnsgo.ResponseWriter, request *dnsgo.Msg) {
 	err = w.WriteMsg(response)
 }
 
-func (h *DNSProxyHandler) getFromTargetDNS(addr net.Addr, request *dnsgo.Msg) (*dnsgo.Msg, error) {
+func (h *DNSProxyHandler) UpdateDNSAddr(addr string) {
+	h.dnsAddr = addr
+}
+
+func (h *DNSProxyHandler) getDataFromDNS(addr net.Addr, request *dnsgo.Msg) (*dnsgo.Msg, error) {
 	// Keep the same transport protocol
 	var client *dnsgo.Client
 	protocol := addr.Network()
@@ -64,12 +86,7 @@ func (h *DNSProxyHandler) getFromTargetDNS(addr net.Addr, request *dnsgo.Msg) (*
 		return nil, fmt.Errorf("failed to determine transport protocol: %s", protocol)
 	}
 
-	targetDNSAddr, err := getTargetDNSAddr(addr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get target DNS address: %w", err)
-	}
-
-	response, _, err := client.Exchange(request, targetDNSAddr)
+	response, _, err := client.Exchange(request, h.dnsAddr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to call target DNS: %w", err)
 	}
@@ -77,13 +94,16 @@ func (h *DNSProxyHandler) getFromTargetDNS(addr net.Addr, request *dnsgo.Msg) (*
 	return response, nil
 }
 
-// getTargetDNSAddr returns address of target DNS server
-func getTargetDNSAddr(addr net.Addr) (string, error) {
-	switch addr := (addr).(type) {
-	case *net.UDPAddr, *net.TCPAddr:
-		return addr.String(), nil
-	default:
-		return "", fmt.Errorf("unknown DNS address type %T: %+v", addr, addr)
+func getUpdateCacheFunc(log logr.Logger, cache *DNSCache) func(lookupTime time.Time, response *dnsgo.Msg) {
+	return func(lookupTime time.Time, response *dnsgo.Msg) {
+		if response.Response && response.Rcode == dnsgo.RcodeSuccess {
+			scopedLog := log.WithValues(reqIdLogField, response.Id)
+			if err := cache.Update(lookupTime, response); err != nil {
+				scopedLog.Error(err, "failed to update DNS cache")
+			} else {
+				scopedLog.Info("cache updated")
+			}
+		}
 	}
 }
 
