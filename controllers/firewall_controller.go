@@ -61,6 +61,7 @@ type FirewallReconciler struct {
 	EnableIDS            bool
 	EnableSignatureCheck bool
 	CAPubKey             *rsa.PublicKey
+	DNSProxy             DNSProxy
 }
 
 const (
@@ -127,11 +128,6 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	var errors *multierror.Error
-	log.Info("reconciling nftables rules")
-	if err = r.reconcileRules(ctx, f, log); err != nil {
-		errors = multierror.Append(errors, err)
-	}
-
 	log.Info("reconciling network settings")
 	changed, err := network.ReconcileNetwork(f, log)
 	if changed && err == nil {
@@ -147,6 +143,11 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	log.Info("reconciling firewall services")
 	if err = r.reconcileFirewallServices(ctx, f); err != nil {
 		errors = multierror.Append(errors, err)
+	}
+
+	// If proxy is ON, update DNS address(if it's set in spec)
+	if r.DNSProxy != nil && f.Spec.Data.DNSAddr != "" {
+		r.DNSProxy.UpdateDNSAddr(f.Spec.Data.DNSAddr)
 	}
 
 	log.Info("updating status field")
@@ -231,26 +232,6 @@ func convert(np networking.NetworkPolicy) (*firewallv1.ClusterwideNetworkPolicy,
 		Egress: newEgresses,
 	}
 	return &cwnp, nil
-}
-
-// reconcileRules reconciles the nftable rules for this firewall
-func (r *FirewallReconciler) reconcileRules(ctx context.Context, f firewallv1.Firewall, log logr.Logger) error {
-	var clusterNPs firewallv1.ClusterwideNetworkPolicyList
-	if err := r.List(ctx, &clusterNPs, client.InNamespace(f.Namespace)); err != nil {
-		return err
-	}
-
-	var services corev1.ServiceList
-	if err := r.List(ctx, &services); err != nil {
-		return err
-	}
-
-	nftablesFirewall := nftables.NewFirewall(&clusterNPs, &services, f.Spec, log)
-	if err := nftablesFirewall.Reconcile(); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 type firewallService struct {

@@ -33,3 +33,7 @@ type CreateFirewall = func(
 type FirewallInterface interface {
 	Reconcile() error
 }
+
+type DNSProxy interface {
+	UpdateDNSAddr(addr string)
+}

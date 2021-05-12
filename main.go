@@ -86,6 +86,7 @@ func main() {
 	}
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	stopCh := ctrl.SetupSignalHandler()
 
 	restConfig := ctrl.GetConfigOrDie()
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
@@ -99,6 +100,7 @@ func main() {
 		setupLog.Error(err, "unable to start firewall-controller manager")
 		os.Exit(1)
 	}
+
 	ctx := ctrl.SetupSignalHandler()
 	// FIXME better at the end and not in a go func
 	go func() {
@@ -133,13 +135,15 @@ func main() {
 	}
 
 	// Start DNS proxy if runDNS is specified
-	var dnsCache *dns.DNSCache
+	var (
+		dnsCache *dns.DNSCache
+		dnsProxy *dns.DNSProxy
+	)
 	if runDNS {
 		dnsCache = dns.NewDNSCache()
-		dnsProxy := dns.NewDNSProxy(dnsPort, ctrl.Log.WithName("DNS proxy"), dnsCache)
+		dnsProxy = dns.NewDNSProxy(dnsPort, ctrl.Log.WithName("DNS proxy"), dnsCache)
 
-		// TODO run in goroutine
-		dnsProxy.Run()
+		go dnsProxy.Run(ctx.Done())
 	}
 
 	// Droptailer Reconciler
@@ -185,6 +189,7 @@ func main() {
 		EnableIDS:            enableIDS,
 		EnableSignatureCheck: enableSignatureCheck,
 		CAPubKey:             caPubKey,
+		DNSProxy:             dnsProxy,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Firewall")
 		os.Exit(1)

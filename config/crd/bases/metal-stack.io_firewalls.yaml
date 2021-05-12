@@ -52,6 +52,9 @@ spec:
                 description: ControllerVersion holds the firewall-controller version
                   to reconcile.
                 type: string
+              dnsAddr:
+                description: DNSAddr specifies DNS address used by DNS proxy
+                type: string
               dryrun:
                 description: DryRun if set to true, firewall rules are not applied
                 type: boolean
