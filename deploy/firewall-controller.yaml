@@ -92,6 +92,26 @@ rules:
   - create
   - delete
   - watch
+
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: firewall-controller-view
+  labels:
+    # With this label, all view roles will automatically get view access to this resources.
+    rbac.authorization.k8s.io/aggregate-to-view: "true"
+rules:
+- apiGroups:
+  - "metal-stack.io"
+  resources:
+  - clusterwidenetworkpolicies
+  - firewalls
+  verbs:
+  - get
+  - list
+  - watch
+
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
