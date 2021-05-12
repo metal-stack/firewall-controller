@@ -105,8 +105,8 @@ rules:
 - apiGroups:
   - "metal-stack.io/v1"
   resources:
-  - clusterwidenetworkpolicy
-  - firewall
+  - clusterwidenetworkpolicies
+  - firewalls
   verbs:
   - get
   - list
