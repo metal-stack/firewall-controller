@@ -117,11 +117,12 @@ func clusterwideNetworkPolicyEgressToRules(e firewallv1.EgressRule) (allow, exce
 }
 
 func clusterwideNetworkPolicyEgressToFQDNRules(cache FQDNCache, e firewallv1.EgressRule) (allow []string, updated firewallv1.EgressRule) {
-	for i, fqdn := range e.ToFQDNs {
-		fqdn.Sets = cache.GetSetsForFQDN(fqdn)
-		allow = append(allow, fqdn.Sets...)
-		e.ToFQDNs[i] = fqdn
-	}
+	// TODO
+	// for i, fqdn := range e.ToFQDNs {
+	// 	fqdn.Sets = cache.GetSetsForFQDN(fqdn)
+	// 	allow = append(allow, fqdn.Sets...)
+	// 	e.ToFQDNs[i] = fqdn
+	// }
 
 	return allow, e
 }

@@ -143,7 +143,32 @@ spec:
                           sets:
                             description: Sets stores nftables sets used for rule
                             items:
-                              type: string
+                              description: IPSet stores set name association to IP
+                                addresses
+                              properties:
+                                expirationTime:
+                                  type: Any
+                                fqdn:
+                                  type: string
+                                ips:
+                                  items:
+                                    description: "An IP is a single IP address, a
+                                      slice of bytes. Functions in this package accept
+                                      either 4-byte (IPv4) or 16-byte (IPv6) slices
+                                      as input. \n Note that in this documentation,
+                                      referring to an IP address as an IPv4 address
+                                      or an IPv6 address is a semantic property of
+                                      the address, not just the length of the byte
+                                      slice: a 16-byte slice can still be an IPv4
+                                      address."
+                                    format: byte
+                                    type: string
+                                  type: array
+                                setName:
+                                  type: string
+                                version:
+                                  type: string
+                              type: object
                             type: array
                         type: object
                       type: array

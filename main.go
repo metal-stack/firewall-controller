@@ -86,7 +86,6 @@ func main() {
 	}
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
-	stopCh := ctrl.SetupSignalHandler()
 
 	restConfig := ctrl.GetConfigOrDie()
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
@@ -194,6 +193,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Firewall")
 		os.Exit(1)
 	}
+
 	// +kubebuilder:scaffold:builder
 
 	<-ctx.Done()

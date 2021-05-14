@@ -52,7 +52,6 @@ type FirewallList struct {
 
 // FirewallSpec defines the desired state of Firewall
 type FirewallSpec struct {
-	// TODO When it's calculated?
 	// Data contains the data over which the signature is calculated.
 	Data `json:",inline"`
 
@@ -84,8 +83,8 @@ type Data struct {
 	EgressRules []EgressRuleSNAT `json:"egressRules,omitempty"`
 	// FirewallNetworks holds the networks known at the metal-api for this firewall machine
 	FirewallNetworks []FirewallNetwork `json:"firewallNetworks,omitempty"`
-	// DNSAddr specifies DNS address used by DNS proxy
-	DNSAddr string `json:"dnsAddr,omitempty"`
+	// DNSServerAddress specifies DNS server address used by DNS proxy
+	DNSServerAddress string `json:"dnsServerAddress,omitempty"`
 }
 
 // FirewallStatus defines the observed state of Firewall

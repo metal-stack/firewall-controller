@@ -146,8 +146,8 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	// If proxy is ON, update DNS address(if it's set in spec)
-	if r.DNSProxy != nil && f.Spec.Data.DNSAddr != "" {
-		r.DNSProxy.UpdateDNSAddr(f.Spec.Data.DNSAddr)
+	if r.DNSProxy != nil && f.Spec.Data.DNSServerAddress != "" {
+		r.DNSProxy.UpdateDNSAddr(f.Spec.Data.DNSServerAddress)
 	}
 
 	log.Info("updating status field")

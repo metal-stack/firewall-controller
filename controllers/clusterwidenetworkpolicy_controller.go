@@ -147,7 +147,8 @@ func (r *ClusterwideNetworkPolicyReconciler) nftableSetsAdded() bool {
 				unique := r.Cache.GetSetsForFQDN(fqdn)
 
 				sort.Strings(unique)
-				sort.Strings(fqdn.Sets)
+				// TODO
+				// sort.Strings(fqdn.Sets)
 
 				if !reflect.DeepEqual(unique, fqdn.Sets) {
 					return true
