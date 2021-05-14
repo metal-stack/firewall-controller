@@ -173,9 +173,9 @@ func main() {
 
 func readCRDsFromVFS() (map[string][]byte, error) {
 	crdMap := make(map[string][]byte)
-	err := fs.WalkDir(crds, "/", func(path string, info os.DirEntry, err error) error {
+	err := fs.WalkDir(crds, ".", func(path string, info os.DirEntry, err error) error {
 		setupLog.Info("walk", "path", path)
-		if info.IsDir() {
+		if info == nil || info.IsDir() {
 			return nil
 		}
 		b, readerr := fs.ReadFile(crds, path)
