@@ -15,6 +15,7 @@ import (
 	"github.com/google/nftables"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	dnsgo "github.com/miekg/dns"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -99,12 +100,56 @@ func NewDNSCache() *DNSCache {
 }
 
 // GetSetsForFQDN returns sets for FQDN selector
-// If sets present in fqdn.Sets missing in cache, add those sets to cache
-func (c *DNSCache) GetSetsForFQDN(fqdn firewallv1.FQDNSelector) (result []string) {
-	sets := map[string]struct{}{}
-	for _, s := range fqdn.Sets {
-		sets[s.SetName] = struct{}{}
+func (c *DNSCache) GetSetsForFQDN(fqdn firewallv1.FQDNSelector, update bool) (result []firewallv1.IPSet) {
+	if update {
+		c.restoreSets(fqdn)
+	}
 
+	sets := map[string]firewallv1.IPSet{}
+	if fqdn.MatchName != "" {
+		for _, s := range c.getSetNameForFQDN(fqdn.GetMatchName()) {
+			sets[s.SetName] = s
+		}
+
+	} else if fqdn.MatchPattern != "" {
+		for _, s := range c.getSetNameForRegex(fqdn.GetRegex()) {
+			sets[s.SetName] = s
+		}
+	}
+
+	result = make([]firewallv1.IPSet, 0, len(sets))
+	for _, s := range sets {
+		result = append(result, s)
+	}
+
+	return
+}
+
+func (c *DNSCache) GetAllSets() (result []firewallv1.IPSet) {
+	for n, e := range c.fqdnToEntry {
+		result = append(
+			result,
+			firewallv1.IPSet{
+				FQDN:    n,
+				SetName: e.ipv4.setName,
+				IPs:     e.ipv4.ips,
+				Version: firewallv1.IPv4,
+			},
+			firewallv1.IPSet{
+				FQDN:    n,
+				SetName: e.ipv6.setName,
+				IPs:     e.ipv6.ips,
+				Version: firewallv1.IPv6,
+			},
+		)
+	}
+
+	return
+}
+
+// restoreSets add missing sets from FQDNSelector.Sets
+func (c *DNSCache) restoreSets(fqdn firewallv1.FQDNSelector) {
+	for _, s := range fqdn.Sets {
 		// Add cache entries from fqdn.Sets if missing
 		c.Lock()
 		if _, ok := c.setNames[s.SetName]; !ok {
@@ -130,41 +175,36 @@ func (c *DNSCache) GetSetsForFQDN(fqdn firewallv1.FQDNSelector) (result []string
 		}
 		c.Unlock()
 	}
-
-	if fqdn.MatchName != "" {
-		if s := c.getSetNameForFQDN(fqdn.GetMatchName()); s != "" {
-			sets[s] = struct{}{}
-		}
-
-	} else if fqdn.MatchPattern != "" {
-		for _, s := range c.getSetNameForRegex(fqdn.GetRegex()) {
-			sets[s] = struct{}{}
-		}
-	}
-
-	result = make([]string, 0, len(sets))
-	for s := range sets {
-		result = append(result, s)
-	}
-
-	return
 }
 
-// getSetNameForFQDN returns set name for FQDN
-func (c *DNSCache) getSetNameForFQDN(fqdn string) string {
+// getSetNameForFQDN returns FQDN set data
+func (c *DNSCache) getSetNameForFQDN(fqdn string) []firewallv1.IPSet {
 	c.RLock()
 	defer c.RUnlock()
 
 	entry, found := c.fqdnToEntry[fqdn]
 	if !found {
-		return ""
+		return nil
 	}
 
-	return entry.ipv4.setName
+	return []firewallv1.IPSet{{
+		FQDN:           fqdn,
+		SetName:        entry.ipv4.setName,
+		IPs:            entry.ipv4.ips,
+		ExpirationTime: metav1.Time{Time: entry.ipv4.expirationTime},
+		Version:        firewallv1.IPv4,
+	}, {
+		FQDN:           fqdn,
+		SetName:        entry.ipv6.setName,
+		IPs:            entry.ipv6.ips,
+		ExpirationTime: metav1.Time{Time: entry.ipv6.expirationTime},
+		Version:        firewallv1.IPv6,
+	},
+	}
 }
 
-// getSetNameForRegex returns list of IPs for FQDN that match provided regex
-func (c *DNSCache) getSetNameForRegex(regex string) (sets []string) {
+// getSetNameForRegex returns list of FQDN set data that match provided regex
+func (c *DNSCache) getSetNameForRegex(regex string) (sets []firewallv1.IPSet) {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -173,7 +213,23 @@ func (c *DNSCache) getSetNameForRegex(regex string) (sets []string) {
 			continue
 		}
 
-		sets = append(sets, e.ipv4.setName)
+		sets = append(
+			sets,
+			firewallv1.IPSet{
+				FQDN:           n,
+				SetName:        e.ipv4.setName,
+				IPs:            e.ipv4.ips,
+				ExpirationTime: metav1.Time{Time: e.ipv4.expirationTime},
+				Version:        firewallv1.IPv4,
+			},
+			firewallv1.IPSet{
+				FQDN:           n,
+				SetName:        e.ipv6.setName,
+				IPs:            e.ipv6.ips,
+				ExpirationTime: metav1.Time{Time: e.ipv6.expirationTime},
+				Version:        firewallv1.IPv6,
+			},
+		)
 	}
 
 	return nil

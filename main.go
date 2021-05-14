@@ -22,8 +22,13 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"time"
 
+	"github.com/metal-stack/firewall-controller/controllers"
+	"github.com/metal-stack/firewall-controller/controllers/crd"
 	"github.com/metal-stack/firewall-controller/pkg/dns"
+	"github.com/metal-stack/metal-lib/pkg/sign"
+	"github.com/metal-stack/v"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -61,6 +66,7 @@ func main() {
 		hostsFile            string
 		runDNS               bool
 		dnsPort              uint
+		hostAddress          string
 	)
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
@@ -70,54 +76,55 @@ func main() {
 	flag.StringVar(&hostsFile, "hosts-file", "/etc/hosts", "The hosts file to manipulate for the droptailer.")
 	flag.BoolVar(&enableSignatureCheck, "enable-signature-check", true, "Set this to false to ignore signature checking.")
 	flag.BoolVar(&runDNS, "run-dns", false, "Set this to true to enable DNS based policies and run DNS proxy")
-	flag.UintVar(&dnsPort, "dns-port", 1053, "Specify port to which DNS proxy should be bound")
+	flag.UintVar(&dnsPort, "dns-port", 53, "Specify port to which DNS proxy should be bound")
+	flag.StringVar(&hostAddress, "host", "", "Specify host address")
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 	stopCh := ctrl.SetupSignalHandler()
 
-	// restConfig := ctrl.GetConfigOrDie()
-	// mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
-	// 	Scheme:             scheme,
-	// 	MetricsBindAddress: metricsAddr,
-	// 	Port:               9443,
-	// 	LeaderElection:     enableLeaderElection,
-	// 	LeaderElectionID:   "25f95f9f.metal-stack.io",
-	// })
-	// if err != nil {
-	// 	setupLog.Error(err, "unable to start firewall-controller manager")
-	// 	os.Exit(1)
-	// }
-	// go func() {
-	// 	setupLog.Info("starting firewall-controller", "version", v.V)
-	// 	if err := mgr.Start(stopCh); err != nil {
-	// 		setupLog.Error(err, "problem running firewall-controller")
-	// 		panic(err)
-	// 	}
-	// }()
+	restConfig := ctrl.GetConfigOrDie()
+	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
+		Scheme:             scheme,
+		MetricsBindAddress: metricsAddr,
+		Port:               9443,
+		LeaderElection:     enableLeaderElection,
+		LeaderElectionID:   "25f95f9f.metal-stack.io",
+	})
+	if err != nil {
+		setupLog.Error(err, "unable to start firewall-controller manager")
+		os.Exit(1)
+	}
+	go func() {
+		setupLog.Info("starting firewall-controller", "version", v.V)
+		if err := mgr.Start(stopCh); err != nil {
+			setupLog.Error(err, "problem running firewall-controller")
+			panic(err)
+		}
+	}()
 
-	// if started := mgr.GetCache().WaitForCacheSync(stopCh); !started {
-	// 	panic("not all started")
-	// }
+	if started := mgr.GetCache().WaitForCacheSync(stopCh); !started {
+		panic("not all started")
+	}
 
-	// crdMap, err := readCRDsFromVFS()
-	// if err != nil {
-	// 	setupLog.Error(err, "unable to read crds from virtual filesystem")
-	// 	os.Exit(1)
-	// }
-	// crds, err := crd.InstallCRDs(restConfig, crd.InstallOptions{
-	// 	CRDContents: crdMap,
-	// })
-	// if err != nil {
-	// 	setupLog.Error(err, "unable to create crds of firewall-controller")
-	// 	os.Exit(1)
-	// }
+	crdMap, err := readCRDsFromVFS()
+	if err != nil {
+		setupLog.Error(err, "unable to read crds from virtual filesystem")
+		os.Exit(1)
+	}
+	crds, err := crd.InstallCRDs(restConfig, crd.InstallOptions{
+		CRDContents: crdMap,
+	})
+	if err != nil {
+		setupLog.Error(err, "unable to create crds of firewall-controller")
+		os.Exit(1)
+	}
 
-	// err = crd.WaitForCRDs(restConfig, crds, crd.InstallOptions{MaxTime: 500 * time.Millisecond, PollInterval: 100 * time.Millisecond})
-	// if err != nil {
-	// 	setupLog.Error(err, "unable to wait for created crds of firewall-controller")
-	// 	os.Exit(1)
-	// }
+	err = crd.WaitForCRDs(restConfig, crds, crd.InstallOptions{MaxTime: 500 * time.Millisecond, PollInterval: 100 * time.Millisecond})
+	if err != nil {
+		setupLog.Error(err, "unable to wait for created crds of firewall-controller")
+		os.Exit(1)
+	}
 
 	// Start DNS proxy if runDNS is specified
 	var (
@@ -126,60 +133,60 @@ func main() {
 	)
 	if runDNS {
 		dnsCache = dns.NewDNSCache()
-		dnsProxy = dns.NewDNSProxy(dnsPort, ctrl.Log.WithName("DNS proxy"), dnsCache)
+		dnsProxy = dns.NewDNSProxy(hostAddress, dnsPort, ctrl.Log.WithName("DNS proxy"), dnsCache)
 
 		go dnsProxy.Run(stopCh)
 	}
 
-	// // Droptailer Reconciler
-	// if err = (&controllers.DroptailerReconciler{
-	// 	Client:    mgr.GetClient(),
-	// 	Log:       ctrl.Log.WithName("controllers").WithName("Droptailer"),
-	// 	Scheme:    mgr.GetScheme(),
-	// 	HostsFile: hostsFile,
-	// }).SetupWithManager(mgr); err != nil {
-	// 	setupLog.Error(err, "unable to create controller", "controller", "Droptailer")
-	// 	os.Exit(1)
-	// }
+	// Droptailer Reconciler
+	if err = (&controllers.DroptailerReconciler{
+		Client:    mgr.GetClient(),
+		Log:       ctrl.Log.WithName("controllers").WithName("Droptailer"),
+		Scheme:    mgr.GetScheme(),
+		HostsFile: hostsFile,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Droptailer")
+		os.Exit(1)
+	}
 
-	// // ClusterwideNetworkPolicy Reconciler
-	// if err = (&controllers.ClusterwideNetworkPolicyReconciler{
-	// 	Client: mgr.GetClient(),
-	// 	Log:    ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicy"),
-	// 	Scheme: mgr.GetScheme(),
-	// 	Cache:  dnsCache,
-	// }).SetupWithManager(mgr); err != nil {
-	// 	setupLog.Error(err, "unable to create controller", "controller", "ClusterwideNetworkPolicy")
-	// 	os.Exit(1)
-	// }
+	// ClusterwideNetworkPolicy Reconciler
+	if err = (&controllers.ClusterwideNetworkPolicyReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicy"),
+		Scheme: mgr.GetScheme(),
+		Cache:  dnsCache,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "ClusterwideNetworkPolicy")
+		os.Exit(1)
+	}
 
-	// // Firewall Reconciler
-	// caData := mgr.GetConfig().CAData
-	// caCert, err := sign.DecodeCertificate(caData)
-	// if err != nil {
-	// 	setupLog.Error(err, "unable to decode ca certificate")
-	// 	os.Exit(1)
-	// }
+	// Firewall Reconciler
+	caData := mgr.GetConfig().CAData
+	caCert, err := sign.DecodeCertificate(caData)
+	if err != nil {
+		setupLog.Error(err, "unable to decode ca certificate")
+		os.Exit(1)
+	}
 
-	// caPubKey, err := sign.ExtractPubKey(caCert)
-	// if err != nil {
-	// 	setupLog.Error(err, "unable to extract rsa pub key from ca certificate")
-	// 	os.Exit(1)
-	// }
+	caPubKey, err := sign.ExtractPubKey(caCert)
+	if err != nil {
+		setupLog.Error(err, "unable to extract rsa pub key from ca certificate")
+		os.Exit(1)
+	}
 
-	// if err = (&controllers.FirewallReconciler{
-	// 	Client:               mgr.GetClient(),
-	// 	Log:                  ctrl.Log.WithName("controllers").WithName("Firewall"),
-	// 	Scheme:               mgr.GetScheme(),
-	// 	EnableIDS:            enableIDS,
-	// 	EnableSignatureCheck: enableSignatureCheck,
-	// 	CAPubKey:             caPubKey,
-	// 	DNSProxy:             dnsProxy,
-	// }).SetupWithManager(mgr); err != nil {
-	// 	setupLog.Error(err, "unable to create controller", "controller", "Firewall")
-	// 	os.Exit(1)
-	// }
-	//
+	if err = (&controllers.FirewallReconciler{
+		Client:               mgr.GetClient(),
+		Log:                  ctrl.Log.WithName("controllers").WithName("Firewall"),
+		Scheme:               mgr.GetScheme(),
+		EnableIDS:            enableIDS,
+		EnableSignatureCheck: enableSignatureCheck,
+		CAPubKey:             caPubKey,
+		DNSProxy:             dnsProxy,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Firewall")
+		os.Exit(1)
+	}
+
 	// +kubebuilder:scaffold:builder
 	// Watch for termination signal
 	<-stopCh

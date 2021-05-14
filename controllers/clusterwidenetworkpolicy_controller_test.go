@@ -99,13 +99,28 @@ var _ = Describe("Reconcile CNWP resources", func() {
 						ToFQDNs: []firewallv1.FQDNSelector{
 							{
 								MatchName: "test.com",
+								Sets: []firewallv1.IPSet{
+									{
+										SetName: "test",
+									},
+									{
+										SetName: "test2",
+									},
+								},
 							},
 						},
 					},
 				}).Spec,
 			},
 			mockFunc: func(cache *nftMocks.MockFQDNCache) {
-				cache.EXPECT().GetSetsForFQDN(gomock.Any()).Return(nil)
+				cache.EXPECT().GetSetsForFQDN(gomock.Any(), false).Return([]firewallv1.IPSet{
+					{
+						SetName: "test2",
+					},
+					{
+						SetName: "test",
+					},
+				})
 			},
 		}),
 		Entry("Should reconcile when updated", CNWPTestCase{
@@ -159,7 +174,7 @@ var _ = Describe("Reconcile CNWP resources", func() {
 				}).Spec,
 			},
 			mockFunc: func(cache *nftMocks.MockFQDNCache) {
-				cache.EXPECT().GetSetsForFQDN(gomock.Any()).Return([]string{"test"})
+				cache.EXPECT().GetSetsForFQDN(gomock.Any(), false).Return([]firewallv1.IPSet{{SetName: "test"}})
 			},
 			reconcile: true,
 		}),

@@ -35,8 +35,8 @@ const (
 	// ClusterwideNetworkPolicyNamespace defines the namespace CNWPs are expected.
 	ClusterwideNetworkPolicyNamespace           = "firewall"
 	allowedDNSCharsREGroup                      = "[-a-zA-Z0-9_]"
-	IPv4                              IPVersion = "IPv4"
-	IPv6                              IPVersion = "IPv6"
+	IPv4                              IPVersion = "ip"
+	IPv6                              IPVersion = "ip6"
 )
 
 // ClusterwideNetworkPolicy contains the desired state for a cluster wide network policy to be applied.
