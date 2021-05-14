@@ -67,6 +67,7 @@ func main() {
 		hostsFile            string
 		runDNS               bool
 		dnsPort              uint
+		hostAddress          string
 	)
 	flag.BoolVar(&isVersion, "v", false, "Show firewall-controller version")
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
@@ -77,7 +78,8 @@ func main() {
 	flag.StringVar(&hostsFile, "hosts-file", "/etc/hosts", "The hosts file to manipulate for the droptailer.")
 	flag.BoolVar(&enableSignatureCheck, "enable-signature-check", true, "Set this to false to ignore signature checking.")
 	flag.BoolVar(&runDNS, "run-dns", false, "Set this to true to enable DNS based policies and run DNS proxy")
-	flag.UintVar(&dnsPort, "dns-port", 1053, "Specify port to which DNS proxy should be bound")
+	flag.UintVar(&dnsPort, "dns-port", 53, "Specify port to which DNS proxy should be bound")
+	flag.StringVar(&hostAddress, "host", "", "Specify host address")
 	flag.Parse()
 
 	if isVersion {
@@ -140,7 +142,7 @@ func main() {
 	)
 	if runDNS {
 		dnsCache = dns.NewDNSCache()
-		dnsProxy = dns.NewDNSProxy(dnsPort, ctrl.Log.WithName("DNS proxy"), dnsCache)
+		dnsProxy = dns.NewDNSProxy(hostAddress, dnsPort, ctrl.Log.WithName("DNS proxy"), dnsCache)
 
 		go dnsProxy.Run(ctx.Done())
 	}
@@ -193,7 +195,6 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Firewall")
 		os.Exit(1)
 	}
-
 	// +kubebuilder:scaffold:builder
 
 	<-ctx.Done()

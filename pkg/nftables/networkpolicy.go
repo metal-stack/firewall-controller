@@ -63,18 +63,9 @@ func clusterwideNetworkPolicyEgressRules(
 	for i, e := range np.Spec.Egress {
 		tcpPorts, udpPorts := calculatePorts(e.Ports)
 
-		// Generate allow/except rules
-		allow := []string{}
-		except := []string{}
-		if len(e.To) > 0 {
-			allow, except = clusterwideNetworkPolicyEgressToRules(e)
-		} else if len(e.ToFQDNs) > 0 {
-			// Generate allow rules based on DNS selectors
-			allow, np.Spec.Egress[i] = clusterwideNetworkPolicyEgressToFQDNRules(cache, e)
-		}
-
 		ruleBases := [][]string{}
 		if len(e.To) > 0 {
+			allow, except := clusterwideNetworkPolicyEgressToRules(e)
 			rb := []string{"ip saddr == @cluster_prefixes"}
 			if len(except) > 0 {
 				rb = append(rb, fmt.Sprintf("ip daddr != { %s }", strings.Join(except, ", ")))
@@ -85,10 +76,13 @@ func clusterwideNetworkPolicyEgressRules(
 				}
 			}
 			ruleBases = append(ruleBases, rb)
-		} else {
+		} else if len(e.ToFQDNs) > 0 {
+			// Generate allow rules based on DNS selectors
+			allow, u := clusterwideNetworkPolicyEgressToFQDNRules(cache, e)
+			np.Spec.Egress[i] = u
 			for _, a := range allow {
 				rb := []string{"ip saddr == @cluster_prefixes"}
-				rb = append(rb, fmt.Sprintf("ip daddr @%s", a))
+				rb = append(rb, fmt.Sprintf(string(a.Version)+" daddr @%s", a.SetName))
 				ruleBases = append(ruleBases, rb)
 			}
 		}
@@ -116,13 +110,15 @@ func clusterwideNetworkPolicyEgressToRules(e firewallv1.EgressRule) (allow, exce
 	return
 }
 
-func clusterwideNetworkPolicyEgressToFQDNRules(cache FQDNCache, e firewallv1.EgressRule) (allow []string, updated firewallv1.EgressRule) {
-	// TODO
-	// for i, fqdn := range e.ToFQDNs {
-	// 	fqdn.Sets = cache.GetSetsForFQDN(fqdn)
-	// 	allow = append(allow, fqdn.Sets...)
-	// 	e.ToFQDNs[i] = fqdn
-	// }
+func clusterwideNetworkPolicyEgressToFQDNRules(
+	cache FQDNCache,
+	e firewallv1.EgressRule,
+) (allow []firewallv1.IPSet, updated firewallv1.EgressRule) {
+	for i, fqdn := range e.ToFQDNs {
+		fqdn.Sets = cache.GetSetsForFQDN(fqdn, true)
+		e.ToFQDNs[i] = fqdn
+		allow = append(allow, fqdn.Sets...)
+	}
 
 	return allow, e
 }

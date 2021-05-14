@@ -17,7 +17,6 @@ package controllers
 import (
 	"context"
 	"reflect"
-	"sort"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -144,14 +143,24 @@ func (r *ClusterwideNetworkPolicyReconciler) nftableSetsAdded() bool {
 			}
 
 			for _, fqdn := range e.ToFQDNs {
-				unique := r.Cache.GetSetsForFQDN(fqdn)
+				unique := map[string]bool{}
+				sets := r.Cache.GetSetsForFQDN(fqdn, false)
+				for _, s := range sets {
+					unique[s.SetName] = false
+				}
 
-				sort.Strings(unique)
-				// TODO
-				// sort.Strings(fqdn.Sets)
+				for _, s := range fqdn.Sets {
+					if _, ok := unique[s.SetName]; !ok {
+						return true
+					}
 
-				if !reflect.DeepEqual(unique, fqdn.Sets) {
-					return true
+					unique[s.SetName] = true
+				}
+
+				for _, old := range unique {
+					if !old {
+						return true
+					}
 				}
 			}
 		}

@@ -222,19 +222,19 @@ func TestClusterwideNetworkPolicyEgressRules(t *testing.T) {
 			record: func(cache *mocks.MockFQDNCache) {
 				cache.
 					EXPECT().
-					GetSetsForFQDN(gomock.Any()).
-					Return([]string{"test"})
+					GetSetsForFQDN(gomock.Any(), true).
+					Return([]firewallv1.IPSet{{SetName: "test", Version: firewallv1.IPv4}})
 				cache.
 					EXPECT().
-					GetSetsForFQDN(gomock.Any()).
-					Return([]string{"test2"})
+					GetSetsForFQDN(gomock.Any(), true).
+					Return([]firewallv1.IPSet{{SetName: "test2", Version: firewallv1.IPv6}})
 			},
 			want: want{
 				egress: nftablesRules{
 					`ip saddr == @cluster_prefixes ip daddr @test tcp dport { 53 } counter accept comment "accept traffic for np  tcp"`,
 					`ip saddr == @cluster_prefixes ip daddr @test udp dport { 53 } counter accept comment "accept traffic for np  udp"`,
-					`ip saddr == @cluster_prefixes ip daddr @test2 tcp dport { 53 } counter accept comment "accept traffic for np  tcp"`,
-					`ip saddr == @cluster_prefixes ip daddr @test2 udp dport { 53 } counter accept comment "accept traffic for np  udp"`,
+					`ip saddr == @cluster_prefixes ip6 daddr @test2 tcp dport { 53 } counter accept comment "accept traffic for np  tcp"`,
+					`ip saddr == @cluster_prefixes ip6 daddr @test2 udp dport { 53 } counter accept comment "accept traffic for np  udp"`,
 				},
 			},
 		},

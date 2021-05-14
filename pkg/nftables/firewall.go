@@ -30,7 +30,8 @@ var templates embed.FS
 
 //go:generate mockgen -destination=./mocks/mock_fqdncache.go -package=mocks . FQDNCache
 type FQDNCache interface {
-	GetSetsForFQDN(fqdn firewallv1.FQDNSelector) (result []string)
+	GetAllSets() (result []firewallv1.IPSet)
+	GetSetsForFQDN(fqdn firewallv1.FQDNSelector, update bool) (result []firewallv1.IPSet)
 }
 
 // Firewall assembles nftable rules based on k8s entities
@@ -56,6 +57,12 @@ type nftablesRules []string
 type forwardingRules struct {
 	Ingress nftablesRules
 	Egress  nftablesRules
+}
+
+type nftablesSet struct {
+	Name     string
+	Typ      string
+	Elements string
 }
 
 // NewDefaultFirewall creates a new default nftables firewall.
