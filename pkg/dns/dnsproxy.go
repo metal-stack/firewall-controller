@@ -75,7 +75,7 @@ func (p *DNSProxy) bindToPort() (*net.UDPConn, *net.TCPListener, error) {
 	var err error
 	var listener net.Listener
 	var conn net.PacketConn
-	bindAddr := net.JoinHostPort("", strconv.Itoa(int(p.port)))
+	bindAddr := net.JoinHostPort("100.255.254.1", strconv.Itoa(int(p.port)))
 
 	defer func() {
 		if err != nil {

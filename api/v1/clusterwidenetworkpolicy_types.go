@@ -29,10 +29,14 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+type IPVersion string
+
 const (
 	// ClusterwideNetworkPolicyNamespace defines the namespace CNWPs are expected.
-	ClusterwideNetworkPolicyNamespace = "firewall"
-	allowedDNSCharsREGroup            = "[-a-zA-Z0-9_]"
+	ClusterwideNetworkPolicyNamespace           = "firewall"
+	allowedDNSCharsREGroup                      = "[-a-zA-Z0-9_]"
+	IPv4                              IPVersion = "IPv4"
+	IPv6                              IPVersion = "IPv6"
 )
 
 // ClusterwideNetworkPolicy contains the desired state for a cluster wide network policy to be applied.
@@ -137,7 +141,16 @@ type FQDNSelector struct {
 
 	// Sets stores nftables sets used for rule
 	// +optional
-	Sets []string `json:"sets,omitempty"`
+	Sets []IPSet `json:"sets,omitempty"`
+}
+
+// IPSet stores set name association to IP addresses
+type IPSet struct {
+	FQDN           string      `json:"fqdn,omitempty"`
+	SetName        string      `json:"setName,omitempty"`
+	IPs            []net.IP    `json:"ips,omitempty"`
+	ExpirationTime metav1.Time `json:"expirationTime,omitempty"`
+	Version        IPVersion   `json:"version,omitempty"`
 }
 
 func (s FQDNSelector) GetMatchName() string {
