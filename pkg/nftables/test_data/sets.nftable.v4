@@ -4,9 +4,9 @@ table inet firewall {
 		type ipv4_addr
 		flags interval
 		auto-merge
-		{{ if gt (len .InternalPrefixes) 0 }}
-		elements = { {{ .InternalPrefixes }} }
-		{{ end }}
+		
+		elements = { 1.2.3.4 }
+		
 	}
 
 	# Prefixes in the cluster, typically 10.x.x.x
@@ -17,13 +17,16 @@ table inet firewall {
 		auto-merge
 		elements = { 10.0.0.0/8 }
 	}
-	{{- range .Sets }}
 
-	set {{ .SetName }} {
-		type {{ .Version }}
-		elements = { {{ IPsJoin .IPs ", " }} }
+	set test {
+		type ipv4_addr
+		elements = { 10.0.0.1, 10.0.0.2 }
 	}
-	{{- end }}
+
+	set test2 {
+		type ipv6_addr
+		elements = { 2001:db8:85a3::8a2e:370:7334, 2001:db8:85a3::8a2e:370:7335 }
+	}
 
 	# counters
 	counter internal_in { }
@@ -37,17 +40,15 @@ table inet firewall {
 		type filter hook forward priority 1; policy drop;
 
 		# network traffic accounting for external traffic
-		ip saddr != @internal_prefixes oifname "vlan{{ .PrivateVrfID }}" counter name external_in
-		ip daddr != @internal_prefixes iifname "vrf{{ .PrivateVrfID }}" counter name external_out
+		ip saddr != @internal_prefixes oifname "vlan42" counter name external_in
+		ip daddr != @internal_prefixes iifname "vrf42" counter name external_out
 
 		# network traffic accounting for internal traffic
-		ip saddr @internal_prefixes oifname "vlan{{ .PrivateVrfID }}" counter name internal_in
-		ip daddr @internal_prefixes iifname "vrf{{ .PrivateVrfID }}" counter name internal_out
+		ip saddr @internal_prefixes oifname "vlan42" counter name internal_in
+		ip daddr @internal_prefixes iifname "vrf42" counter name internal_out
 
 		# rate limits
-		{{- range .RateLimitRules }}
-		{{ . }}
-		{{- end }}
+		meta iifname "eth0" limit rate over 10 mbytes/second counter name drop_ratelimit drop
 
 		# state dependent rules
 		ct state established,related counter accept comment "accept established connections"
@@ -58,25 +59,12 @@ table inet firewall {
 		ip protocol icmp icmp type { destination-unreachable, router-solicitation, router-advertisement, time-exceeded, parameter-problem } counter accept comment "accept icmp"
 
 		# dynamic ingress rules
-		{{- range .ForwardingRules.Ingress }}
-		{{ . }}
-		{{- end }}
+		ingress rule
 
 		# dynamic egress rules
-		{{- range .ForwardingRules.Egress }}
-		{{ . }}
-		{{- end }}
+		egress rule
 
 		counter comment "count and log dropped packets"
 		limit rate 10/second counter name drop_total log prefix "nftables-firewall-dropped: "
 	}
-{{- if gt (len .SnatRules) 0 }}
-
-	chain postrouting {
-		type nat hook postrouting priority -1; policy accept;
-		{{- range .SnatRules }}
-		{{ . }}
-        {{- end }}
-	}
-{{- end }}
 }

@@ -20,6 +20,10 @@ import (
 
 const (
 	tableName = "firewall"
+
+	// Versions specifically for nftables rendering purposes
+	IPv4 firewallv1.IPVersion = "ipv4_addr"
+	IPv6 firewallv1.IPVersion = "ipv6_addr"
 )
 
 type ipEntry struct {
@@ -125,7 +129,7 @@ func (c *DNSCache) GetSetsForFQDN(fqdn firewallv1.FQDNSelector, update bool) (re
 	return
 }
 
-func (c *DNSCache) GetAllSets() (result []firewallv1.IPSet) {
+func (c *DNSCache) GetSetsForRendering() (result []firewallv1.IPSet) {
 	for n, e := range c.fqdnToEntry {
 		result = append(
 			result,
@@ -133,13 +137,13 @@ func (c *DNSCache) GetAllSets() (result []firewallv1.IPSet) {
 				FQDN:    n,
 				SetName: e.ipv4.setName,
 				IPs:     e.ipv4.ips,
-				Version: firewallv1.IPv4,
+				Version: IPv4,
 			},
 			firewallv1.IPSet{
 				FQDN:    n,
 				SetName: e.ipv6.setName,
 				IPs:     e.ipv6.ips,
-				Version: firewallv1.IPv6,
+				Version: IPv6,
 			},
 		)
 	}
@@ -378,6 +382,12 @@ func updateNftSet(
 		Table:   table,
 		Name:    setName,
 		KeyType: dataType,
+	}
+
+	if s, err := conn.GetSetByName(table, setName); s == nil || err != nil {
+		if err = createNftSet(setName, dataType); err != nil {
+			return fmt.Errorf("failed to getOrCreate set: %w", err)
+		}
 	}
 
 	if err := conn.SetAddElements(set, newIPs); err != nil {
