@@ -17,6 +17,13 @@ table inet firewall {
 		auto-merge
 		elements = { 10.0.0.0/8 }
 	}
+	{{- range .Sets }}
+
+	set {{ .SetName }} {
+		type {{ .Version }}
+		elements = { {{ IPsJoin .IPs ", " }} }
+	}
+	{{- end }}
 
 	# counters
 	counter internal_in { }

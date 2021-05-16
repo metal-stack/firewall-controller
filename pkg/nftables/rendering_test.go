@@ -1,11 +1,15 @@
 package nftables
 
 import (
+	"net"
 	"os"
 	"path"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+
+	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	"github.com/metal-stack/firewall-controller/pkg/dns"
 )
 
 func TestFirewallRenderingData_renderString(t *testing.T) {
@@ -53,6 +57,34 @@ func TestFirewallRenderingData_renderString(t *testing.T) {
 				RateLimitRules:   []string{},
 				SnatRules:        []string{},
 				PrivateVrfID:     uint(42),
+			},
+			wantErr: false,
+		},
+		{
+			name: "sets",
+			data: &firewallRenderingData{
+				ForwardingRules: forwardingRules{
+					Egress:  []string{"egress rule"},
+					Ingress: []string{"ingress rule"},
+				},
+				InternalPrefixes: "1.2.3.4",
+				RateLimitRules:   []string{"meta iifname \"eth0\" limit rate over 10 mbytes/second counter name drop_ratelimit drop"},
+				SnatRules:        []string{},
+				PrivateVrfID:     uint(42),
+				Sets: []firewallv1.IPSet{
+					{
+						SetName: "test",
+						IPs:     []net.IP{net.ParseIP("10.0.0.1"), net.ParseIP("10.0.0.2")},
+						Version: dns.IPv4,
+					},
+					{
+						SetName: "test2",
+						IPs: []net.IP{
+							net.ParseIP("2001:0db8:85a3:0000:0000:8a2e:0370:7334"),
+							net.ParseIP("2001:0db8:85a3:0000:0000:8a2e:0370:7335")},
+						Version: dns.IPv6,
+					},
+				},
 			},
 			wantErr: false,
 		},

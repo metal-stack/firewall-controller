@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"net"
 	"os"
+
 	"strings"
 	"text/template"
 
@@ -53,7 +55,7 @@ func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 		},
 		RateLimitRules: rateLimitRules(f),
 		SnatRules:      snatRules,
-		Sets:           f.cache.GetAllSets(),
+		Sets:           f.cache.GetSetsForRendering(),
 	}, nil
 }
 
@@ -77,7 +79,17 @@ func (d *firewallRenderingData) renderString() (string, error) {
 		return "", err
 	}
 
-	tpl := template.Must(template.New("v4").Parse(tplString))
+	tpl := template.Must(
+		template.New("v4").
+			Funcs(template.FuncMap{"IPsJoin": func(elements []net.IP, sep string) string {
+				s := make([]string, 0, len(elements))
+				for _, e := range elements {
+					s = append(s, e.String())
+				}
+				return strings.Join(s, sep)
+			}}).
+			Parse(tplString),
+	)
 
 	err = tpl.Execute(&b, d)
 	if err != nil {

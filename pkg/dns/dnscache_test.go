@@ -6,7 +6,6 @@ import (
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 )
 
-// TODO
 func Test_GetSetsForFQDN(t *testing.T) {
 	tests := []struct {
 		name         string
