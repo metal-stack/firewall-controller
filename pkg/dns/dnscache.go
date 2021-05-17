@@ -93,7 +93,6 @@ type DNSCache struct {
 	sync.RWMutex
 
 	log           logr.Logger
-	client        *dnsgo.Client
 	fqdnToEntry   map[string]cacheEntry
 	setNames      map[string]struct{}
 	dnsServerAddr string
@@ -347,7 +346,9 @@ func (c *DNSCache) updateIPEntry(qname string, ips []net.IP, expirationTime time
 		ipe = entry.ipv6
 	}
 
-	ipe.update(setName, ips, expirationTime, dtype)
+	if err = ipe.update(setName, ips, expirationTime, dtype); err != nil {
+		return fmt.Errorf("failed to update ipEntry: %w", err)
+	}
 	c.fqdnToEntry[qname] = entry
 
 	return nil
