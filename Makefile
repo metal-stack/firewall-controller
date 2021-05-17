@@ -31,7 +31,7 @@ all: firewall-controller
 test: generate fmt vet manifests
 	go test ./... -short -coverprofile cover.out
 
-test-all: generate fmt vet manifests
+test-all: generate fmt vet manifests kubebuilder
 	go test ./... -v -coverprofile cover.out
 
 test-integration: generate fmt vet manifests
@@ -41,7 +41,7 @@ clean:
 	rm -rf bin/* pkg/network/frr.firewall.tpl
 
 # Build firewall-controller binary
-firewall-controller: generate fmt vet test
+firewall-controller: generate fmt vet
 	CGO_ENABLED=0 go build \
 		-tags netgo \
 		-trimpath \
