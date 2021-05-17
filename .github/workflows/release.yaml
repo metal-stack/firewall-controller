@@ -25,7 +25,6 @@ jobs:
         sudo ip link add vrf42 type dummy
         sudo ip link add vlan42 type dummy
         export KUBEBUILDER_ASSETS=/usr/local/bin
-        sudo make kubebuilder
         sudo "PATH=$PATH" --preserve-env=GOROOT make test-all clean
 
   build:
@@ -73,9 +72,10 @@ jobs:
     - name: Build and Push Docker Image
       run: |
         export GITHUB_TAG_NAME=${GITHUB_REF##*/}
+        export KUBEBUILDER_ASSETS=/usr/local/bin
         make docker-build
         make docker-push
-        make firewall-controller
+        sudo make firewall-controller
 
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1.0.2
