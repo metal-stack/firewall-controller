@@ -60,12 +60,6 @@ type forwardingRules struct {
 	Egress  nftablesRules
 }
 
-type nftablesSet struct {
-	Name     string
-	Typ      string
-	Elements string
-}
-
 // NewDefaultFirewall creates a new default nftables firewall.
 func NewDefaultFirewall() *Firewall {
 	defaultSpec := firewallv1.FirewallSpec{}

@@ -142,7 +142,10 @@ func main() {
 	)
 	if runDNS {
 		dnsCache = dns.NewDNSCache(ctrl.Log.WithName("DNS cache"))
-		dnsProxy = dns.NewDNSProxy(hostAddress, dnsPort, ctrl.Log.WithName("DNS proxy"), dnsCache)
+		if dnsProxy, err = dns.NewDNSProxy(hostAddress, dnsPort, ctrl.Log.WithName("DNS proxy"), dnsCache); err != nil {
+			setupLog.Error(err, "failed to init DNS proxy")
+			os.Exit(1)
+		}
 
 		go dnsProxy.Run(ctx.Done())
 	}

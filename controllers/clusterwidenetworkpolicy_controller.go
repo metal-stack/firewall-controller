@@ -16,6 +16,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"time"
 
@@ -93,7 +94,10 @@ func (r *ClusterwideNetworkPolicyReconciler) reconcileRules(ctx context.Context,
 	if err := nftablesFirewall.Reconcile(); err != nil {
 		return done, err
 	}
-	r.Update(ctx, &cnwps)
+
+	if err := r.Update(ctx, &cnwps); err != nil {
+		return done, err
+	}
 
 	return done, nil
 }
@@ -172,15 +176,17 @@ func (r *ClusterwideNetworkPolicyReconciler) nftableSetsAdded() bool {
 // SetupWithManager configures this controller to run in schedule
 func (r *ClusterwideNetworkPolicyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	scheduleChan := make(chan event.GenericEvent)
-	mgr.Add(manager.RunnableFunc(func(c <-chan struct{}) error {
+	if err := mgr.Add(manager.RunnableFunc(func(c <-chan struct{}) error {
 		e := event.GenericEvent{}
 		ticker := time.NewTicker(rulesReconcileInterval)
 
-		for _ = range ticker.C {
+		for range ticker.C {
 			scheduleChan <- e
 		}
 		return nil
-	}))
+	})); err != nil {
+		return fmt.Errorf("failed to add runnable to manager: %w", err)
+	}
 
 	firewallHandler := &handler.EnqueueRequestsFromMapFunc{
 		ToRequests: handler.ToRequestsFunc(
