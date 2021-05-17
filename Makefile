@@ -11,6 +11,11 @@ DOCKER_IMG ?= ghcr.io/metal-stack/firewall-controller:${DOCKER_TAG}
 # version should be not that far away from the compile dependency in go.mod
 METAL_NETWORKER_VERSION := v0.8.3
 
+# Kubebuilder installation environment variables
+KUBEBUILDER_DOWNLOAD_URL := https://github.com/kubernetes-sigs/kubebuilder/releases/download
+KUBEBUILDER_VER := 2.3.1
+KUBEBUILDER_ASSETS := /usr/local/bin
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -91,6 +96,13 @@ docker-build:
 # Push the docker image
 docker-push:
 	docker push ${DOCKER_IMG}
+
+kubebuilder:
+	set -ex \
+ 		&& mkdir -p /tmp/kubebuilder /usr/local/bin \
+ 		&& curl -L ${KUBEBUILDER_DOWNLOAD_URL}/v${KUBEBUILDER_VER}/kubebuilder_${KUBEBUILDER_VER}_linux_amd64.tar.gz -o /tmp/kubebuilder-${KUBEBUILDER_VER}-linux-amd64.tar.gz \
+ 		&& tar xzvf /tmp/kubebuilder-${KUBEBUILDER_VER}-linux-amd64.tar.gz -C /tmp/kubebuilder --strip-components=1 \
+ 		&& mv /tmp/kubebuilder/bin/* ${KUBEBUILDER_ASSETS}/
 
 # find or download controller-gen
 # download controller-gen if necessary

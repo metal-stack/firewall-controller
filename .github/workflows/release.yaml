@@ -24,6 +24,8 @@ jobs:
         sudo modprobe dummy
         sudo ip link add vrf42 type dummy
         sudo ip link add vlan42 type dummy
+        export KUBEBUILDER_ASSETS=/usr/local/bin
+        sudo make kubebuilder
         sudo "PATH=$PATH" --preserve-env=GOROOT make test-all clean
 
   build:
