@@ -13,7 +13,7 @@ const ()
 
 type DNSHandler interface {
 	ServeDNS(w dnsgo.ResponseWriter, r *dnsgo.Msg)
-	UpdateDNSAddr(addr string)
+	UpdateDNSServerAddr(addr string)
 }
 
 type DNSProxy struct {
@@ -65,8 +65,9 @@ func (p *DNSProxy) Run(stopCh <-chan struct{}) error {
 	return nil
 }
 
-func (p *DNSProxy) UpdateDNSAddr(addr string) {
-	p.handler.UpdateDNSAddr(addr)
+func (p *DNSProxy) UpdateDNSServerAddr(addr string) {
+	p.handler.UpdateDNSServerAddr(addr)
+	p.cache.UpdateDNSServerAddr(addr)
 }
 
 // bindToPort attempts to bind to port for both UDP and TCP
