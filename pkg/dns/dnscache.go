@@ -12,6 +12,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/go-logr/logr"
 	"github.com/google/nftables"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	dnsgo "github.com/miekg/dns"
@@ -91,15 +92,19 @@ type cacheEntry struct {
 type DNSCache struct {
 	sync.RWMutex
 
-	client      *dnsgo.Client
-	fqdnToEntry map[string]cacheEntry
-	setNames    map[string]struct{}
+	log           logr.Logger
+	client        *dnsgo.Client
+	fqdnToEntry   map[string]cacheEntry
+	setNames      map[string]struct{}
+	dnsServerAddr string
 }
 
-func NewDNSCache() *DNSCache {
+func NewDNSCache(log logr.Logger) *DNSCache {
 	return &DNSCache{
-		fqdnToEntry: map[string]cacheEntry{},
-		setNames:    map[string]struct{}{},
+		log:           log,
+		fqdnToEntry:   map[string]cacheEntry{},
+		setNames:      map[string]struct{}{},
+		dnsServerAddr: defaultDNSServerAddr,
 	}
 }
 
@@ -151,6 +156,10 @@ func (c *DNSCache) GetSetsForRendering() (result []firewallv1.IPSet) {
 	return
 }
 
+func (c *DNSCache) UpdateDNSServerAddr(addr string) {
+	c.dnsServerAddr = addr
+}
+
 // restoreSets add missing sets from FQDNSelector.Sets
 func (c *DNSCache) restoreSets(fqdn firewallv1.FQDNSelector) {
 	for _, s := range fqdn.Sets {
@@ -184,13 +193,18 @@ func (c *DNSCache) restoreSets(fqdn firewallv1.FQDNSelector) {
 // getSetNameForFQDN returns FQDN set data
 func (c *DNSCache) getSetNameForFQDN(fqdn string) []firewallv1.IPSet {
 	c.RLock()
-	defer c.RUnlock()
-
 	entry, found := c.fqdnToEntry[fqdn]
+
 	if !found {
-		return nil
+		c.RUnlock()
+		if err := c.loadDataFromDNSServer(fqdn); err != nil {
+			c.log.Error(err, "failed to load data for FQDN")
+			return nil
+		}
+		return c.getSetNameForFQDN(fqdn)
 	}
 
+	defer c.RUnlock()
 	return []firewallv1.IPSet{{
 		FQDN:           fqdn,
 		SetName:        entry.ipv4.setName,
@@ -205,6 +219,24 @@ func (c *DNSCache) getSetNameForFQDN(fqdn string) []firewallv1.IPSet {
 		Version:        firewallv1.IPv6,
 	},
 	}
+}
+
+func (c *DNSCache) loadDataFromDNSServer(fqdn string) error {
+	cl := new(dnsgo.Client)
+	for _, t := range []uint16{dnsgo.TypeA, dnsgo.TypeAAAA} {
+		m := new(dnsgo.Msg)
+		m.Id = dnsgo.Id()
+		m.SetQuestion(fqdn, t)
+		in, _, err := cl.Exchange(m, c.dnsServerAddr)
+		if err != nil {
+			return fmt.Errorf("failed to get DNS data about fqdn %s: %w", fqdn, err)
+		}
+		if err = c.Update(time.Now(), in); err != nil {
+			return fmt.Errorf("failed to update DNS data for fqdn %s: %w", fqdn, err)
+		}
+	}
+
+	return nil
 }
 
 // getSetNameForRegex returns list of FQDN set data that match provided regex

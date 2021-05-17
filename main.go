@@ -141,7 +141,7 @@ func main() {
 		dnsProxy *dns.DNSProxy
 	)
 	if runDNS {
-		dnsCache = dns.NewDNSCache()
+		dnsCache = dns.NewDNSCache(ctrl.Log.WithName("DNS cache"))
 		dnsProxy = dns.NewDNSProxy(hostAddress, dnsPort, ctrl.Log.WithName("DNS proxy"), dnsCache)
 
 		go dnsProxy.Run(ctx.Done())

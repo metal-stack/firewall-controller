@@ -61,3 +61,15 @@ func (mr *MockFQDNCacheMockRecorder) GetSetsForRendering() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSetsForRendering", reflect.TypeOf((*MockFQDNCache)(nil).GetSetsForRendering))
 }
+
+// UpdateDNSServerAddr mocks base method.
+func (m *MockFQDNCache) UpdateDNSServerAddr(arg0 string) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "UpdateDNSServerAddr", arg0)
+}
+
+// UpdateDNSServerAddr indicates an expected call of UpdateDNSServerAddr.
+func (mr *MockFQDNCacheMockRecorder) UpdateDNSServerAddr(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateDNSServerAddr", reflect.TypeOf((*MockFQDNCache)(nil).UpdateDNSServerAddr), arg0)
+}

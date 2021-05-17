@@ -15,16 +15,16 @@ const (
 	reqIdLogField      = "req-id"
 
 	// dnsTimeout is the maximum time to wait for DNS responses to forwarded DNS requests
-	dnsTimeout     = 10 * time.Second
-	defaultDNSAddr = "8.8.8.8:53"
+	dnsTimeout           = 10 * time.Second
+	defaultDNSServerAddr = "8.8.8.8:53"
 )
 
 type DNSProxyHandler struct {
-	log         logr.Logger
-	udpClient   *dnsgo.Client
-	tcpClient   *dnsgo.Client
-	dnsAddr     string
-	updateCache func(lookupTime time.Time, response *dnsgo.Msg)
+	log           logr.Logger
+	udpClient     *dnsgo.Client
+	tcpClient     *dnsgo.Client
+	dnsServerAddr string
+	updateCache   func(lookupTime time.Time, response *dnsgo.Msg)
 }
 
 func NewDNSProxyHandler(log logr.Logger, cache *DNSCache) *DNSProxyHandler {
@@ -33,11 +33,11 @@ func NewDNSProxyHandler(log logr.Logger, cache *DNSCache) *DNSProxyHandler {
 	tcpClient := &dnsgo.Client{Net: "tcp", Timeout: dnsTimeout, SingleInflight: false}
 
 	return &DNSProxyHandler{
-		log:         log.WithName("DNS handler"),
-		udpClient:   udpClient,
-		tcpClient:   tcpClient,
-		dnsAddr:     defaultDNSAddr,
-		updateCache: getUpdateCacheFunc(log, cache),
+		log:           log.WithName("DNS handler"),
+		udpClient:     udpClient,
+		tcpClient:     tcpClient,
+		dnsServerAddr: defaultDNSServerAddr,
+		updateCache:   getUpdateCacheFunc(log, cache),
 	}
 }
 
@@ -69,8 +69,8 @@ func (h *DNSProxyHandler) ServeDNS(w dnsgo.ResponseWriter, request *dnsgo.Msg) {
 	err = w.WriteMsg(response)
 }
 
-func (h *DNSProxyHandler) UpdateDNSAddr(addr string) {
-	h.dnsAddr = addr
+func (h *DNSProxyHandler) UpdateDNSServerAddr(addr string) {
+	h.dnsServerAddr = addr
 }
 
 func (h *DNSProxyHandler) getDataFromDNS(addr net.Addr, request *dnsgo.Msg) (*dnsgo.Msg, error) {
@@ -86,7 +86,7 @@ func (h *DNSProxyHandler) getDataFromDNS(addr net.Addr, request *dnsgo.Msg) (*dn
 		return nil, fmt.Errorf("failed to determine transport protocol: %s", protocol)
 	}
 
-	response, _, err := client.Exchange(request, h.dnsAddr)
+	response, _, err := client.Exchange(request, h.dnsServerAddr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to call target DNS: %w", err)
 	}
