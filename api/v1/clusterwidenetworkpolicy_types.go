@@ -139,7 +139,9 @@ type FQDNSelector struct {
 	// +kubebuilder:validation:Pattern=`^([-a-zA-Z0-9_*]+[.]?)+$`
 	MatchPattern string `json:"matchPattern,omitempty"`
 
-	// Sets stores nftables sets used for rule
+	// Sets stores nftables sets used for rule.
+	// Stored in Spec so that reconciler would receive always up-to-date data.
+	// Client caches Status, so additional actions would be required to guarantee that up-to-date data is used.
 	// +optional
 	Sets []IPSet `json:"sets,omitempty"`
 }

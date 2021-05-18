@@ -9,11 +9,9 @@ import (
 	dnsgo "github.com/miekg/dns"
 )
 
-const ()
-
 type DNSHandler interface {
 	ServeDNS(w dnsgo.ResponseWriter, r *dnsgo.Msg)
-	UpdateDNSServerAddr(addr string)
+	UpdateDNSServerAddr(addr string) error
 }
 
 type DNSProxy struct {
@@ -73,9 +71,13 @@ func (p *DNSProxy) Run(stopCh <-chan struct{}) {
 	}
 }
 
-func (p *DNSProxy) UpdateDNSServerAddr(addr string) {
-	p.handler.UpdateDNSServerAddr(addr)
+func (p *DNSProxy) UpdateDNSServerAddr(addr string) error {
+	if err := p.handler.UpdateDNSServerAddr(addr); err != nil {
+		return fmt.Errorf("failed to update DNS server address: %w", err)
+	}
 	p.cache.UpdateDNSServerAddr(addr)
+
+	return nil
 }
 
 // bindToPort attempts to bind to port for both UDP and TCP

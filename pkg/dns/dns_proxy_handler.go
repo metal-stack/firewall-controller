@@ -17,6 +17,7 @@ const (
 	// dnsTimeout is the maximum time to wait for DNS responses to forwarded DNS requests
 	dnsTimeout           = 10 * time.Second
 	defaultDNSServerAddr = "8.8.8.8:53"
+	testDNSRecord        = "*."
 )
 
 type DNSProxyHandler struct {
@@ -69,8 +70,20 @@ func (h *DNSProxyHandler) ServeDNS(w dnsgo.ResponseWriter, request *dnsgo.Msg) {
 	err = w.WriteMsg(response)
 }
 
-func (h *DNSProxyHandler) UpdateDNSServerAddr(addr string) {
+// UpdateDNSServerAddr validates and if successfull updates DNS server address
+func (h *DNSProxyHandler) UpdateDNSServerAddr(addr string) error {
+	m := new(dnsgo.Msg)
+	m.Id = dnsgo.Id()
+	m.SetQuestion(testDNSRecord, dnsgo.TypeA)
+
+	c := new(dnsgo.Client)
+	_, _, err := c.Exchange(m, addr)
+	if err != nil {
+		return fmt.Errorf("new DNS server address not valid: %w", err)
+	}
+
 	h.dnsServerAddr = addr
+	return nil
 }
 
 func (h *DNSProxyHandler) getDataFromDNS(addr net.Addr, request *dnsgo.Msg) (*dnsgo.Msg, error) {

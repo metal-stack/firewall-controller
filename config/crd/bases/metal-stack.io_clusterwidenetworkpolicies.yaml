@@ -141,7 +141,11 @@ spec:
                             pattern: ^([-a-zA-Z0-9_*]+[.]?)+$
                             type: string
                           sets:
-                            description: Sets stores nftables sets used for rule
+                            description: Sets stores nftables sets used for rule.
+                              Stored in Spec so that reconciler would receive always
+                              up-to-date data. Client caches Status, so additional
+                              actions would be required to guarantee that up-to-date
+                              data is used.
                             items:
                               description: IPSet stores set name association to IP
                                 addresses

@@ -75,7 +75,7 @@ jobs:
         export KUBEBUILDER_ASSETS=/usr/local/bin
         make docker-build
         make docker-push
-        sudo make firewall-controller
+        make firewall-controller
 
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1.0.2
