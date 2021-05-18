@@ -33,15 +33,11 @@ type ipEntry struct {
 	setName        string
 }
 
-func newIPEntry(setName string, expirationTime time.Time, dtype nftables.SetDatatype) (*ipEntry, error) {
-	if err := createNftSet(setName, dtype); err != nil {
-		return nil, fmt.Errorf("failed to create nft set: %w", err)
-	}
-
+func newIPEntry(setName string, expirationTime time.Time, dtype nftables.SetDatatype) *ipEntry {
 	return &ipEntry{
 		expirationTime: expirationTime,
 		setName:        setName,
-	}, nil
+	}
 }
 
 func (e *ipEntry) update(setName string, ips []net.IP, expirationTime time.Time, dtype nftables.SetDatatype) error {
@@ -311,10 +307,7 @@ func (c *DNSCache) Update(lookupTime time.Time, msg *dnsgo.Msg) error {
 }
 
 func (c *DNSCache) updateIPEntry(qname string, ips []net.IP, expirationTime time.Time, dtype nftables.SetDatatype) error {
-	var (
-		setName string
-		err     error
-	)
+	var setName string
 
 	c.Lock()
 	defer c.Unlock()
@@ -329,24 +322,20 @@ func (c *DNSCache) updateIPEntry(qname string, ips []net.IP, expirationTime time
 	case nftables.TypeIPAddr:
 		if entry.ipv4 == nil {
 			setName = c.createSetName(qname, dtype.Name, 0)
-			if ipe, err = newIPEntry(setName, expirationTime, dtype); err != nil {
-				return fmt.Errorf("failed to create IPv4 entry")
-			}
+			ipe = newIPEntry(setName, expirationTime, dtype)
 			entry.ipv4 = ipe
 		}
 		ipe = entry.ipv4
 	case nftables.TypeIP6Addr:
 		if entry.ipv6 == nil {
 			setName = c.createSetName(qname, dtype.Name, 0)
-			if ipe, err = newIPEntry(setName, expirationTime, dtype); err != nil {
-				return fmt.Errorf("failed to create IPv6 entry")
-			}
+			ipe = newIPEntry(setName, expirationTime, dtype)
 			entry.ipv6 = ipe
 		}
 		ipe = entry.ipv6
 	}
 
-	if err = ipe.update(setName, ips, expirationTime, dtype); err != nil {
+	if err := ipe.update(setName, ips, expirationTime, dtype); err != nil {
 		return fmt.Errorf("failed to update ipEntry: %w", err)
 	}
 	c.fqdnToEntry[qname] = entry
@@ -375,30 +364,6 @@ func (c *DNSCache) createSetName(qname, dataType string, suffix int) (setName st
 	return
 }
 
-// createNftSet creates new Nftables set
-func createNftSet(setName string, dataType nftables.SetDatatype) (err error) {
-	conn := nftables.Conn{}
-
-	table := &nftables.Table{
-		Name:   tableName,
-		Family: nftables.TableFamilyINet,
-	}
-	set := &nftables.Set{
-		Table:   table,
-		Name:    setName,
-		KeyType: dataType,
-	}
-
-	if err = conn.AddSet(set, nil); err != nil {
-		return fmt.Errorf("failed to add set: %w", err)
-	}
-	if err = conn.Flush(); err != nil {
-		return fmt.Errorf("failed to save set: %w", err)
-	}
-
-	return nil
-}
-
 // updateNftSet adds/deletes elements from Nftables set
 func updateNftSet(
 	newIPs, deletedIPs []nftables.SetElement,
@@ -417,10 +382,9 @@ func updateNftSet(
 		KeyType: dataType,
 	}
 
+	// Skip if set doesn't exist
 	if s, err := conn.GetSetByName(table, setName); s == nil || err != nil {
-		if err = createNftSet(setName, dataType); err != nil {
-			return fmt.Errorf("failed to getOrCreate set: %w", err)
-		}
+		return nil
 	}
 
 	if err := conn.SetAddElements(set, newIPs); err != nil {

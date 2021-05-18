@@ -35,5 +35,5 @@ type FirewallInterface interface {
 }
 
 type DNSProxy interface {
-	UpdateDNSServerAddr(addr string)
+	UpdateDNSServerAddr(addr string) error
 }
