@@ -263,7 +263,7 @@ func (c *DNSCache) getSetNameForRegex(regex string) (sets []firewallv1.IPSet) {
 		)
 	}
 
-	return nil
+	return
 }
 
 // Update DNS cache.
@@ -308,6 +308,11 @@ func (c *DNSCache) Update(lookupTime time.Time, msg *dnsgo.Msg) error {
 
 func (c *DNSCache) updateIPEntry(qname string, ips []net.IP, expirationTime time.Time, dtype nftables.SetDatatype) error {
 	var setName string
+	scopedLog := c.log.WithValues(
+		"fqdn", qname,
+		"ip_len", len(ips),
+	)
+	scopedLog.Info("creating new IP entry")
 
 	c.Lock()
 	defer c.Unlock()
@@ -340,6 +345,7 @@ func (c *DNSCache) updateIPEntry(qname string, ips []net.IP, expirationTime time
 	}
 	c.fqdnToEntry[qname] = entry
 
+	scopedLog.WithValues("set", setName).Info("added new IP entry")
 	return nil
 }
 
