@@ -206,6 +206,7 @@ func (r *ClusterwideNetworkPolicyReconciler) SetupWithManager(mgr ctrl.Manager) 
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
+		For(&firewallv1.ClusterwideNetworkPolicy{}).
 		Watches(&source.Channel{Source: scheduleChan}, firewallHandler).
 		Complete(r)
 }
