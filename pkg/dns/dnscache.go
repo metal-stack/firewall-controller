@@ -131,21 +131,12 @@ func (c *DNSCache) GetSetsForFQDN(fqdn firewallv1.FQDNSelector, update bool) (re
 
 func (c *DNSCache) GetSetsForRendering() (result []firewallv1.IPSet) {
 	for n, e := range c.fqdnToEntry {
-		result = append(
-			result,
-			firewallv1.IPSet{
-				FQDN:    n,
-				SetName: e.ipv4.setName,
-				IPs:     e.ipv4.ips,
-				Version: IPv4,
-			},
-			firewallv1.IPSet{
-				FQDN:    n,
-				SetName: e.ipv6.setName,
-				IPs:     e.ipv6.ips,
-				Version: IPv6,
-			},
-		)
+		if e.ipv4 != nil {
+			result = append(result, createIPSetFromIPEntry(n, IPv4, e.ipv4))
+		}
+		if e.ipv6 != nil {
+			result = append(result, createIPSetFromIPEntry(n, IPv6, e.ipv6))
+		}
 	}
 
 	return
@@ -186,7 +177,7 @@ func (c *DNSCache) restoreSets(fqdn firewallv1.FQDNSelector) {
 }
 
 // getSetNameForFQDN returns FQDN set data
-func (c *DNSCache) getSetNameForFQDN(fqdn string) []firewallv1.IPSet {
+func (c *DNSCache) getSetNameForFQDN(fqdn string) (result []firewallv1.IPSet) {
 	c.RLock()
 	entry, found := c.fqdnToEntry[fqdn]
 
@@ -200,20 +191,14 @@ func (c *DNSCache) getSetNameForFQDN(fqdn string) []firewallv1.IPSet {
 	}
 
 	defer c.RUnlock()
-	return []firewallv1.IPSet{{
-		FQDN:           fqdn,
-		SetName:        entry.ipv4.setName,
-		IPs:            entry.ipv4.ips,
-		ExpirationTime: metav1.Time{Time: entry.ipv4.expirationTime},
-		Version:        firewallv1.IPv4,
-	}, {
-		FQDN:           fqdn,
-		SetName:        entry.ipv6.setName,
-		IPs:            entry.ipv6.ips,
-		ExpirationTime: metav1.Time{Time: entry.ipv6.expirationTime},
-		Version:        firewallv1.IPv6,
-	},
+
+	if entry.ipv4 != nil {
+		result = append(result, createIPSetFromIPEntry(fqdn, firewallv1.IPv4, entry.ipv4))
 	}
+	if entry.ipv6 != nil {
+		result = append(result, createIPSetFromIPEntry(fqdn, firewallv1.IPv6, entry.ipv6))
+	}
+	return
 }
 
 func (c *DNSCache) loadDataFromDNSServer(fqdn string) error {
@@ -244,23 +229,12 @@ func (c *DNSCache) getSetNameForRegex(regex string) (sets []firewallv1.IPSet) {
 			continue
 		}
 
-		sets = append(
-			sets,
-			firewallv1.IPSet{
-				FQDN:           n,
-				SetName:        e.ipv4.setName,
-				IPs:            e.ipv4.ips,
-				ExpirationTime: metav1.Time{Time: e.ipv4.expirationTime},
-				Version:        firewallv1.IPv4,
-			},
-			firewallv1.IPSet{
-				FQDN:           n,
-				SetName:        e.ipv6.setName,
-				IPs:            e.ipv6.ips,
-				ExpirationTime: metav1.Time{Time: e.ipv6.expirationTime},
-				Version:        firewallv1.IPv6,
-			},
-		)
+		if e.ipv4 != nil {
+			sets = append(sets, createIPSetFromIPEntry(n, firewallv1.IPv4, e.ipv4))
+		}
+		if e.ipv6 != nil {
+			sets = append(sets, createIPSetFromIPEntry(n, firewallv1.IPv6, e.ipv6))
+		}
 	}
 
 	return
@@ -296,21 +270,25 @@ func (c *DNSCache) Update(lookupTime time.Time, msg *dnsgo.Msg) error {
 		}
 	}
 
-	if err := c.updateIPEntry(qname, ipv4, lookupTime.Add(time.Duration(minIPv4TTL)), nftables.TypeIPAddr); err != nil {
-		return fmt.Errorf("failed to update IPv4 addresses: %w", err)
+	if len(ipv4) > 0 {
+		if err := c.updateIPEntry(qname, ipv4, lookupTime.Add(time.Duration(minIPv4TTL)), nftables.TypeIPAddr); err != nil {
+			return fmt.Errorf("failed to update IPv4 addresses: %w", err)
+		}
 	}
-	if err := c.updateIPEntry(qname, ipv6, lookupTime.Add(time.Duration(minIPv6TTL)), nftables.TypeIP6Addr); err != nil {
-		return fmt.Errorf("failed to update IPv6 addresses: %w", err)
+	if len(ipv6) > 0 {
+		if err := c.updateIPEntry(qname, ipv6, lookupTime.Add(time.Duration(minIPv6TTL)), nftables.TypeIP6Addr); err != nil {
+			return fmt.Errorf("failed to update IPv6 addresses: %w", err)
+		}
 	}
 
 	return nil
 }
 
 func (c *DNSCache) updateIPEntry(qname string, ips []net.IP, expirationTime time.Time, dtype nftables.SetDatatype) error {
-	var setName string
 	scopedLog := c.log.WithValues(
 		"fqdn", qname,
 		"ip_len", len(ips),
+		"dtype", dtype.Name,
 	)
 	scopedLog.Info("creating new IP entry")
 
@@ -326,20 +304,21 @@ func (c *DNSCache) updateIPEntry(qname string, ips []net.IP, expirationTime time
 	switch dtype {
 	case nftables.TypeIPAddr:
 		if entry.ipv4 == nil {
-			setName = c.createSetName(qname, dtype.Name, 0)
+			setName := c.createSetName(qname, dtype.Name, 0)
 			ipe = newIPEntry(setName, expirationTime, dtype)
 			entry.ipv4 = ipe
 		}
 		ipe = entry.ipv4
 	case nftables.TypeIP6Addr:
 		if entry.ipv6 == nil {
-			setName = c.createSetName(qname, dtype.Name, 0)
+			setName := c.createSetName(qname, dtype.Name, 0)
 			ipe = newIPEntry(setName, expirationTime, dtype)
 			entry.ipv6 = ipe
 		}
 		ipe = entry.ipv6
 	}
 
+	setName := ipe.setName
 	if err := ipe.update(setName, ips, expirationTime, dtype); err != nil {
 		return fmt.Errorf("failed to update ipEntry: %w", err)
 	}
@@ -405,4 +384,14 @@ func updateNftSet(
 		return fmt.Errorf("failed to save changes to set: %w", err)
 	}
 	return nil
+}
+
+func createIPSetFromIPEntry(fqdn string, version firewallv1.IPVersion, entry *ipEntry) firewallv1.IPSet {
+	return firewallv1.IPSet{
+		FQDN:           fqdn,
+		SetName:        entry.setName,
+		IPs:            entry.ips,
+		ExpirationTime: metav1.Time{Time: entry.expirationTime},
+		Version:        version,
+	}
 }
