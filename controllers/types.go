@@ -27,12 +27,7 @@ type CreateFirewall = func(
 	spec firewallv1.FirewallSpec,
 	cache nftables.FQDNCache,
 	log logr.Logger,
-) FirewallInterface
-
-//go:generate mockgen -destination=./mocks/mock_firewall.go -package=mocks . FirewallInterface
-type FirewallInterface interface {
-	Reconcile() error
-}
+) nftables.FirewallInterface
 
 type DNSProxy interface {
 	UpdateDNSServerAddr(addr string) error
