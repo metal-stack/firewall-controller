@@ -60,14 +60,8 @@ type forwardingRules struct {
 	Egress  nftablesRules
 }
 
-//go:generate mockgen -destination=./mocks/mock_firewall.go -package=mocks . FirewallInterface
-type FirewallInterface interface {
-	Reconcile() error
-	Flush() error
-}
-
 // NewDefaultFirewall creates a new default nftables firewall.
-func NewDefaultFirewall() FirewallInterface {
+func NewDefaultFirewall() *Firewall {
 	defaultSpec := firewallv1.FirewallSpec{}
 	return NewFirewall(&firewallv1.ClusterwideNetworkPolicyList{}, &corev1.ServiceList{}, defaultSpec, nil, logr.Discard())
 }
@@ -79,7 +73,7 @@ func NewFirewall(
 	spec firewallv1.FirewallSpec,
 	cache FQDNCache,
 	log logr.Logger,
-) FirewallInterface {
+) *Firewall {
 	networkMap := networkMap{}
 	var primaryPrivateNet *firewallv1.FirewallNetwork
 	for i, n := range spec.FirewallNetworks {

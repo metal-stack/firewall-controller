@@ -20,8 +20,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
-	"github.com/metal-stack/firewall-controller/controllers/mocks"
-	nftMocks "github.com/metal-stack/firewall-controller/pkg/nftables/mocks"
+	"github.com/metal-stack/firewall-controller/pkg/nftables/mocks"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -35,7 +34,7 @@ var _ = Describe("Reconcile CNWP resources", func() {
 	type CNWPTestCase struct {
 		objects     []runtime.Object
 		policySpecs map[string]firewallv1.PolicySpec
-		mockFunc    func(*nftMocks.MockFQDNCache)
+		mockFunc    func(*mocks.MockFQDNCache)
 		reconcile   bool
 	}
 
@@ -44,7 +43,7 @@ var _ = Describe("Reconcile CNWP resources", func() {
 		defer ctrl.Finish()
 
 		firewall := mocks.NewMockFirewallInterface(ctrl)
-		fqdnCache := nftMocks.NewMockFQDNCache(ctrl)
+		fqdnCache := mocks.NewMockFQDNCache(ctrl)
 
 		r := newCNWPReconciler(createTestFirewallFunc(firewall), fqdnCache, tc.objects, tc.policySpecs)
 		req := reconcile.Request{
@@ -113,7 +112,7 @@ var _ = Describe("Reconcile CNWP resources", func() {
 					},
 				}).Spec,
 			},
-			mockFunc: func(cache *nftMocks.MockFQDNCache) {
+			mockFunc: func(cache *mocks.MockFQDNCache) {
 				cache.EXPECT().GetSetsForFQDN(gomock.Any(), false).Return([]firewallv1.IPSet{
 					{
 						SetName: "test2",
@@ -174,7 +173,7 @@ var _ = Describe("Reconcile CNWP resources", func() {
 					},
 				}).Spec,
 			},
-			mockFunc: func(cache *nftMocks.MockFQDNCache) {
+			mockFunc: func(cache *mocks.MockFQDNCache) {
 				cache.EXPECT().GetSetsForFQDN(gomock.Any(), false).Return([]firewallv1.IPSet{{SetName: "test"}})
 			},
 			reconcile: true,

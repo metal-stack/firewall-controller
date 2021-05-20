@@ -37,7 +37,6 @@ import (
 	"github.com/metal-stack/firewall-controller/controllers"
 	"github.com/metal-stack/firewall-controller/controllers/crd"
 	"github.com/metal-stack/firewall-controller/pkg/dns"
-	"github.com/metal-stack/firewall-controller/pkg/nftables"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -168,9 +167,18 @@ func main() {
 		Log:            ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicy"),
 		Scheme:         mgr.GetScheme(),
 		Cache:          dnsCache,
-		CreateFirewall: nftables.NewFirewall,
+		CreateFirewall: controllers.NewFirewall,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ClusterwideNetworkPolicy")
+		os.Exit(1)
+	}
+
+	if err = (&controllers.ClusterwideNetworkPolicyValidationReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicyValidation"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "ClusterwideNetworkPolicyValidation")
 		os.Exit(1)
 	}
 
