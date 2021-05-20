@@ -20,12 +20,16 @@ table inet firewall {
 
 	set test {
 		type ipv4_addr
+		
 		elements = { 10.0.0.1, 10.0.0.2 }
+		
 	}
 
 	set test2 {
 		type ipv6_addr
+		
 		elements = { 2001:db8:85a3::8a2e:370:7334, 2001:db8:85a3::8a2e:370:7335 }
+		
 	}
 
 	# counters
