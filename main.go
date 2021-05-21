@@ -141,7 +141,7 @@ func main() {
 		dnsProxy *dns.DNSProxy
 	)
 	if runDNS {
-		dnsCache = dns.NewDNSCache(ctrl.Log.WithName("DNS cache"))
+		dnsCache = dns.NewDNSCache(true, false, ctrl.Log.WithName("DNS cache"))
 		if dnsProxy, err = dns.NewDNSProxy(hostAddress, dnsPort, ctrl.Log.WithName("DNS proxy"), dnsCache); err != nil {
 			setupLog.Error(err, "failed to init DNS proxy")
 			os.Exit(1)
@@ -217,7 +217,7 @@ func readCRDsFromVFS() (map[string][]byte, error) {
 	crdMap := make(map[string][]byte)
 	err := fs.WalkDir(crds, ".", func(path string, info os.DirEntry, err error) error {
 		setupLog.Info("walk", "path", path)
-		if info == nil || info.IsDir() {
+		if info.IsDir() {
 			return nil
 		}
 		b, readerr := fs.ReadFile(crds, path)

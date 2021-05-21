@@ -1,7 +1,6 @@
 package nftables
 
 import (
-	"net"
 	"os"
 	"path"
 	"testing"
@@ -74,14 +73,12 @@ func TestFirewallRenderingData_renderString(t *testing.T) {
 				Sets: []firewallv1.IPSet{
 					{
 						SetName: "test",
-						IPs:     []net.IP{net.ParseIP("10.0.0.1"), net.ParseIP("10.0.0.2")},
+						IPs:     []string{"10.0.0.1", "10.0.0.2"},
 						Version: dns.IPv4,
 					},
 					{
 						SetName: "test2",
-						IPs: []net.IP{
-							net.ParseIP("2001:0db8:85a3:0000:0000:8a2e:0370:7334"),
-							net.ParseIP("2001:0db8:85a3:0000:0000:8a2e:0370:7335")},
+						IPs:     []string{"2001:db8:85a3::8a2e:370:7334", "2001:db8:85a3::8a2e:370:7335"},
 						Version: dns.IPv6,
 					},
 				},
