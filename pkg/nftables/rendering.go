@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"strings"
 	"text/template"
 
@@ -79,13 +78,7 @@ func (d *firewallRenderingData) renderString() (string, error) {
 
 	tpl := template.Must(
 		template.New("v4").
-			Funcs(template.FuncMap{"IPsJoin": func(elements []net.IP, sep string) string {
-				s := make([]string, 0, len(elements))
-				for _, e := range elements {
-					s = append(s, e.String())
-				}
-				return strings.Join(s, sep)
-			}}).
+			Funcs(template.FuncMap{"StringsJoin": strings.Join}).
 			Parse(tplString),
 	)
 

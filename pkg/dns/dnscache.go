@@ -28,7 +28,7 @@ const (
 )
 
 type ipEntry struct {
-	ips            []net.IP
+	ips            []string
 	expirationTime time.Time
 	setName        string
 }
@@ -47,7 +47,11 @@ func (e *ipEntry) update(setName string, ips []net.IP, expirationTime time.Time,
 	}
 
 	if newIPs != nil || deletedIPs != nil {
-		e.ips = ips
+		e.ips = make([]string, len(ips))
+		for i, ip := range ips {
+			e.ips[i] = ip.String()
+		}
+
 		if err := updateNftSet(newIPs, deletedIPs, setName, dtype); err != nil {
 			return fmt.Errorf("failed to update nft set: %w", err)
 		}
@@ -59,7 +63,7 @@ func (e *ipEntry) update(setName string, ips []net.IP, expirationTime time.Time,
 func (e *ipEntry) getNewAndDeletedIPs(ips []net.IP) (newIPs, deletedIPs []nftables.SetElement) {
 	currentIps := make(map[string]bool, len(e.ips))
 	for _, ip := range e.ips {
-		currentIps[ip.String()] = false
+		currentIps[ip] = false
 	}
 
 	for _, ip := range ips {
@@ -92,14 +96,18 @@ type DNSCache struct {
 	fqdnToEntry   map[string]cacheEntry
 	setNames      map[string]struct{}
 	dnsServerAddr string
+	ipv4Enabled   bool
+	ipv6Enabled   bool
 }
 
-func NewDNSCache(log logr.Logger) *DNSCache {
+func NewDNSCache(ipv4Enabled, ipv6Enabled bool, log logr.Logger) *DNSCache {
 	return &DNSCache{
 		log:           log,
 		fqdnToEntry:   map[string]cacheEntry{},
 		setNames:      map[string]struct{}{},
 		dnsServerAddr: defaultDNSServerAddr,
+		ipv4Enabled:   ipv4Enabled,
+		ipv6Enabled:   ipv6Enabled,
 	}
 }
 
@@ -126,6 +134,7 @@ func (c *DNSCache) GetSetsForFQDN(fqdn firewallv1.FQDNSelector, update bool) (re
 		result = append(result, s)
 	}
 
+	c.log.WithValues("fqdn", fqdn, "sets", result).Info("sets for FQDN")
 	return
 }
 
@@ -270,12 +279,12 @@ func (c *DNSCache) Update(lookupTime time.Time, msg *dnsgo.Msg) error {
 		}
 	}
 
-	if len(ipv4) > 0 {
+	if c.ipv4Enabled && len(ipv4) > 0 {
 		if err := c.updateIPEntry(qname, ipv4, lookupTime.Add(time.Duration(minIPv4TTL)), nftables.TypeIPAddr); err != nil {
 			return fmt.Errorf("failed to update IPv4 addresses: %w", err)
 		}
 	}
-	if len(ipv6) > 0 {
+	if c.ipv6Enabled && len(ipv6) > 0 {
 		if err := c.updateIPEntry(qname, ipv6, lookupTime.Add(time.Duration(minIPv6TTL)), nftables.TypeIP6Addr); err != nil {
 			return fmt.Errorf("failed to update IPv6 addresses: %w", err)
 		}

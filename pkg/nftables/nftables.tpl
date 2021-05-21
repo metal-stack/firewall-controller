@@ -21,7 +21,9 @@ table inet firewall {
 
 	set {{ .SetName }} {
 		type {{ .Version }}
-		elements = { {{ IPsJoin .IPs ", " }} }
+		{{ if gt (len .IPs) 0 }}
+		elements = { {{ StringsJoin .IPs ", " }} }
+		{{ end }}
 	}
 	{{- end }}
 

@@ -150,7 +150,7 @@ type FQDNSelector struct {
 type IPSet struct {
 	FQDN           string      `json:"fqdn,omitempty"`
 	SetName        string      `json:"setName,omitempty"`
-	IPs            []net.IP    `json:"ips,omitempty"`
+	IPs            []string    `json:"ips,omitempty"`
 	ExpirationTime metav1.Time `json:"expirationTime,omitempty"`
 	Version        IPVersion   `json:"version,omitempty"`
 }

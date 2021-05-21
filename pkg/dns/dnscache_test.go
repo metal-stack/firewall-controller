@@ -3,6 +3,7 @@ package dns
 import (
 	"testing"
 
+	"github.com/go-logr/logr"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 )
 
@@ -78,13 +79,27 @@ func Test_GetSetsForFQDN(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cache := DNSCache{
+				log:         logr.DiscardLogger{},
 				fqdnToEntry: tt.fqdnToEntry,
 				setNames:    make(map[string]struct{}),
+				ipv4Enabled: true,
+				ipv6Enabled: true,
 			}
 			result := cache.GetSetsForFQDN(tt.fqdnSelector, tt.fqdnSelector.Sets != nil)
-			for i, s := range tt.expectedSets {
-				if result[i].SetName != s {
-					t.Errorf("set name %s isn't same as expected %s", result[i].SetName, s)
+
+			set := make(map[string]bool, len(tt.expectedSets))
+			for _, s := range tt.expectedSets {
+				set[s] = false
+			}
+			for _, r := range result {
+				if _, found := set[r.SetName]; !found {
+					t.Errorf("set name %s wasn't expected", r.SetName)
+				}
+				set[r.SetName] = true
+			}
+			for s, b := range set {
+				if !b {
+					t.Errorf("set name %s didn't occurred in result", s)
 				}
 			}
 
