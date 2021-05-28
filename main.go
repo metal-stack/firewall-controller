@@ -192,6 +192,7 @@ func main() {
 		Log:                  ctrl.Log.WithName("controllers").WithName("Firewall"),
 		Scheme:               mgr.GetScheme(),
 		EnableIDS:            enableIDS,
+		EnableDNSProxy:       runDNS,
 		EnableSignatureCheck: enableSignatureCheck,
 		CAPubKey:             caPubKey,
 		DNSProxy:             dnsProxy,
