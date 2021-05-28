@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	"github.com/metal-stack/metal-networker/pkg/netconf"
 
 	mn "github.com/metal-stack/metal-lib/pkg/net"
 	"github.com/vishvananda/netlink"
@@ -158,6 +159,22 @@ func (f *Firewall) Reconcile() error {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (f *Firewall) ReconcileNetconfTables(kb netconf.KnowledgeBase, enableDNSProxy bool) error {
+	configurator := netconf.FirewallConfigurator{
+		CommonConfigurator: netconf.CommonConfigurator{
+			Kb: kb,
+		},
+		EnableDNSProxy: enableDNSProxy,
+	}
+
+	configurator.ConfugureNftables()
+	if err := f.reload(); err != nil {
+		return fmt.Errorf("failed to reload netconf nftables: %w", err)
+	}
+
 	return nil
 }
 

@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-logr/logr"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	"github.com/metal-stack/firewall-controller/pkg/nftables"
 	"github.com/metal-stack/metal-go/api/models"
 	"github.com/metal-stack/metal-networker/pkg/netconf"
 	"go.uber.org/zap"
@@ -24,15 +25,12 @@ const (
 var templates embed.FS
 
 // ReconcileNetwork reconciles the network settings for a firewall
-// in the current stage it only changes the FRR-Configuration when network prefixes or FRR template changes
-func ReconcileNetwork(f firewallv1.Firewall, log logr.Logger) (bool, error) {
+// Changes both the FRR-Configuration and Nftable rules when network prefixes or FRR template changes
+func ReconcileNetwork(f firewallv1.Firewall, enableDNSProxy bool, log logr.Logger) (bool, error) {
 	// FIXME use zapr ?
 	zlog, _ := zap.NewProduction()
 
-	kb, err := netconf.New(zlog.Sugar(), metalNetworkerConfig)
-	if err != nil {
-		return false, err
-	}
+	kb := netconf.NewKnowledgeBase(MetalKnowledgeBase)
 
 	networkMap := map[string]firewallv1.FirewallNetwork{}
 	for _, n := range f.Spec.FirewallNetworks {
@@ -50,6 +48,16 @@ func ReconcileNetwork(f firewallv1.Firewall, log logr.Logger) (bool, error) {
 	}
 	kb.Networks = newNetworks
 
+	// Reconcile nftables
+	firewall := nftables.NewDefaultFirewall()
+	if err := firewall.ReconcileNetconfTables(kb, enableDNSProxy); err != nil {
+		return false, fmt.Errorf("failed to reconcile network: %w", err)
+	}
+
+	return reconcileFRR(kb)
+}
+
+func reconcileFRR(kb netconf.KnowledgeBase) (changed bool, err error) {
 	tmpFile, err := tmpFile(frrConfig)
 	if err != nil {
 		return false, fmt.Errorf("error during network reconcilation %v: %w", tmpFile, err)
@@ -64,12 +72,12 @@ func ReconcileNetwork(f firewallv1.Firewall, log logr.Logger) (bool, error) {
 		return false, fmt.Errorf("error during network reconcilation: %v: %w", tmpFile, err)
 	}
 
-	changed, err := a.Apply(*tpl, tmpFile, frrConfig, true)
+	changed, err = a.Apply(*tpl, tmpFile, frrConfig, true)
 	if err != nil {
 		return changed, fmt.Errorf("error during network reconcilation: %v: %w", tmpFile, err)
 	}
 
-	return changed, nil
+	return
 }
 
 func tmpFile(file string) (string, error) {
