@@ -19,7 +19,7 @@ require (
 	github.com/mdlayher/netlink v1.1.1 // indirect
 	github.com/metal-stack/metal-go v0.14.0
 	github.com/metal-stack/metal-lib v0.7.2
-	github.com/metal-stack/metal-networker v0.6.4
+	github.com/metal-stack/metal-networker v0.7.0
 	github.com/metal-stack/v v1.0.3
 	github.com/miekg/dns v1.0.14
 	github.com/onsi/ginkgo v1.15.1
