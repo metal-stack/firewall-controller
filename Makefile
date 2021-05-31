@@ -11,7 +11,7 @@ DOCKER_IMG ?= ghcr.io/metal-stack/firewall-controller:${DOCKER_TAG}
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 # this version is used to include template from the metal-networker to the firewall-controller
 # version should be not that far away from the compile dependency in go.mod
-METAL_NETWORKER_VERSION := v0.6.4
+METAL_NETWORKER_VERSION := v0.7.0
 
 # Kubebuilder installation environment variables
 KUBEBUILDER_DOWNLOAD_URL := https://github.com/kubernetes-sigs/kubebuilder/releases/download
