@@ -31,10 +31,11 @@ func Test_copyToTempFileAndValidateChecksum(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rc, _ := os.Open("./test")
-			tmpFile, err := copyToTempFile(rc)
+			tmpFile, err := copyToTempFile(rc, "./test")
 			if err != nil {
 				panic(err)
 			}
+			defer os.Remove(tmpFile)
 			err = validateChecksum(tmpFile, tt.args.checksum)
 
 			if (err != nil) != tt.wantErr {

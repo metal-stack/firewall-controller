@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -106,7 +107,7 @@ func FetchGithubAssetAndChecksum(ra *github.ReleaseAsset) (io.ReadCloser, string
 }
 
 func replaceBinary(binaryReader io.ReadCloser, checksum string) error {
-	filename, err := copyToTempFile(binaryReader)
+	filename, err := copyToTempFile(binaryReader, binaryLocation)
 	if err != nil {
 		return err
 	}
@@ -122,8 +123,8 @@ func replaceBinary(binaryReader io.ReadCloser, checksum string) error {
 	return nil
 }
 
-func copyToTempFile(binaryReader io.ReadCloser) (string, error) {
-	file, err := ioutil.TempFile("/var/tmp", gitHubArtifact)
+func copyToTempFile(binaryReader io.ReadCloser, filename string) (string, error) {
+	file, err := ioutil.TempFile(filepath.Dir(filename), filepath.Base(filename))
 	if err != nil {
 		return "", err
 	}
