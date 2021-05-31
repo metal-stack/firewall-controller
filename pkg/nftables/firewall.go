@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 
 	"github.com/go-logr/logr"
 	"github.com/hashicorp/go-multierror"
@@ -14,7 +15,6 @@ import (
 	mn "github.com/metal-stack/metal-lib/pkg/net"
 	"github.com/vishvananda/netlink"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
@@ -54,7 +54,7 @@ type forwardingRules struct {
 // NewDefaultFirewall creates a new default nftables firewall.
 func NewDefaultFirewall() *Firewall {
 	defaultSpec := firewallv1.FirewallSpec{}
-	return NewFirewall(&firewallv1.ClusterwideNetworkPolicyList{}, &v1.ServiceList{}, defaultSpec, nil)
+	return NewFirewall(&firewallv1.ClusterwideNetworkPolicyList{}, &corev1.ServiceList{}, defaultSpec, nil)
 }
 
 // NewFirewall creates a new nftables firewall object based on k8s entities
@@ -106,7 +106,7 @@ func (f *Firewall) Flush() error {
 
 // Reconcile drives the nftables firewall against the desired state by comparison with the current rule file.
 func (f *Firewall) Reconcile() error {
-	tmpFile, err := ioutil.TempFile("/var/tmp", "firewall-controller_nftables.v4")
+	tmpFile, err := ioutil.TempFile(filepath.Dir(f.ipv4RuleFile()), filepath.Base(f.ipv4RuleFile()))
 	if err != nil {
 		return err
 	}

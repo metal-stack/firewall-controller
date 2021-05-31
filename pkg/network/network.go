@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"text/template"
 
 	"github.com/go-logr/logr"
@@ -17,7 +18,6 @@ import (
 const (
 	MetalKnowledgeBase = "/etc/metal/install.yaml"
 	FrrConfig          = "/etc/frr/frr.conf"
-	TmpPath            = "/var/tmp"
 )
 
 //go:embed *.tpl
@@ -44,7 +44,7 @@ func ReconcileNetwork(f firewallv1.Firewall, log logr.Logger) (bool, error) {
 	}
 	kb.Networks = newNetworks
 
-	tmpFile, err := tmpFile("frr.conf")
+	tmpFile, err := tmpFile(FrrConfig)
 	if err != nil {
 		return false, fmt.Errorf("error during network reconcilation %v: %w", tmpFile, err)
 	}
@@ -66,8 +66,8 @@ func ReconcileNetwork(f firewallv1.Firewall, log logr.Logger) (bool, error) {
 	return changed, nil
 }
 
-func tmpFile(prefix string) (string, error) {
-	f, err := ioutil.TempFile(TmpPath, prefix)
+func tmpFile(file string) (string, error) {
+	f, err := ioutil.TempFile(filepath.Dir(file), filepath.Base(file))
 	if err != nil {
 		return "", err
 	}
