@@ -7,9 +7,7 @@ import (
 	"path/filepath"
 	"text/template"
 
-	"github.com/go-logr/logr"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
-	"github.com/metal-stack/firewall-controller/pkg/nftables"
 	"github.com/metal-stack/metal-go/api/models"
 	"github.com/metal-stack/metal-networker/pkg/netconf"
 
@@ -24,11 +22,12 @@ const (
 //go:embed *.tpl
 var templates embed.FS
 
-// ReconcileNetwork reconciles the network settings for a firewall
-// Changes both the FRR-Configuration and Nftable rules when network prefixes or FRR template changes
-func ReconcileNetwork(f firewallv1.Firewall, enableDNSProxy bool, log logr.Logger) (bool, error) {
-	kb := netconf.NewKnowledgeBase(MetalKnowledgeBase)
+func GetKnowledgeBase() netconf.KnowledgeBase {
+	return netconf.NewKnowledgeBase(MetalKnowledgeBase)
+}
 
+func GetUpdatedKnowledgeBase(f firewallv1.Firewall) netconf.KnowledgeBase {
+	kb := GetKnowledgeBase()
 	networkMap := map[string]firewallv1.FirewallNetwork{}
 	for _, n := range f.Spec.FirewallNetworks {
 		if n.Networktype == nil {
@@ -45,16 +44,12 @@ func ReconcileNetwork(f firewallv1.Firewall, enableDNSProxy bool, log logr.Logge
 	}
 	kb.Networks = newNetworks
 
-	// Reconcile nftables
-	firewall := nftables.NewDefaultFirewall()
-	if err := firewall.ReconcileNetconfTables(kb, enableDNSProxy); err != nil {
-		return false, fmt.Errorf("failed to reconcile network: %w", err)
-	}
-
-	return reconcileFRR(kb)
+	return kb
 }
 
-func reconcileFRR(kb netconf.KnowledgeBase) (changed bool, err error) {
+// ReconcileNetwork reconciles the network settings for a firewall
+// Changes both the FRR-Configuration and Nftable rules when network prefixes or FRR template changes
+func ReconcileNetwork(kb netconf.KnowledgeBase) (changed bool, err error) {
 	tmpFile, err := tmpFile(FrrConfig)
 	if err != nil {
 		return false, fmt.Errorf("error during network reconcilation %v: %w", tmpFile, err)
