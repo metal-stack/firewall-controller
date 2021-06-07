@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/go-logr/logr"
+	"github.com/metal-stack/firewall-controller/pkg/network"
 	dnsgo "github.com/miekg/dns"
 )
 
@@ -24,8 +25,10 @@ type DNSProxy struct {
 	handler DNSHandler
 }
 
-func NewDNSProxy(host string, port uint, log logr.Logger, cache *DNSCache) (*DNSProxy, error) {
+func NewDNSProxy(port uint, log logr.Logger, cache *DNSCache) (*DNSProxy, error) {
 	handler := NewDNSProxyHandler(log, cache)
+
+	host := getHost()
 	udpConn, tcpListener, err := bindToPort(host, port, log)
 	if err != nil {
 		return nil, fmt.Errorf("failed to bind to port: %w", err)
@@ -78,6 +81,12 @@ func (p *DNSProxy) UpdateDNSServerAddr(addr string) error {
 	p.cache.UpdateDNSServerAddr(addr)
 
 	return nil
+}
+
+func getHost() string {
+	kb := network.GetKnowledgeBase()
+	n := kb.GetDefaultRouteNetwork()
+	return n.Ips[0]
 }
 
 // bindToPort attempts to bind to port for both UDP and TCP

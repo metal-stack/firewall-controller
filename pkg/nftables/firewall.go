@@ -162,12 +162,12 @@ func (f *Firewall) Reconcile() error {
 	return nil
 }
 
-func (f *Firewall) ReconcileNetconfTables(kb netconf.KnowledgeBase, enableDNSProxy bool) error {
+func (f *Firewall) ReconcileNetconfTables(kb netconf.KnowledgeBase, enableDNS bool) error {
 	configurator := netconf.FirewallConfigurator{
 		CommonConfigurator: netconf.CommonConfigurator{
 			Kb: kb,
 		},
-		EnableDNSProxy: enableDNSProxy,
+		EnableDNSProxy: enableDNS,
 	}
 
 	configurator.ConfugureNftables()

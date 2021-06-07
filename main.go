@@ -65,9 +65,8 @@ func main() {
 		enableIDS            bool
 		enableSignatureCheck bool
 		hostsFile            string
-		runDNS               bool
+		disableDNS           bool
 		dnsPort              uint
-		hostAddress          string
 	)
 	flag.BoolVar(&isVersion, "v", false, "Show firewall-controller version")
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
@@ -77,9 +76,8 @@ func main() {
 	flag.BoolVar(&enableIDS, "enable-IDS", true, "Set this to false to exclude IDS.")
 	flag.StringVar(&hostsFile, "hosts-file", "/etc/hosts", "The hosts file to manipulate for the droptailer.")
 	flag.BoolVar(&enableSignatureCheck, "enable-signature-check", true, "Set this to false to ignore signature checking.")
-	flag.BoolVar(&runDNS, "run-dns", false, "Set this to true to enable DNS based policies and run DNS proxy")
+	flag.BoolVar(&disableDNS, "disable-dns", false, "Set this to true to disable DNS based policies and DNS proxy")
 	flag.UintVar(&dnsPort, "dns-port", 53, "Specify port to which DNS proxy should be bound")
-	flag.StringVar(&hostAddress, "host", "", "Specify host address")
 	flag.Parse()
 
 	if isVersion {
@@ -135,14 +133,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Start DNS proxy if runDNS is specified
+	// Start DNS proxy if disableDNS is specified
 	var (
 		dnsCache *dns.DNSCache
 		dnsProxy *dns.DNSProxy
 	)
-	if runDNS {
+	if !disableDNS {
 		dnsCache = dns.NewDNSCache(true, false, ctrl.Log.WithName("DNS cache"))
-		if dnsProxy, err = dns.NewDNSProxy(hostAddress, dnsPort, ctrl.Log.WithName("DNS proxy"), dnsCache); err != nil {
+		if dnsProxy, err = dns.NewDNSProxy(dnsPort, ctrl.Log.WithName("DNS proxy"), dnsCache); err != nil {
 			setupLog.Error(err, "failed to init DNS proxy")
 			os.Exit(1)
 		}
@@ -201,7 +199,7 @@ func main() {
 		Log:                  ctrl.Log.WithName("controllers").WithName("Firewall"),
 		Scheme:               mgr.GetScheme(),
 		EnableIDS:            enableIDS,
-		EnableDNSProxy:       runDNS,
+		EnableDNS:            !disableDNS,
 		EnableSignatureCheck: enableSignatureCheck,
 		CAPubKey:             caPubKey,
 		DNSProxy:             dnsProxy,

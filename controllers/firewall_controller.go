@@ -59,7 +59,7 @@ type FirewallReconciler struct {
 	Log                  logr.Logger
 	Scheme               *runtime.Scheme
 	EnableIDS            bool
-	EnableDNSProxy       bool
+	EnableDNS            bool
 	EnableSignatureCheck bool
 	CAPubKey             *rsa.PublicKey
 	DNSProxy             DNSProxy
@@ -130,14 +130,19 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	var errors *multierror.Error
 	log.Info("reconciling network settings")
-	changed, err := network.ReconcileNetwork(f, r.EnableDNSProxy, log)
+	kb := network.GetUpdatedKnowledgeBase(f)
+	changed, err := network.ReconcileNetwork(kb)
 	if changed && err == nil {
 		r.recorder.Event(&f, corev1.EventTypeNormal, "Network settings", "reconcilation succeeded (frr.conf)")
 	} else if changed && err != nil {
 		r.recorder.Event(&f, corev1.EventTypeWarning, "Network settings", fmt.Sprintf("reconcilation failed (frr.conf): %v", err))
 	}
-
 	if err != nil {
+		errors = multierror.Append(errors, err)
+	}
+
+	nftablesFirewall := nftables.NewDefaultFirewall()
+	if err = nftablesFirewall.ReconcileNetconfTables(kb, r.EnableDNS); err != nil {
 		errors = multierror.Append(errors, err)
 	}
 
