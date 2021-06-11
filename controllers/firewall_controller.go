@@ -25,9 +25,7 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -94,7 +92,7 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	var f firewallv1.Firewall
 	if err := r.Get(ctx, req.NamespacedName, &f); err != nil {
-		if apierrors.IsNotFound(err) {
+		if errors.IsNotFound(err) {
 			defaultFw := nftables.NewDefaultFirewall()
 			log.Info("flushing k8s firewall rules")
 			err := defaultFw.Flush()
@@ -108,7 +106,7 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	if err := r.validateFirewall(ctx, f); err != nil {
-		r.recorder.Event(&f, "Warning", "Unapplicable", err.Error())
+		r.recorder.Event(&f, corev1.EventTypeWarning, "Unapplicable", err.Error())
 		// don't requeue invalid firewall objects
 		return done, err
 	}
@@ -116,7 +114,7 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	log.Info("reconciling firewall-controller")
 	err := updater.UpdateToSpecVersion(f, log, r.recorder)
 	if err != nil {
-		r.recorder.Eventf(&f, "Warning", "Self-Reconcilation", "failed with error: %v", err)
+		r.recorder.Eventf(&f, corev1.EventTypeWarning, "Self-Reconcilation", "failed with error: %v", err)
 		return requeue, err
 	}
 
@@ -134,9 +132,9 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	log.Info("reconciling network settings")
 	changed, err := network.ReconcileNetwork(f, log)
 	if changed && err == nil {
-		r.recorder.Event(&f, "Normal", "Network settings", "reconcilation succeeded (frr.conf)")
+		r.recorder.Event(&f, corev1.EventTypeNormal, "Network settings", "reconcilation succeeded (frr.conf)")
 	} else if changed && err != nil {
-		r.recorder.Event(&f, "Warning", "Network settings", fmt.Sprintf("reconcilation failed (frr.conf): %v", err))
+		r.recorder.Event(&f, corev1.EventTypeWarning, "Network settings", fmt.Sprintf("reconcilation failed (frr.conf): %v", err))
 	}
 
 	if err != nil {
@@ -154,11 +152,11 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	if errors.ErrorOrNil() != nil {
-		r.recorder.Event(&f, "Warning", "Error", multierror.Flatten(errors).Error())
+		r.recorder.Event(&f, corev1.EventTypeWarning, "Error", multierror.Flatten(errors).Error())
 		return requeue, errors
 	}
 
-	r.recorder.Event(&f, "Normal", "Reconciled", "nftables rules and statistics successfully")
+	r.recorder.Event(&f, corev1.EventTypeNormal, "Reconciled", "nftables rules and statistics successfully")
 	log.Info("reconciled firewall")
 	return requeue, nil
 }
@@ -239,7 +237,7 @@ func (r *FirewallReconciler) reconcileRules(ctx context.Context, f firewallv1.Fi
 		return err
 	}
 
-	var services v1.ServiceList
+	var services corev1.ServiceList
 	if err := r.List(ctx, &services); err != nil {
 		return err
 	}
@@ -292,14 +290,14 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 		Labels:    map[string]string{exporterLabelKey: s.name},
 	}
 
-	var currentSvc v1.Service
+	var currentSvc corev1.Service
 	err := r.Get(ctx, nn, &currentSvc)
 
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
 
-	svc := v1.Service{
+	svc := corev1.Service{
 		ObjectMeta: meta,
 		Spec: corev1.ServiceSpec{
 			Type:      corev1.ServiceTypeClusterIP,
@@ -352,16 +350,16 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 		return fmt.Errorf("private firewall network contains no ip")
 	}
 
-	endpoints := v1.Endpoints{
+	endpoints := corev1.Endpoints{
 		ObjectMeta: meta,
-		Subsets: []v1.EndpointSubset{
+		Subsets: []corev1.EndpointSubset{
 			{
 				Addresses: []corev1.EndpointAddress{
 					{
 						IP: privateNet.Ips[0],
 					},
 				},
-				Ports: []v1.EndpointPort{
+				Ports: []corev1.EndpointPort{
 					{
 						Name:     s.namedPort,
 						Port:     s.port,
@@ -372,7 +370,7 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 		},
 	}
 
-	var currentEndpoints v1.Endpoints
+	var currentEndpoints corev1.Endpoints
 	err = r.Get(ctx, nn, &currentEndpoints)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
