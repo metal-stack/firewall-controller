@@ -22,6 +22,7 @@ import (
 
 	"github.com/go-logr/logr"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -51,13 +52,13 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(req ctrl.Request) (ctrl.R
 	// if network policy does not belong to the namespace where clusterwide network policies are stored:
 	// update status with error message
 	if req.Namespace != firewallv1.ClusterwideNetworkPolicyNamespace {
-		r.recorder.Event(&clusterNP, "Warning", "Unapplicable", fmt.Sprintf("cluster wide network policies must be defined in namespace %s otherwise they won't take effect", firewallv1.ClusterwideNetworkPolicyNamespace))
+		r.recorder.Event(&clusterNP, corev1.EventTypeWarning, "Unapplicable", fmt.Sprintf("cluster wide network policies must be defined in namespace %s otherwise they won't take effect", firewallv1.ClusterwideNetworkPolicyNamespace))
 		return ctrl.Result{}, nil
 	}
 
 	err := clusterNP.Spec.Validate()
 	if err != nil {
-		r.recorder.Event(&clusterNP, "Warning", "Unapplicable", fmt.Sprintf("cluster wide network policy is not valid: %v", err))
+		r.recorder.Event(&clusterNP, corev1.EventTypeWarning, "Unapplicable", fmt.Sprintf("cluster wide network policy is not valid: %v", err))
 		return ctrl.Result{}, nil
 	}
 
