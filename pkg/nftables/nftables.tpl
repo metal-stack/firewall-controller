@@ -30,12 +30,12 @@ table ip firewall {
 		type filter hook forward priority 1; policy drop;
 
 		# network traffic accounting for external traffic
-		ip saddr != @internal_prefixes oifname "vlan{{ .PrivateVrfID }}" counter name external_in
-		ip daddr != @internal_prefixes iifname "vrf{{ .PrivateVrfID }}" counter name external_out
+		ip saddr != @internal_prefixes oifname {"vlan{{ .PrivateVrfID }}", "vrf{{ .PrivateVrfID }}"} counter name external_in
+		ip daddr != @internal_prefixes iifname {"vlan{{ .PrivateVrfID }}", "vrf{{ .PrivateVrfID }}"} counter name external_out
 
 		# network traffic accounting for internal traffic
-		ip saddr @internal_prefixes oifname "vlan{{ .PrivateVrfID }}" counter name internal_in
-		ip daddr @internal_prefixes iifname "vrf{{ .PrivateVrfID }}" counter name internal_out
+		ip saddr @internal_prefixes oifname {"vlan{{ .PrivateVrfID }}", "vrf{{ .PrivateVrfID }}"} counter name internal_in
+		ip daddr @internal_prefixes iifname {"vlan{{ .PrivateVrfID }}", "vrf{{ .PrivateVrfID }}"} counter name internal_out
 
 		# rate limits
 		{{- range .RateLimitRules }}
