@@ -7,6 +7,11 @@ import (
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 )
 
+type ruleBase struct {
+	comment string
+	base    []string
+}
+
 // clusterwideNetworkPolicyRules generates nftables rules for a clusterwidenetworkpolicy
 func clusterwideNetworkPolicyRules(
 	cache FQDNCache,
@@ -77,7 +82,7 @@ func clusterwideNetworkPolicyEgressRules(
 			}
 		}
 
-		ruleBases := [][]string{}
+		ruleBases := []ruleBase{}
 		if len(e.To) > 0 {
 			allow, except := clusterwideNetworkPolicyEgressToRules(e)
 			rb := []string{"ip saddr == @cluster_prefixes"}
@@ -89,25 +94,21 @@ func clusterwideNetworkPolicyEgressRules(
 					rb = append(rb, fmt.Sprintf("ip daddr { %s }", strings.Join(allow, ", ")))
 				}
 			}
-			ruleBases = append(ruleBases, rb)
+			ruleBases = append(ruleBases, ruleBase{base: rb})
 		} else if len(e.ToFQDNs) > 0 {
 			// Generate allow rules based on DNS selectors
-			allow, u := clusterwideNetworkPolicyEgressToFQDNRules(cache, e)
+			rbs, u := clusterwideNetworkPolicyEgressToFQDNRules(cache, e)
 			np.Spec.Egress[i] = u
-			for _, a := range allow {
-				rb := []string{"ip saddr == @cluster_prefixes"}
-				rb = append(rb, fmt.Sprintf(string(a.Version)+" daddr @%s", a.SetName))
-				ruleBases = append(ruleBases, rb)
-			}
+			ruleBases = append(ruleBases, rbs...)
 		}
 
 		comment := fmt.Sprintf("accept traffic for np %s", np.ObjectMeta.Name)
 		for _, rb := range ruleBases {
 			if len(tcpPorts) > 0 {
-				rules = append(rules, assembleDestinationPortRule(rb, "tcp", tcpPorts, comment+" tcp"))
+				rules = append(rules, assembleDestinationPortRule(rb.base, "tcp", tcpPorts, comment+" tcp"+rb.comment))
 			}
 			if len(udpPorts) > 0 {
-				rules = append(rules, assembleDestinationPortRule(rb, "udp", udpPorts, comment+" udp"))
+				rules = append(rules, assembleDestinationPortRule(rb.base, "udp", udpPorts, comment+" udp"+rb.comment))
 			}
 		}
 	}
@@ -127,12 +128,17 @@ func clusterwideNetworkPolicyEgressToRules(e firewallv1.EgressRule) (allow, exce
 func clusterwideNetworkPolicyEgressToFQDNRules(
 	cache FQDNCache,
 	e firewallv1.EgressRule,
-) (allow []firewallv1.IPSet, updated firewallv1.EgressRule) {
+) (rules []ruleBase, updated firewallv1.EgressRule) {
 	for i, fqdn := range e.ToFQDNs {
 		fqdn.Sets = cache.GetSetsForFQDN(fqdn, true)
 		e.ToFQDNs[i] = fqdn
-		allow = append(allow, fqdn.Sets...)
+
+		for _, set := range fqdn.Sets {
+			rb := []string{"ip saddr == @cluster_prefixes"}
+			rb = append(rb, fmt.Sprintf(string(set.Version)+" daddr @%s", set.SetName))
+			rules = append(rules, ruleBase{comment: fmt.Sprintf(", fqdn: %s", fqdn.GetName()), base: rb})
+		}
 	}
 
-	return allow, e
+	return rules, e
 }

@@ -155,6 +155,14 @@ type IPSet struct {
 	Version        IPVersion   `json:"version,omitempty"`
 }
 
+func (s FQDNSelector) GetName() string {
+	if s.MatchName != "" {
+		return s.MatchName
+	}
+
+	return s.MatchPattern
+}
+
 func (s FQDNSelector) GetMatchName() string {
 	return dnsgo.Fqdn(s.MatchName)
 }

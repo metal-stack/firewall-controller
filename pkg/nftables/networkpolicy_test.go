@@ -183,10 +183,10 @@ func TestClusterwideNetworkPolicyEgressRules(t *testing.T) {
 					Return([]firewallv1.IPSet{{SetName: "test2", Version: firewallv1.IPv6}})
 			},
 			want: nftablesRules{
-				`ip saddr == @cluster_prefixes ip daddr @test tcp dport { 53 } counter accept comment "accept traffic for np  tcp"`,
-				`ip saddr == @cluster_prefixes ip daddr @test udp dport { 53 } counter accept comment "accept traffic for np  udp"`,
-				`ip saddr == @cluster_prefixes ip6 daddr @test2 tcp dport { 53 } counter accept comment "accept traffic for np  tcp"`,
-				`ip saddr == @cluster_prefixes ip6 daddr @test2 udp dport { 53 } counter accept comment "accept traffic for np  udp"`,
+				`ip saddr == @cluster_prefixes ip daddr @test tcp dport { 53 } counter accept comment "accept traffic for np  tcp, fqdn: test.com"`,
+				`ip saddr == @cluster_prefixes ip daddr @test udp dport { 53 } counter accept comment "accept traffic for np  udp, fqdn: test.com"`,
+				`ip saddr == @cluster_prefixes ip6 daddr @test2 tcp dport { 53 } counter accept comment "accept traffic for np  tcp, fqdn: *.test.com"`,
+				`ip saddr == @cluster_prefixes ip6 daddr @test2 udp dport { 53 } counter accept comment "accept traffic for np  udp, fqdn: *.test.com"`,
 			},
 		},
 	}
