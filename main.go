@@ -26,6 +26,7 @@ import (
 
 	"github.com/metal-stack/firewall-controller/controllers"
 	"github.com/metal-stack/firewall-controller/controllers/crd"
+	"github.com/metal-stack/firewall-controller/pkg/dns"
 	"github.com/metal-stack/metal-lib/pkg/sign"
 	"github.com/metal-stack/v"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
@@ -63,6 +64,8 @@ func main() {
 		enableIDS            bool
 		enableSignatureCheck bool
 		hostsFile            string
+		disableDNS           bool
+		dnsPort              uint
 	)
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
@@ -71,9 +74,12 @@ func main() {
 	flag.BoolVar(&enableIDS, "enable-IDS", true, "Set this to false to exclude IDS.")
 	flag.StringVar(&hostsFile, "hosts-file", "/etc/hosts", "The hosts file to manipulate for the droptailer.")
 	flag.BoolVar(&enableSignatureCheck, "enable-signature-check", true, "Set this to false to ignore signature checking.")
+	flag.BoolVar(&disableDNS, "disable-dns", false, "Set this to true to disable DNS based policies and DNS proxy")
+	flag.UintVar(&dnsPort, "dns-port", 53, "Specify port to which DNS proxy should be bound")
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	stopCh := ctrl.SetupSignalHandler()
 
 	restConfig := ctrl.GetConfigOrDie()
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
@@ -87,7 +93,6 @@ func main() {
 		setupLog.Error(err, "unable to start firewall-controller manager")
 		os.Exit(1)
 	}
-	stopCh := ctrl.SetupSignalHandler()
 	go func() {
 		setupLog.Info("starting firewall-controller", "version", v.V)
 		if err := mgr.Start(stopCh); err != nil {
@@ -119,6 +124,21 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Start DNS proxy if disableDNS is specified
+	var (
+		dnsCache *dns.DNSCache
+		dnsProxy *dns.DNSProxy
+	)
+	if !disableDNS {
+		dnsCache = dns.NewDNSCache(true, false, ctrl.Log.WithName("DNS cache"))
+		if dnsProxy, err = dns.NewDNSProxy(dnsPort, ctrl.Log.WithName("DNS proxy"), dnsCache); err != nil {
+			setupLog.Error(err, "failed to init DNS proxy")
+			os.Exit(1)
+		}
+
+		go dnsProxy.Run(stopCh)
+	}
+
 	// Droptailer Reconciler
 	if err = (&controllers.DroptailerReconciler{
 		Client:    mgr.GetClient(),
@@ -132,11 +152,22 @@ func main() {
 
 	// ClusterwideNetworkPolicy Reconciler
 	if err = (&controllers.ClusterwideNetworkPolicyReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicy"),
-		Scheme: mgr.GetScheme(),
+		Client:         mgr.GetClient(),
+		Log:            ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicy"),
+		Scheme:         mgr.GetScheme(),
+		Cache:          dnsCache,
+		CreateFirewall: controllers.NewFirewall,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ClusterwideNetworkPolicy")
+		os.Exit(1)
+	}
+
+	if err = (&controllers.ClusterwideNetworkPolicyValidationReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicyValidation"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "ClusterwideNetworkPolicyValidation")
 		os.Exit(1)
 	}
 
@@ -159,15 +190,17 @@ func main() {
 		Log:                  ctrl.Log.WithName("controllers").WithName("Firewall"),
 		Scheme:               mgr.GetScheme(),
 		EnableIDS:            enableIDS,
+		EnableDNS:            !disableDNS,
 		EnableSignatureCheck: enableSignatureCheck,
 		CAPubKey:             caPubKey,
+		DNSProxy:             dnsProxy,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Firewall")
 		os.Exit(1)
 	}
-	// +kubebuilder:scaffold:builder
 
-	// FIXME howto cope with OS signals ?
+	// +kubebuilder:scaffold:builder
+	// Watch for termination signal
 	<-stopCh
 }
 
@@ -175,7 +208,7 @@ func readCRDsFromVFS() (map[string][]byte, error) {
 	crdMap := make(map[string][]byte)
 	err := fs.WalkDir(crds, ".", func(path string, info os.DirEntry, err error) error {
 		setupLog.Info("walk", "path", path)
-		if info == nil || info.IsDir() {
+		if info.IsDir() {
 			return nil
 		}
 		b, readerr := fs.ReadFile(crds, path)

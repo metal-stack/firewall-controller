@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"strings"
 	"text/template"
+
+	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 )
 
 // firewallRenderingData holds the data available in the nftables template
@@ -13,20 +15,23 @@ type firewallRenderingData struct {
 	ForwardingRules  forwardingRules
 	RateLimitRules   nftablesRules
 	SnatRules        nftablesRules
+	Sets             []firewallv1.IPSet
 	InternalPrefixes string
 	PrivateVrfID     uint
 }
 
 func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 	ingress, egress := nftablesRules{}, nftablesRules{}
-	for _, np := range f.clusterwideNetworkPolicies.Items {
+	for ind, np := range f.clusterwideNetworkPolicies.Items {
 		err := np.Spec.Validate()
 		if err != nil {
 			continue
 		}
-		i, e := clusterwideNetworkPolicyRules(np)
+
+		i, e, u := clusterwideNetworkPolicyRules(f.cache, np)
 		ingress = append(ingress, i...)
 		egress = append(egress, e...)
+		f.clusterwideNetworkPolicies.Items[ind] = u
 	}
 
 	for _, svc := range f.services.Items {
@@ -47,6 +52,7 @@ func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 		},
 		RateLimitRules: rateLimitRules(f),
 		SnatRules:      snatRules,
+		Sets:           f.cache.GetSetsForRendering(),
 	}, nil
 }
 
@@ -70,7 +76,11 @@ func (d *firewallRenderingData) renderString() (string, error) {
 		return "", err
 	}
 
-	tpl := template.Must(template.New("v4").Parse(tplString))
+	tpl := template.Must(
+		template.New("v4").
+			Funcs(template.FuncMap{"StringsJoin": strings.Join}).
+			Parse(tplString),
+	)
 
 	err = tpl.Execute(&b, d)
 	if err != nil {

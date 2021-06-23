@@ -11,7 +11,12 @@ DOCKER_IMG ?= ghcr.io/metal-stack/firewall-controller:${DOCKER_TAG}
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 # this version is used to include template from the metal-networker to the firewall-controller
 # version should be not that far away from the compile dependency in go.mod
-METAL_NETWORKER_VERSION := v0.6.4
+METAL_NETWORKER_VERSION := v0.7.0
+
+# Kubebuilder installation environment variables
+KUBEBUILDER_DOWNLOAD_URL := https://github.com/kubernetes-sigs/kubebuilder/releases/download
+KUBEBUILDER_VER := 2.3.1
+KUBEBUILDER_ASSETS := /usr/local/bin
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -26,7 +31,7 @@ all: firewall-controller
 test: generate fmt vet manifests
 	go test ./... -short -coverprofile cover.out
 
-test-all: generate fmt vet manifests
+test-all: generate fmt vet manifests kubebuilder
 	go test ./... -v -coverprofile cover.out
 
 test-integration: generate fmt vet manifests
@@ -36,7 +41,7 @@ clean:
 	rm -rf bin/* pkg/network/frr.firewall.tpl
 
 # Build firewall-controller binary
-firewall-controller: generate fmt vet test
+firewall-controller: generate fmt vet
 	CGO_ENABLED=0 go build \
 		-tags netgo \
 		-trimpath \
@@ -93,6 +98,13 @@ docker-build:
 # Push the docker image
 docker-push:
 	docker push ${DOCKER_IMG}
+
+kubebuilder:
+	set -ex \
+ 		&& mkdir -p /tmp/kubebuilder /usr/local/bin \
+ 		&& curl -L ${KUBEBUILDER_DOWNLOAD_URL}/v${KUBEBUILDER_VER}/kubebuilder_${KUBEBUILDER_VER}_linux_amd64.tar.gz -o /tmp/kubebuilder-${KUBEBUILDER_VER}-linux-amd64.tar.gz \
+ 		&& tar xzvf /tmp/kubebuilder-${KUBEBUILDER_VER}-linux-amd64.tar.gz -C /tmp/kubebuilder --strip-components=1 \
+ 		&& mv /tmp/kubebuilder/bin/* ${KUBEBUILDER_ASSETS}/
 
 # find or download controller-gen
 # download controller-gen if necessary

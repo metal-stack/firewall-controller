@@ -11,6 +11,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/hashicorp/go-multierror"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	"github.com/metal-stack/metal-networker/pkg/netconf"
 
 	mn "github.com/metal-stack/metal-lib/pkg/net"
 	"github.com/vishvananda/netlink"
@@ -28,6 +29,13 @@ const (
 //go:embed *.tpl
 var templates embed.FS
 
+//go:generate mockgen -destination=./mocks/mock_fqdncache.go -package=mocks . FQDNCache
+type FQDNCache interface {
+	UpdateDNSServerAddr(addr string)
+	GetSetsForRendering() (result []firewallv1.IPSet)
+	GetSetsForFQDN(fqdn firewallv1.FQDNSelector, update bool) (result []firewallv1.IPSet)
+}
+
 // Firewall assembles nftable rules based on k8s entities
 type Firewall struct {
 	log logr.Logger
@@ -38,6 +46,7 @@ type Firewall struct {
 
 	primaryPrivateNet *firewallv1.FirewallNetwork
 	networkMap        networkMap
+	cache             FQDNCache
 
 	dryRun bool
 }
@@ -54,11 +63,17 @@ type forwardingRules struct {
 // NewDefaultFirewall creates a new default nftables firewall.
 func NewDefaultFirewall() *Firewall {
 	defaultSpec := firewallv1.FirewallSpec{}
-	return NewFirewall(&firewallv1.ClusterwideNetworkPolicyList{}, &corev1.ServiceList{}, defaultSpec, nil)
+	return NewFirewall(&firewallv1.ClusterwideNetworkPolicyList{}, &corev1.ServiceList{}, defaultSpec, nil, nil)
 }
 
 // NewFirewall creates a new nftables firewall object based on k8s entities
-func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.ServiceList, spec firewallv1.FirewallSpec, log logr.Logger) *Firewall {
+func NewFirewall(
+	nps *firewallv1.ClusterwideNetworkPolicyList,
+	svcs *corev1.ServiceList,
+	spec firewallv1.FirewallSpec,
+	cache FQDNCache,
+	log logr.Logger,
+) *Firewall {
 	networkMap := networkMap{}
 	var primaryPrivateNet *firewallv1.FirewallNetwork
 	for i, n := range spec.FirewallNetworks {
@@ -78,6 +93,7 @@ func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.Serv
 		primaryPrivateNet:          primaryPrivateNet,
 		networkMap:                 networkMap,
 		dryRun:                     spec.DryRun,
+		cache:                      cache,
 		log:                        log,
 	}
 }
@@ -139,6 +155,22 @@ func (f *Firewall) Reconcile() error {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (f *Firewall) ReconcileNetconfTables(kb netconf.KnowledgeBase, enableDNS bool) error {
+	configurator := netconf.FirewallConfigurator{
+		CommonConfigurator: netconf.CommonConfigurator{
+			Kb: kb,
+		},
+		EnableDNSProxy: enableDNS,
+	}
+
+	configurator.ConfugureNftables()
+	if err := f.reload(); err != nil {
+		return fmt.Errorf("failed to reload netconf nftables: %w", err)
+	}
+
 	return nil
 }
 

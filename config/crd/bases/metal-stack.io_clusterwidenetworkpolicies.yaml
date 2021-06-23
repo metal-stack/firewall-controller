@@ -87,7 +87,8 @@ spec:
                         this rule matches all destinations (traffic not restricted
                         by destination). If this field is present and contains at
                         least one item, this rule allows traffic only if the traffic
-                        matches at least one item in the to list.
+                        matches at least one item in the to list. To rules can't contain
+                        ToFQDNs rules.
                       items:
                         description: IPBlock describes a particular CIDR (Ex. "192.168.1.1/24","2001:db9::/64")
                           that is allowed to the pods matched by a NetworkPolicySpec's
@@ -108,6 +109,52 @@ spec:
                             type: array
                         required:
                         - cidr
+                        type: object
+                      type: array
+                    toFQDNs:
+                      description: List of FQDNs(fully qualified domain name) for
+                        outgoing traffic of a cluster for this rule. Items in this
+                        list are combined using a logical OR operation. This field
+                        is used as whitelist of DNS names. If none specified, rule
+                        will not be applied. ToFQDNs rules can't contain To rules.
+                      items:
+                        description: FQDNSelector describes rules for matching DNS
+                          names.
+                        properties:
+                          matchName:
+                            description: MatchName matches FQDN.
+                            pattern: ^([-a-zA-Z0-9_]+[.]?)+$
+                            type: string
+                          matchPattern:
+                            description: MatchPattern allows using "*" to match DNS
+                              names. "*" matches 0 or more valid characters.
+                            pattern: ^([-a-zA-Z0-9_*]+[.]?)+$
+                            type: string
+                          sets:
+                            description: Sets stores nftables sets used for rule.
+                              Stored in Spec so that reconciler would receive always
+                              up-to-date data. Client caches Status, so additional
+                              actions would be required to guarantee that up-to-date
+                              data is used.
+                            items:
+                              description: IPSet stores set name association to IP
+                                addresses
+                              properties:
+                                expirationTime:
+                                  format: date-time
+                                  type: string
+                                fqdn:
+                                  type: string
+                                ips:
+                                  items:
+                                    type: string
+                                  type: array
+                                setName:
+                                  type: string
+                                version:
+                                  type: string
+                              type: object
+                            type: array
                         type: object
                       type: array
                   type: object

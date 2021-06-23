@@ -6,6 +6,7 @@ require (
 	cloud.google.com/go v0.72.0 // indirect
 	github.com/go-logr/logr v0.4.0
 	github.com/go-logr/zapr v0.3.0 // indirect
+	github.com/golang/mock v1.5.0
 	github.com/google/go-cmp v0.5.5
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/google/go-querystring v1.0.0 // indirect
@@ -18,8 +19,11 @@ require (
 	github.com/mdlayher/netlink v1.1.1 // indirect
 	github.com/metal-stack/metal-go v0.14.0
 	github.com/metal-stack/metal-lib v0.7.2
-	github.com/metal-stack/metal-networker v0.6.4
+	github.com/metal-stack/metal-networker v0.7.1-0.20210604125559-f1b64bc00439
 	github.com/metal-stack/v v1.0.3
+	github.com/miekg/dns v1.0.14
+	github.com/onsi/ginkgo v1.15.1
+	github.com/onsi/gomega v1.10.1
 	github.com/txn2/txeh v1.3.0
 	github.com/vishvananda/netlink v1.1.0
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e // indirect

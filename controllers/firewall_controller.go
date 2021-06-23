@@ -1,6 +1,4 @@
 /*
-
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -57,13 +55,14 @@ type FirewallReconciler struct {
 	Log                  logr.Logger
 	Scheme               *runtime.Scheme
 	EnableIDS            bool
+	EnableDNS            bool
 	EnableSignatureCheck bool
 	CAPubKey             *rsa.PublicKey
+	DNSProxy             DNSProxy
 }
 
 const (
 	firewallReconcileInterval = time.Second * 10
-	firewallNamespace         = "firewall"
 	firewallName              = "firewall"
 
 	nftablesExporterService   = "node-exporter"
@@ -75,10 +74,15 @@ const (
 	exporterLabelKey          = "app"
 )
 
-var done = ctrl.Result{}
+var (
+	done            = ctrl.Result{}
+	firewallRequeue = ctrl.Result{
+		RequeueAfter: firewallReconcileInterval,
+	}
+)
 
 // Reconcile reconciles a firewall by:
-// - reading ClusterwideNetworkPolicies and Services of type Loadbalancer
+// - reading Services of type Loadbalancer
 // - rendering nftables rules
 // - updating the firewall object with nftable rule statistics grouped by action
 // +kubebuilder:rbac:groups=metal-stack.io,resources=firewalls,verbs=get;list;watch;create;update;patch;delete
@@ -86,9 +90,7 @@ var done = ctrl.Result{}
 func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("firewall", req.NamespacedName)
-	requeue := ctrl.Result{
-		RequeueAfter: firewallReconcileInterval,
-	}
+	requeue := firewallRequeue
 
 	var f firewallv1.Firewall
 	if err := r.Get(ctx, req.NamespacedName, &f); err != nil {
@@ -124,26 +126,33 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	var errors *multierror.Error
-	log.Info("reconciling nftables rules")
-	if err = r.reconcileRules(ctx, f, log); err != nil {
-		errors = multierror.Append(errors, err)
-	}
-
 	log.Info("reconciling network settings")
-	changed, err := network.ReconcileNetwork(f, log)
+	kb := network.GetUpdatedKnowledgeBase(f)
+	changed, err := network.ReconcileNetwork(kb)
 	if changed && err == nil {
 		r.recorder.Event(&f, corev1.EventTypeNormal, "Network settings", "reconcilation succeeded (frr.conf)")
 	} else if changed && err != nil {
 		r.recorder.Event(&f, corev1.EventTypeWarning, "Network settings", fmt.Sprintf("reconcilation failed (frr.conf): %v", err))
 	}
-
 	if err != nil {
+		errors = multierror.Append(errors, err)
+	}
+
+	nftablesFirewall := nftables.NewDefaultFirewall()
+	if err = nftablesFirewall.ReconcileNetconfTables(kb, r.EnableDNS); err != nil {
 		errors = multierror.Append(errors, err)
 	}
 
 	log.Info("reconciling firewall services")
 	if err = r.reconcileFirewallServices(ctx, f, log); err != nil {
 		errors = multierror.Append(errors, err)
+	}
+
+	// If proxy is ON, update DNS address(if it's set in spec)
+	if r.DNSProxy != nil && f.Spec.Data.DNSServerAddress != "" {
+		if err = r.DNSProxy.UpdateDNSServerAddr(f.Spec.Data.DNSServerAddress); err != nil {
+			errors = multierror.Append(errors, err)
+		}
 	}
 
 	log.Info("updating status field")
@@ -166,8 +175,8 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 // - and for the triggered reconcilation request
 // - the signature is valid (when signature checking is enabled)
 func (r *FirewallReconciler) validateFirewall(ctx context.Context, f firewallv1.Firewall) error {
-	if f.Namespace != firewallNamespace {
-		return fmt.Errorf("firewall must be defined in namespace %s otherwise it won't take effect", firewallNamespace)
+	if f.Namespace != firewallv1.ClusterwideNetworkPolicyNamespace {
+		return fmt.Errorf("firewall must be defined in namespace %s otherwise it won't take effect", firewallv1.ClusterwideNetworkPolicyNamespace)
 	}
 
 	if f.Name != firewallName {
@@ -195,7 +204,7 @@ func convert(np networking.NetworkPolicy) (*firewallv1.ClusterwideNetworkPolicy,
 	cwnp := firewallv1.ClusterwideNetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      np.Name,
-			Namespace: firewallNamespace,
+			Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
 		},
 	}
 	newEgresses := []firewallv1.EgressRule{}
@@ -228,26 +237,6 @@ func convert(np networking.NetworkPolicy) (*firewallv1.ClusterwideNetworkPolicy,
 		Egress: newEgresses,
 	}
 	return &cwnp, nil
-}
-
-// reconcileRules reconciles the nftable rules for this firewall
-func (r *FirewallReconciler) reconcileRules(ctx context.Context, f firewallv1.Firewall, log logr.Logger) error {
-	var clusterNPs firewallv1.ClusterwideNetworkPolicyList
-	if err := r.List(ctx, &clusterNPs, client.InNamespace(f.Namespace)); err != nil {
-		return err
-	}
-
-	var services corev1.ServiceList
-	if err := r.List(ctx, &services); err != nil {
-		return err
-	}
-
-	nftablesFirewall := nftables.NewFirewall(&clusterNPs, &services, f.Spec, log)
-	if err := nftablesFirewall.Reconcile(); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 type firewallService struct {
@@ -283,10 +272,10 @@ func (r *FirewallReconciler) reconcileFirewallServices(ctx context.Context, f fi
 
 // reconcileFirewallService reconciles a single service that is to be exposed at the firewall.
 func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s firewallService, f firewallv1.Firewall, log logr.Logger) error {
-	nn := types.NamespacedName{Name: s.name, Namespace: firewallNamespace}
+	nn := types.NamespacedName{Name: s.name, Namespace: firewallv1.ClusterwideNetworkPolicyNamespace}
 	meta := metav1.ObjectMeta{
 		Name:      s.name,
-		Namespace: firewallNamespace,
+		Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
 		Labels:    map[string]string{exporterLabelKey: s.name},
 	}
 
@@ -452,7 +441,7 @@ func (r *FirewallReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			return []reconcile.Request{
 				{NamespacedName: types.NamespacedName{
 					Name:      firewallName,
-					Namespace: firewallNamespace,
+					Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
 				}},
 			}
 		})
@@ -463,7 +452,6 @@ func (r *FirewallReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&firewallv1.Firewall{}).
 		// don't trigger a reconcilation for status updates
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
-		Watches(&source.Kind{Type: &firewallv1.ClusterwideNetworkPolicy{}}, triggerFirewallReconcilation).
 		Watches(&source.Kind{Type: &corev1.Service{}}, triggerFirewallReconcilation).
 		Complete(r)
 }
