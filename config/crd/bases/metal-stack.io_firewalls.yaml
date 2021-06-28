@@ -72,6 +72,10 @@ spec:
                   - networkid
                   type: object
                 type: array
+              enableSuricataIDS:
+                description: EnableSuricataIDS specifies if we need to enable IDS
+                  on the firewall machine
+                type: boolean
               firewallNetworks:
                 description: FirewallNetworks holds the networks known at the metal-api
                   for this firewall machine

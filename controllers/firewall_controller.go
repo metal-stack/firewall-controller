@@ -145,16 +145,19 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	log.Info("reconciling network settings")
-	changed, err = network.ReconcileNetwork(f, log)
+	kb := network.GetUpdatedKnowledgeBase(f)
+	changed, err = network.ReconcileNetwork(kb)
 	if changed && err == nil {
 		r.recorder.Event(&f, corev1.EventTypeNormal, "Network settings", "reconcilation succeeded (frr.conf)")
 	} else if changed && err != nil {
 		r.recorder.Event(&f, corev1.EventTypeWarning, "Network settings", fmt.Sprintf("reconcilation failed (frr.conf): %v", err))
 	}
-
 	if err != nil {
 		errors = multierror.Append(errors, err)
 	}
+
+	log.Info("reconciling suricata config")
+	network.ReconcileSuricata(kb, f.Spec.EnableSuricataIDS)
 
 	log.Info("reconciling firewall services")
 	if err = r.reconcileFirewallServices(ctx, f); err != nil {
