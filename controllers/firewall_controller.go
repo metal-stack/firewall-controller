@@ -40,14 +40,15 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 
+	mn "github.com/metal-stack/metal-lib/pkg/net"
+	networking "k8s.io/api/networking/v1"
+
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/pkg/collector"
 	"github.com/metal-stack/firewall-controller/pkg/network"
 	"github.com/metal-stack/firewall-controller/pkg/nftables"
 	"github.com/metal-stack/firewall-controller/pkg/suricata"
 	"github.com/metal-stack/firewall-controller/pkg/updater"
-	mn "github.com/metal-stack/metal-lib/pkg/net"
-	networking "k8s.io/api/networking/v1"
 )
 
 // FirewallReconciler reconciles a Firewall object
@@ -130,16 +131,19 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	log.Info("reconciling network settings")
-	changed, err := network.ReconcileNetwork(f, log)
+	kb := network.GetUpdatedKnowledgeBase(f)
+	changed, err := network.ReconcileNetwork(kb)
 	if changed && err == nil {
 		r.recorder.Event(&f, corev1.EventTypeNormal, "Network settings", "reconcilation succeeded (frr.conf)")
 	} else if changed && err != nil {
 		r.recorder.Event(&f, corev1.EventTypeWarning, "Network settings", fmt.Sprintf("reconcilation failed (frr.conf): %v", err))
 	}
-
 	if err != nil {
 		errors = multierror.Append(errors, err)
 	}
+
+	log.Info("reconciling suricata config")
+	network.ReconcileSuricata(kb, f.Spec.EnableSuricataIDS)
 
 	log.Info("reconciling firewall services")
 	if err = r.reconcileFirewallServices(ctx, f, log); err != nil {
