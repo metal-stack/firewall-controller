@@ -53,6 +53,10 @@ spec:
                 description: ControllerVersion holds the firewall-controller version
                   to reconcile.
                 type: string
+              disableSuricataIDS:
+                description: DisableSuricataIDS specifies if we need to enable IDS
+                  on the firewall machine
+                type: boolean
               dryrun:
                 description: DryRun if set to true, firewall rules are not applied
                 type: boolean
@@ -72,10 +76,6 @@ spec:
                   - networkid
                   type: object
                 type: array
-              enableSuricataIDS:
-                description: EnableSuricataIDS specifies if we need to enable IDS
-                  on the firewall machine
-                type: boolean
               firewallNetworks:
                 description: FirewallNetworks holds the networks known at the metal-api
                   for this firewall machine

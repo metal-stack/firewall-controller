@@ -59,7 +59,7 @@ type FirewallReconciler struct {
 	recorder             record.EventRecorder
 	Log                  logr.Logger
 	Scheme               *runtime.Scheme
-	EnableIDS            bool
+	Suricata             *suricata.Suricata
 	EnableSignatureCheck bool
 	CAPubKey             *rsa.PublicKey
 	policySpecsChecksums map[string][16]byte
@@ -157,7 +157,9 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	log.Info("reconciling suricata config")
-	network.ReconcileSuricata(kb, f.Spec.EnableSuricataIDS)
+	if err := r.Suricata.ReconcileSuricata(kb, !f.Spec.DisableSuricataIDS); err != nil {
+		errors = multierror.Append(errors, err)
+	}
 
 	log.Info("reconciling firewall services")
 	if err = r.reconcileFirewallServices(ctx, f); err != nil {
@@ -441,9 +443,8 @@ func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Fire
 	f.Status.FirewallStats.DeviceStats = deviceStats
 
 	idsStats := firewallv1.IDSStatsByDevice{}
-	if r.EnableIDS { // checks the CLI-flag
-		s := suricata.New()
-		ss, err := s.InterfaceStats()
+	if r.Suricata.EnableIDS {
+		ss, err := r.Suricata.InterfaceStats()
 		if err != nil {
 			return err
 		}
