@@ -24,19 +24,19 @@ import (
 	"os"
 	"time"
 
-	"github.com/metal-stack/firewall-controller/pkg/suricata"
-
 	"github.com/metal-stack/metal-lib/pkg/sign"
 	"github.com/metal-stack/v"
+
+	"github.com/metal-stack/firewall-controller/controllers"
+	"github.com/metal-stack/firewall-controller/controllers/crd"
+	"github.com/metal-stack/firewall-controller/pkg/suricata"
+
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
-	"github.com/metal-stack/firewall-controller/controllers"
-	"github.com/metal-stack/firewall-controller/controllers/crd"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	// +kubebuilder:scaffold:imports
@@ -63,18 +63,20 @@ func main() {
 	var (
 		metricsAddr          string
 		enableLeaderElection bool
-		enableIDS            bool
 		enableSignatureCheck bool
 		hostsFile            string
 	)
-	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
+
+	fs := flag.NewFlagSet("", flag.ContinueOnError)
+	fs.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
+	fs.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
-	flag.BoolVar(&enableIDS, "enable-IDS", true, "Set this to false to exclude IDS.")
-	flag.StringVar(&hostsFile, "hosts-file", "/etc/hosts", "The hosts file to manipulate for the droptailer.")
-	flag.BoolVar(&enableSignatureCheck, "enable-signature-check", true, "Set this to false to ignore signature checking.")
-	flag.Parse()
+	fs.StringVar(&hostsFile,
+		"hosts-file", "/etc/hosts", "The hosts file to manipulate for the droptailer.")
+	fs.BoolVar(&enableSignatureCheck,
+		"enable-signature-check", true, "Set this to false to ignore signature checking.")
+	fs.Parse(os.Args[1:])
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
@@ -161,7 +163,7 @@ func main() {
 		Client:               mgr.GetClient(),
 		Log:                  ctrl.Log.WithName("controllers").WithName("Firewall"),
 		Scheme:               mgr.GetScheme(),
-		Suricata:             suricata.New(enableIDS),
+		Suricata:             suricata.New(),
 		EnableSignatureCheck: enableSignatureCheck,
 		CAPubKey:             caPubKey,
 	}).SetupWithManager(mgr); err != nil {
