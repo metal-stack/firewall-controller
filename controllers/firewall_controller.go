@@ -157,7 +157,7 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	log.Info("reconciling suricata config")
-	if err := r.Suricata.ReconcileSuricata(kb, !f.Spec.DisableSuricataIDS); err != nil {
+	if err := r.Suricata.ReconcileSuricata(kb, f.Spec.EnableIDS); err != nil {
 		errors = multierror.Append(errors, err)
 	}
 
@@ -443,7 +443,7 @@ func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Fire
 	f.Status.FirewallStats.DeviceStats = deviceStats
 
 	idsStats := firewallv1.IDSStatsByDevice{}
-	if r.Suricata.EnableIDS {
+	if f.Spec.EnableIDS {
 		ss, err := r.Suricata.InterfaceStats()
 		if err != nil {
 			return err

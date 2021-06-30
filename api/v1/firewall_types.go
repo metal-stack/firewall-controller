@@ -81,8 +81,8 @@ type Data struct {
 	EgressRules []EgressRuleSNAT `json:"egressRules,omitempty"`
 	// FirewallNetworks holds the networks known at the metal-api for this firewall machine
 	FirewallNetworks []FirewallNetwork `json:"firewallNetworks,omitempty"`
-	// DisableSuricataIDS specifies if we need to enable IDS on the firewall machine
-	DisableSuricataIDS bool `json:"disableSuricataIDS,omitempty"`
+	// EnableIDS specifies if we need to enable IDS on the firewall machine
+	EnableIDS bool `json:"enableIDS,omitempty"`
 }
 
 // FirewallStatus defines the observed state of Firewall

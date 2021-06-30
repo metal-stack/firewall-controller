@@ -20,7 +20,7 @@ const (
 
 type Suricata struct {
 	socket    string
-	EnableIDS bool
+	enableIDS bool
 }
 
 type InterfaceStats map[string]InterFaceStat
@@ -31,10 +31,9 @@ type InterFaceStat struct {
 	Pkts             int
 }
 
-func New(enableIDS bool) *Suricata {
+func New() *Suricata {
 	return &Suricata{
-		socket:    defaultSocket,
-		EnableIDS: enableIDS,
+		socket: defaultSocket,
 	}
 }
 
@@ -66,7 +65,7 @@ func (s *Suricata) InterfaceStats() (*InterfaceStats, error) {
 }
 
 func (s *Suricata) ReconcileSuricata(kb netconf.KnowledgeBase, enableIDS bool) error {
-	if enableIDS != s.EnableIDS {
+	if enableIDS != s.enableIDS {
 		configurator := netconf.FirewallConfigurator{
 			CommonConfigurator: netconf.CommonConfigurator{
 				Kb: kb,
@@ -78,7 +77,7 @@ func (s *Suricata) ReconcileSuricata(kb netconf.KnowledgeBase, enableIDS bool) e
 		if err := s.restart(); err != nil {
 			return fmt.Errorf("failed to restart suricata: %w", err)
 		}
-		s.EnableIDS = enableIDS
+		s.enableIDS = enableIDS
 	}
 
 	return nil
