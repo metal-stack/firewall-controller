@@ -79,6 +79,11 @@ type Data struct {
 	EgressRules []EgressRuleSNAT `json:"egressRules,omitempty"`
 	// FirewallNetworks holds the networks known at the metal-api for this firewall machine
 	FirewallNetworks []FirewallNetwork `json:"firewallNetworks,omitempty"`
+	// EnableIDS specifies if we need to enable IDS on the firewall machine
+	EnableIDS bool `json:"enableIDS,omitempty"`
+	// EnableIPS specifies if we need to enable IPS on the firewall machine.
+	// If it's enabled it always assumes that EnableIDS is also true.
+	EnableIPS bool `json:"enableIPS,omitempty"`
 }
 
 // FirewallStatus defines the observed state of Firewall

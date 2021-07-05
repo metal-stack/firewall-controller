@@ -40,14 +40,15 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 
+	mn "github.com/metal-stack/metal-lib/pkg/net"
+	networking "k8s.io/api/networking/v1"
+
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/pkg/collector"
 	"github.com/metal-stack/firewall-controller/pkg/network"
 	"github.com/metal-stack/firewall-controller/pkg/nftables"
 	"github.com/metal-stack/firewall-controller/pkg/suricata"
 	"github.com/metal-stack/firewall-controller/pkg/updater"
-	mn "github.com/metal-stack/metal-lib/pkg/net"
-	networking "k8s.io/api/networking/v1"
 )
 
 // FirewallReconciler reconciles a Firewall object
@@ -56,7 +57,7 @@ type FirewallReconciler struct {
 	recorder             record.EventRecorder
 	Log                  logr.Logger
 	Scheme               *runtime.Scheme
-	EnableIDS            bool
+	Suricata             *suricata.Suricata
 	EnableSignatureCheck bool
 	CAPubKey             *rsa.PublicKey
 }
@@ -105,7 +106,7 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return done, client.IgnoreNotFound(err)
 	}
 
-	if err := r.validateFirewall(ctx, f); err != nil {
+	if err := r.validateFirewall(ctx, f, log); err != nil {
 		r.recorder.Event(&f, corev1.EventTypeWarning, "Unapplicable", err.Error())
 		// don't requeue invalid firewall objects
 		return done, err
@@ -130,14 +131,19 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	log.Info("reconciling network settings")
-	changed, err := network.ReconcileNetwork(f, log)
+	kb := network.GetUpdatedKnowledgeBase(f)
+	changed, err := network.ReconcileNetwork(kb)
 	if changed && err == nil {
 		r.recorder.Event(&f, corev1.EventTypeNormal, "Network settings", "reconcilation succeeded (frr.conf)")
 	} else if changed && err != nil {
 		r.recorder.Event(&f, corev1.EventTypeWarning, "Network settings", fmt.Sprintf("reconcilation failed (frr.conf): %v", err))
 	}
-
 	if err != nil {
+		errors = multierror.Append(errors, err)
+	}
+
+	log.Info("reconciling suricata config")
+	if err := r.Suricata.ReconcileSuricata(kb, f.Spec.EnableIDS, f.Spec.EnableIPS); err != nil {
 		errors = multierror.Append(errors, err)
 	}
 
@@ -165,7 +171,7 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 // - it must be a singularity in a fixed namespace
 // - and for the triggered reconcilation request
 // - the signature is valid (when signature checking is enabled)
-func (r *FirewallReconciler) validateFirewall(ctx context.Context, f firewallv1.Firewall) error {
+func (r *FirewallReconciler) validateFirewall(ctx context.Context, f firewallv1.Firewall, log logr.Logger) error {
 	if f.Namespace != firewallNamespace {
 		return fmt.Errorf("firewall must be defined in namespace %s otherwise it won't take effect", firewallNamespace)
 	}
@@ -420,9 +426,8 @@ func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Fire
 	f.Status.FirewallStats.DeviceStats = deviceStats
 
 	idsStats := firewallv1.IDSStatsByDevice{}
-	if r.EnableIDS { // checks the CLI-flag
-		s := suricata.New()
-		ss, err := s.InterfaceStats()
+	if f.Spec.EnableIDS {
+		ss, err := r.Suricata.InterfaceStats()
 		if err != nil {
 			return err
 		}
