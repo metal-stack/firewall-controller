@@ -76,7 +76,10 @@ func main() {
 		"hosts-file", "/etc/hosts", "The hosts file to manipulate for the droptailer.")
 	fs.BoolVar(&enableSignatureCheck,
 		"enable-signature-check", true, "Set this to false to ignore signature checking.")
-	fs.Parse(os.Args[1:])
+	if err := fs.Parse(os.Args[1:]); err != nil {
+		// Log error but continue program execution
+		setupLog.Error(err, "error parsing flags")
+	}
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 

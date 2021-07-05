@@ -76,6 +76,11 @@ spec:
                 description: EnableIDS specifies if we need to enable IDS on the firewall
                   machine
                 type: boolean
+              enableIPS:
+                description: EnableIPS specifies if we need to enable IPS on the firewall
+                  machine. If it's enabled it always assumes that EnableIDS is also
+                  true.
+                type: boolean
               firewallNetworks:
                 description: FirewallNetworks holds the networks known at the metal-api
                   for this firewall machine

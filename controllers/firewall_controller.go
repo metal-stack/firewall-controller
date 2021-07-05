@@ -157,7 +157,7 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	log.Info("reconciling suricata config")
-	if err := r.Suricata.ReconcileSuricata(kb, f.Spec.EnableIDS); err != nil {
+	if err := r.Suricata.ReconcileSuricata(kb, f.Spec.EnableIDS, f.Spec.EnableIPS); err != nil {
 		errors = multierror.Append(errors, err)
 	}
 

@@ -4,9 +4,9 @@ table ip firewall {
 		type ipv4_addr
 		flags interval
 		auto-merge
-		{{ if gt (len .InternalPrefixes) 0 }}
+		{{- if gt (len .InternalPrefixes) 0 }}
 		elements = { {{ .InternalPrefixes }} }
-		{{ end }}
+		{{- end }}
 	}
 
 	# Prefixes in the cluster, typically 10.x.x.x
@@ -63,6 +63,13 @@ table ip firewall {
 		counter comment "count and log dropped packets"
 		limit rate 10/second counter name drop_total log prefix "nftables-firewall-dropped: "
 	}
+{{- if .EnableIPS }}
+
+	chain IPS {
+		type filter hook forward priority 10; policy accept;
+		iifname "vrf{{ .PublicVrfID }}" queue num 0
+	}
+{{- end }}
 {{- if gt (len .SnatRules) 0 }}
 
 	chain postrouting {

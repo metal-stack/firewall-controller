@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 	"text/template"
+
+	"github.com/metal-stack/firewall-controller/pkg/network"
 )
 
 // firewallRenderingData holds the data available in the nftables template
@@ -16,6 +18,8 @@ type firewallRenderingData struct {
 	SnatRules        nftablesRules
 	InternalPrefixes string
 	PrivateVrfID     uint
+	PublicVrfID      int64
+	EnableIPS        bool
 }
 
 func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
@@ -39,8 +43,15 @@ func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 		return &firewallRenderingData{}, err
 	}
 
+	var publicVrfID int64
+	kb := network.GetKnowledgeBase()
+	if n := kb.GetDefaultRouteNetwork(); n != nil {
+		publicVrfID = *n.Vrf
+	}
+
 	return &firewallRenderingData{
 		PrivateVrfID:     uint(*f.primaryPrivateNet.Vrf),
+		PublicVrfID:      publicVrfID,
 		InternalPrefixes: strings.Join(f.spec.InternalPrefixes, ", "),
 		ForwardingRules: forwardingRules{
 			Ingress: ingress,
@@ -48,6 +59,7 @@ func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 		},
 		RateLimitRules: rateLimitRules(f),
 		SnatRules:      snatRules,
+		EnableIPS:      f.enableIPS,
 	}, nil
 }
 

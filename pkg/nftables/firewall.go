@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/hashicorp/go-multierror"
+
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 
 	mn "github.com/metal-stack/metal-lib/pkg/net"
@@ -38,7 +39,8 @@ type Firewall struct {
 	primaryPrivateNet *firewallv1.FirewallNetwork
 	networkMap        networkMap
 
-	dryRun bool
+	enableIPS bool
+	dryRun    bool
 }
 
 type networkMap map[string]firewallv1.FirewallNetwork
@@ -53,11 +55,21 @@ type forwardingRules struct {
 // NewDefaultFirewall creates a new default nftables firewall.
 func NewDefaultFirewall() *Firewall {
 	defaultSpec := firewallv1.FirewallSpec{}
-	return NewFirewall(&firewallv1.ClusterwideNetworkPolicyList{}, &corev1.ServiceList{}, defaultSpec, nil)
+	return NewFirewall(
+		&firewallv1.ClusterwideNetworkPolicyList{},
+		&corev1.ServiceList{},
+		defaultSpec,
+		nil,
+	)
 }
 
 // NewFirewall creates a new nftables firewall object based on k8s entities
-func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.ServiceList, spec firewallv1.FirewallSpec, log logr.Logger) *Firewall {
+func NewFirewall(
+	nps *firewallv1.ClusterwideNetworkPolicyList,
+	svcs *corev1.ServiceList,
+	spec firewallv1.FirewallSpec,
+	log logr.Logger,
+) *Firewall {
 	networkMap := networkMap{}
 	var primaryPrivateNet *firewallv1.FirewallNetwork
 	for i, n := range spec.FirewallNetworks {
@@ -76,6 +88,7 @@ func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.Serv
 		services:                   svcs,
 		primaryPrivateNet:          primaryPrivateNet,
 		networkMap:                 networkMap,
+		enableIPS:                  spec.EnableIPS,
 		dryRun:                     spec.DryRun,
 		log:                        log,
 	}

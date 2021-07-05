@@ -55,4 +55,9 @@ table ip firewall {
 		counter comment "count and log dropped packets"
 		limit rate 10/second counter name drop_total log prefix "nftables-firewall-dropped: "
 	}
+
+	chain IPS {
+		type filter hook forward priority 10; policy accept;
+		iifname "vrf100" queue num 0
+	}
 }

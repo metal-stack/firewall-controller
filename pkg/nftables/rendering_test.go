@@ -56,6 +56,22 @@ func TestFirewallRenderingData_renderString(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "enable-ips",
+			data: &firewallRenderingData{
+				ForwardingRules: forwardingRules{
+					Egress:  []string{"egress rule"},
+					Ingress: []string{"ingress rule"},
+				},
+				InternalPrefixes: "1.2.3.4",
+				RateLimitRules:   []string{"meta iifname \"eth0\" limit rate over 10 mbytes/second counter name drop_ratelimit drop"},
+				SnatRules:        []string{},
+				PrivateVrfID:     uint(42),
+				PublicVrfID:      100,
+				EnableIPS:        true,
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		tt := tt
