@@ -21,6 +21,7 @@ const (
 type Suricata struct {
 	socket    string
 	enableIDS bool
+	enableIPS bool
 }
 
 type InterfaceStats map[string]InterFaceStat
@@ -64,29 +65,43 @@ func (s *Suricata) InterfaceStats() (*InterfaceStats, error) {
 	return &result, nil
 }
 
-func (s *Suricata) ReconcileSuricata(kb netconf.KnowledgeBase, enableIDS bool) error {
-	if enableIDS != s.enableIDS {
+func (s *Suricata) ReconcileSuricata(kb netconf.KnowledgeBase, enableIDS, enableIPS bool) error {
+	// If IPS is enabled, IDS also should be enabled
+	// But it matters only internally for imlementation,
+	// user can specify only enableIPS without enableIDS
+	if enableIPS {
+		enableIDS = true
+	}
+
+	if enableIDS != s.enableIDS || enableIPS != s.enableIPS {
 		configurator := netconf.FirewallConfigurator{
 			CommonConfigurator: netconf.CommonConfigurator{
 				Kb: kb,
 			},
 			EnableIDS: enableIDS,
+			EnableIPS: enableIPS,
 		}
 		configurator.ConfigureSuricata()
+
+		s.enableIDS = enableIDS
+		s.enableIPS = enableIPS
 
 		if err := s.restart(); err != nil {
 			return fmt.Errorf("failed to restart suricata: %w", err)
 		}
-		s.enableIDS = enableIDS
 	}
 
 	return nil
 }
 
 func (s *Suricata) restart() error {
-	c := exec.Command(systemctlBin, "restart", suricataService)
-	err := c.Run()
-	if err != nil {
+	c := exec.Command(systemctlBin, "daemon-reload", suricataService)
+	if err := c.Run(); err != nil {
+		return fmt.Errorf("could not reload suricata daemon, err: %w", err)
+	}
+
+	c = exec.Command(systemctlBin, "restart", suricataService)
+	if err := c.Run(); err != nil {
 		return fmt.Errorf("could not reload suricata service, err: %w", err)
 	}
 	return nil

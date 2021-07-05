@@ -106,7 +106,7 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return done, client.IgnoreNotFound(err)
 	}
 
-	if err := r.validateFirewall(ctx, f); err != nil {
+	if err := r.validateFirewall(ctx, f, log); err != nil {
 		r.recorder.Event(&f, corev1.EventTypeWarning, "Unapplicable", err.Error())
 		// don't requeue invalid firewall objects
 		return done, err
@@ -143,7 +143,7 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	log.Info("reconciling suricata config")
-	if err := r.Suricata.ReconcileSuricata(kb, f.Spec.EnableIDS); err != nil {
+	if err := r.Suricata.ReconcileSuricata(kb, f.Spec.EnableIDS, f.Spec.EnableIPS); err != nil {
 		errors = multierror.Append(errors, err)
 	}
 
@@ -171,7 +171,7 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 // - it must be a singularity in a fixed namespace
 // - and for the triggered reconcilation request
 // - the signature is valid (when signature checking is enabled)
-func (r *FirewallReconciler) validateFirewall(ctx context.Context, f firewallv1.Firewall) error {
+func (r *FirewallReconciler) validateFirewall(ctx context.Context, f firewallv1.Firewall, log logr.Logger) error {
 	if f.Namespace != firewallNamespace {
 		return fmt.Errorf("firewall must be defined in namespace %s otherwise it won't take effect", firewallNamespace)
 	}
