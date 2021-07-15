@@ -5,11 +5,15 @@ on:
     branches:
       - master
 
+env:
+  GCS_BUCKET: images.metal-pod.io
+
 jobs:
   integration:
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v2
+
     - name: Set up Go 1.16
       uses: actions/setup-go@v2.1.3
       with:
@@ -28,6 +32,12 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v2
+
+    - uses: google-github-actions/setup-gcloud@master
+      with:
+        service_account_email: ${{ secrets.GCP_SA_EMAIL }}
+        service_account_key: ${{ secrets.GCP_SA_KEY }}
+
     - name: Set up Go 1.16
       uses: actions/setup-go@v2.1.3
       with:
@@ -64,4 +74,15 @@ jobs:
       run: |
         export GITHUB_TAG_NAME=${GITHUB_HEAD_REF##*/}
         make docker-push
+      if: steps.fork.outputs.is_fork_pr == 'false'
+
+    - name: Prepare upload
+      run: |
+        mkdir -p firewall-controller/pull-requests/${TAG_NAME}
+        sudo chown -R $(id -u):$(id -g) bin
+        mv bin/* firewall-controller/pull-requests/${TAG_NAME}
+      if: steps.fork.outputs.is_fork_pr == 'false'
+
+    - name: Upload image tarballs to GCS
+      run: gsutil -m cp -r -p firewall-controller gs://$GCS_BUCKET
       if: steps.fork.outputs.is_fork_pr == 'false'
