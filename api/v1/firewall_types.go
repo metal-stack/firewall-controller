@@ -59,6 +59,8 @@ type FirewallSpec struct {
 	Signature string `json:"signature"`
 	// ControllerVersion holds the firewall-controller version to reconcile.
 	ControllerVersion string `json:"controllerVersion,omitempty"`
+	// ControllerURL points to the downloadable binary artifact of the firewall controller
+	ControllerURL string `json:"controllerURL,omitempty"`
 }
 
 // Data contains the fields over which the signature is calculated.
