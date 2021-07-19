@@ -97,6 +97,7 @@ jobs:
 
     - name: Prepare upload
       run: |
+        export GITHUB_TAG_NAME=${GITHUB_REF##*/}
         mkdir -p firewall-controller/${GITHUB_TAG_NAME}/
         sudo chown -R $(id -u):$(id -g) bin
         mv bin/* firewall-controller/${GITHUB_TAG_NAME}/
