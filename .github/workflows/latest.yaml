@@ -24,7 +24,6 @@ jobs:
         sudo "PATH=$PATH" --preserve-env=GOROOT make test-all clean
 
   build:
-    needs: integration
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v2
