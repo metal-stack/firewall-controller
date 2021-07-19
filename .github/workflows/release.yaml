@@ -55,14 +55,14 @@ jobs:
         username: ${{ secrets.DOCKER_REGISTRY_USER }}
         password: ${{ secrets.DOCKER_REGISTRY_TOKEN }}
 
-    - name: Build
-      run: |
-        make
-
     - name: Lint
       uses: golangci/golangci-lint-action@v2
       with:
         args: --timeout=3m
+
+    - name: Build
+      run: |
+        make
 
     - name: Build and Push Docker Image
       run: |
