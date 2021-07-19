@@ -65,7 +65,6 @@ jobs:
     - name: Lint
       uses: golangci/golangci-lint-action@v2
       with:
-        version: v1.32.2
         args: --timeout=3m
 
     - name: Build Docker Image
