@@ -64,7 +64,7 @@ jobs:
     - name: Lint
       uses: golangci/golangci-lint-action@v2
       with:
-        args: --timeout=3m
+        args: -p bugs -p unused --timeout=3m
 
     - name: Build
       run: |

@@ -3,7 +3,8 @@ package nftables
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"os"
 	"strings"
 	"text/template"
 )
@@ -55,7 +56,7 @@ func (d *firewallRenderingData) write(file string) error {
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile(file, []byte(c), 0644)
+	err = os.WriteFile(file, []byte(c), 0600)
 	if err != nil {
 		return fmt.Errorf("error writing to nftables file '%s': %w", file, err)
 	}
@@ -86,7 +87,7 @@ func (d *firewallRenderingData) readTpl() (string, error) {
 		return "", err
 	}
 	defer r.Close()
-	bytes, err := ioutil.ReadAll(r)
+	bytes, err := io.ReadAll(r)
 	if err != nil {
 		return "", err
 	}

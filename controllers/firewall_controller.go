@@ -105,7 +105,7 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return done, client.IgnoreNotFound(err)
 	}
 
-	if err := r.validateFirewall(ctx, f); err != nil {
+	if err := r.validateFirewall(f); err != nil {
 		r.recorder.Event(&f, corev1.EventTypeWarning, "Unapplicable", err.Error())
 		// don't requeue invalid firewall objects
 		return done, err
@@ -142,12 +142,12 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	log.Info("reconciling firewall services")
-	if err = r.reconcileFirewallServices(ctx, f, log); err != nil {
+	if err = r.reconcileFirewallServices(ctx, f); err != nil {
 		errors = multierror.Append(errors, err)
 	}
 
 	log.Info("updating status field")
-	if err = r.updateStatus(ctx, f, log); err != nil {
+	if err = r.updateStatus(ctx, f); err != nil {
 		errors = multierror.Append(errors, err)
 	}
 
@@ -165,7 +165,7 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 // - it must be a singularity in a fixed namespace
 // - and for the triggered reconcilation request
 // - the signature is valid (when signature checking is enabled)
-func (r *FirewallReconciler) validateFirewall(ctx context.Context, f firewallv1.Firewall) error {
+func (r *FirewallReconciler) validateFirewall(f firewallv1.Firewall) error {
 	if f.Namespace != firewallNamespace {
 		return fmt.Errorf("firewall must be defined in namespace %s otherwise it won't take effect", firewallNamespace)
 	}
@@ -257,7 +257,7 @@ type firewallService struct {
 }
 
 // reconcileFirewallServices reconciles the services and endpoints exposed by the firewall
-func (r *FirewallReconciler) reconcileFirewallServices(ctx context.Context, f firewallv1.Firewall, log logr.Logger) error {
+func (r *FirewallReconciler) reconcileFirewallServices(ctx context.Context, f firewallv1.Firewall) error {
 	services := []firewallService{
 		{
 			name:      nodeExporterService,
@@ -273,7 +273,7 @@ func (r *FirewallReconciler) reconcileFirewallServices(ctx context.Context, f fi
 
 	var errors *multierror.Error
 	for _, s := range services {
-		err := r.reconcileFirewallService(ctx, s, f, log)
+		err := r.reconcileFirewallService(ctx, s, f)
 		if err != nil {
 			errors = multierror.Append(errors, err)
 		}
@@ -282,7 +282,7 @@ func (r *FirewallReconciler) reconcileFirewallServices(ctx context.Context, f fi
 }
 
 // reconcileFirewallService reconciles a single service that is to be exposed at the firewall.
-func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s firewallService, f firewallv1.Firewall, log logr.Logger) error {
+func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s firewallService, f firewallv1.Firewall) error {
 	nn := types.NamespacedName{Name: s.name, Namespace: firewallNamespace}
 	meta := metav1.ObjectMeta{
 		Name:      s.name,
@@ -330,6 +330,7 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 
 	var privateNet *firewallv1.FirewallNetwork
 	for _, n := range f.Spec.FirewallNetworks {
+		n := n
 		if n.Networktype == nil {
 			continue
 		}
@@ -393,7 +394,7 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 }
 
 // updateStatus updates the status field for this firewall
-func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Firewall, log logr.Logger) error {
+func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Firewall) error {
 	if f.Spec.DryRun {
 		f.Status.FirewallStats = firewallv1.FirewallStats{
 			RuleStats:   firewallv1.RuleStatsByAction{},

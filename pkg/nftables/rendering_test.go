@@ -1,7 +1,7 @@
 package nftables
 
 import (
-	"io/ioutil"
+	"os"
 	"path"
 	"testing"
 
@@ -58,6 +58,7 @@ func TestFirewallRenderingData_renderString(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			fd := tt.data
 
@@ -66,7 +67,7 @@ func TestFirewallRenderingData_renderString(t *testing.T) {
 				t.Errorf("Firewall.renderString() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			rendered, _ := ioutil.ReadFile(path.Join("test_data", tt.name+".nftable.v4"))
+			rendered, _ := os.ReadFile(path.Join("test_data", tt.name+".nftable.v4"))
 			want := string(rendered)
 			if got != want {
 				t.Errorf("Firewall.renderString() diff: %v", cmp.Diff(got, want))

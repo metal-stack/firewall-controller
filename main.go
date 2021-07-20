@@ -180,7 +180,7 @@ func readCRDsFromVFS() (map[string][]byte, error) {
 		}
 		b, readerr := fs.ReadFile(crds, path)
 		if readerr != nil {
-			return fmt.Errorf("unable to readfile:%v", readerr)
+			return fmt.Errorf("unable to readfile:%w", readerr)
 		}
 		crdMap[path] = b
 		setupLog.Info("crd", "path", path)
