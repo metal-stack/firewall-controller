@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -64,6 +63,7 @@ func FetchBinaryAndChecksum(url string) (io.ReadCloser, string, error) {
 		return nil, "", fmt.Errorf("could not slurp checksum file at %s, err: %w", url, err)
 	}
 
+	//nolint:gosec,noctx
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, "", fmt.Errorf("could not download url %s, err: %w", url, err)
@@ -90,7 +90,7 @@ func replaceBinary(binaryReader io.ReadCloser, checksum string) error {
 }
 
 func copyToTempFile(binaryReader io.ReadCloser, filename string) (string, error) {
-	file, err := ioutil.TempFile(filepath.Dir(filename), filepath.Base(filename))
+	file, err := os.CreateTemp(filepath.Dir(filename), filepath.Base(filename))
 	if err != nil {
 		return "", err
 	}
@@ -109,7 +109,7 @@ func copyToTempFile(binaryReader io.ReadCloser, filename string) (string, error)
 }
 
 func validateChecksum(filename string, checksum string) error {
-	bytes, err := ioutil.ReadFile(filename)
+	bytes, err := os.ReadFile(filename)
 	if err != nil {
 		return err
 	}
@@ -122,12 +122,13 @@ func validateChecksum(filename string, checksum string) error {
 }
 
 func slurpFile(url string) (string, error) {
+	//nolint:gosec,noctx
 	resp, err := http.Get(url)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
-	content, err := ioutil.ReadAll(resp.Body)
+	content, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
