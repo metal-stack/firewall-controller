@@ -22,6 +22,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"io/ioutil"
 	"os"
@@ -207,7 +208,7 @@ func (p *poller) poll() (done bool, err error) {
 		// TODO: Maybe the controller-runtime client should be able to do this...
 		resourceList, err := cs.Discovery().ServerResourcesForGroupVersion(gv.Group + "/" + gv.Version)
 		if err != nil {
-			return false, nil
+			return false, err
 		}
 
 		// Remove each found resource from the resources set that we are waiting for
@@ -432,7 +433,7 @@ func readToUnstructured(docs [][]byte) ([]*unstructured.Unstructured, error) {
 
 // readDocuments reads documents from file
 func readDocuments(fp string) ([][]byte, error) {
-	b, err := ioutil.ReadFile(fp)
+	b, err := os.ReadFile(fp)
 	if err != nil {
 		return nil, err
 	}
@@ -447,7 +448,7 @@ func readDocumentsFromBytes(b []byte) ([][]byte, error) {
 		// Read document
 		doc, err := reader.Read()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			return nil, err
