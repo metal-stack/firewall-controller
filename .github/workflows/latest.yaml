@@ -24,7 +24,6 @@ jobs:
         sudo "PATH=$PATH" --preserve-env=GOROOT make test-all clean
 
   build:
-    needs: integration
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v2
@@ -42,13 +41,16 @@ jobs:
 
     - name: Build
       run: |
-        make
+        make fetch-template
 
     - name: Lint
       uses: golangci/golangci-lint-action@v2
       with:
-        version: v1.32.2
-        args: --timeout=3m
+        args: -p bugs -p unused --timeout=3m
+
+    - name: Build
+      run: |
+        make
 
     - name: Build and Push Docker Image
       run: |

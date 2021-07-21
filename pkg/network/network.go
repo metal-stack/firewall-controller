@@ -2,7 +2,6 @@ package network
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"text/template"
@@ -67,7 +66,7 @@ func ReconcileNetwork(f firewallv1.Firewall, log logr.Logger) (bool, error) {
 }
 
 func tmpFile(file string) (string, error) {
-	f, err := ioutil.TempFile(filepath.Dir(file), filepath.Base(file))
+	f, err := os.CreateTemp(filepath.Dir(file), filepath.Base(file))
 	if err != nil {
 		return "", err
 	}

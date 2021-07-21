@@ -45,6 +45,10 @@ spec:
           spec:
             description: FirewallSpec defines the desired state of Firewall
             properties:
+              controllerURL:
+                description: ControllerURL points to the downloadable binary artifact
+                  of the firewall controller
+                type: string
               controllerVersion:
                 description: ControllerVersion holds the firewall-controller version
                   to reconcile.

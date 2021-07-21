@@ -1,28 +1,24 @@
 package updater
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/go-logr/logr"
-	"github.com/google/go-github/github"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/v"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
 )
 
 const (
-	gitHubOwner    = "metal-stack"
-	gitHubRepo     = "firewall-controller"
-	gitHubArtifact = "firewall-controller"
 	binaryLocation = "/usr/local/bin/firewall-controller"
 )
 
@@ -37,15 +33,16 @@ func UpdateToSpecVersion(f firewallv1.Firewall, log logr.Logger, recorder record
 		return nil
 	}
 
-	recorder.Eventf(&f, "Normal", "Self-Reconcilation", "replacing firewall-controller version %s with version %s", v.Version, f.Spec.ControllerVersion)
-	asset, err := DetermineGithubAsset(f.Spec.ControllerVersion)
+	_, err := url.Parse(f.Spec.ControllerURL)
 	if err != nil {
 		return err
 	}
 
-	binaryReader, checksum, err := FetchGithubAssetAndChecksum(asset)
+	recorder.Eventf(&f, corev1.EventTypeNormal, "Self-Reconcilation", "replacing firewall-controller version %s with version %s", v.Version, f.Spec.ControllerVersion)
+
+	binaryReader, checksum, err := FetchBinaryAndChecksum(f.Spec.ControllerURL)
 	if err != nil {
-		return fmt.Errorf("could not fetch github asset and checksum for firewall-controller version %s, err: %w", f.Spec.ControllerVersion, err)
+		return fmt.Errorf("could not download binary or checksum for firewall-controller version %s, err: %w", f.Spec.ControllerVersion, err)
 	}
 
 	err = replaceBinary(binaryReader, checksum)
@@ -53,56 +50,25 @@ func UpdateToSpecVersion(f firewallv1.Firewall, log logr.Logger, recorder record
 		return fmt.Errorf("could not replace firewall-controller with version %s, err: %w", f.Spec.ControllerVersion, err)
 	}
 
-	recorder.Eventf(&f, "Normal", "Self-Reconcilation", "replaced firewall-controller version %s with version %s successfully", v.Version, f.Spec.ControllerVersion)
+	recorder.Eventf(&f, corev1.EventTypeNormal, "Self-Reconcilation", "replaced firewall-controller version %s with version %s successfully", v.Version, f.Spec.ControllerVersion)
 
 	// after a successful self-reconcilation of the firewall-controller binary we want to get restarted by exiting and letting systemd restart the process.
 	os.Exit(0)
 	return nil
 }
 
-func DetermineGithubAsset(githubTag string) (*github.ReleaseAsset, error) {
-	client := github.NewClient(nil)
-	releases, _, err := client.Repositories.ListReleases(context.Background(), gitHubOwner, gitHubRepo, &github.ListOptions{})
+func FetchBinaryAndChecksum(url string) (io.ReadCloser, string, error) {
+	checksum, err := slurpFile(url + ".sha256")
 	if err != nil {
-		panic(err)
+		return nil, "", fmt.Errorf("could not slurp checksum file at %s, err: %w", url, err)
 	}
 
-	var rel *github.RepositoryRelease
-	for _, r := range releases {
-		if r.TagName != nil && *r.TagName == githubTag {
-			rel = r
-			break
-		}
-	}
-
-	if rel == nil {
-		return nil, fmt.Errorf("could not find release with tag %s", githubTag)
-	}
-
-	var asset *github.ReleaseAsset
-	for _, ra := range rel.Assets {
-		if ra.GetName() == gitHubArtifact {
-			asset = &ra
-			break
-		}
-	}
-
-	if asset == nil {
-		return nil, fmt.Errorf("could not find artifact %s in github release with tag %s", gitHubArtifact, githubTag)
-	}
-	return asset, nil
-}
-
-func FetchGithubAssetAndChecksum(ra *github.ReleaseAsset) (io.ReadCloser, string, error) {
-	checksum, err := slurpFile(ra.GetBrowserDownloadURL() + ".sha256")
+	//nolint:gosec,noctx
+	resp, err := http.Get(url)
 	if err != nil {
-		return nil, "", fmt.Errorf("could not slurp checksum file for asset %s, err: %w", ra.GetBrowserDownloadURL(), err)
+		return nil, "", fmt.Errorf("could not download url %s, err: %w", url, err)
 	}
 
-	resp, err := http.Get(ra.GetBrowserDownloadURL())
-	if err != nil {
-		return nil, "", fmt.Errorf("could not download asset %s, err: %w", ra.GetBrowserDownloadURL(), err)
-	}
 	return resp.Body, checksum, nil
 }
 
@@ -124,7 +90,7 @@ func replaceBinary(binaryReader io.ReadCloser, checksum string) error {
 }
 
 func copyToTempFile(binaryReader io.ReadCloser, filename string) (string, error) {
-	file, err := ioutil.TempFile(filepath.Dir(filename), filepath.Base(filename))
+	file, err := os.CreateTemp(filepath.Dir(filename), filepath.Base(filename))
 	if err != nil {
 		return "", err
 	}
@@ -143,7 +109,7 @@ func copyToTempFile(binaryReader io.ReadCloser, filename string) (string, error)
 }
 
 func validateChecksum(filename string, checksum string) error {
-	bytes, err := ioutil.ReadFile(filename)
+	bytes, err := os.ReadFile(filename)
 	if err != nil {
 		return err
 	}
@@ -156,12 +122,13 @@ func validateChecksum(filename string, checksum string) error {
 }
 
 func slurpFile(url string) (string, error) {
+	//nolint:gosec,noctx
 	resp, err := http.Get(url)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
-	content, err := ioutil.ReadAll(resp.Body)
+	content, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}

@@ -7,8 +7,6 @@ require (
 	github.com/go-logr/logr v0.4.0
 	github.com/go-logr/zapr v0.3.0 // indirect
 	github.com/google/go-cmp v0.5.5
-	github.com/google/go-github v17.0.0+incompatible
-	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/nftables v0.0.0-20200802175506-c25e4f69b425
 	github.com/googleapis/gnostic v0.4.0 // indirect
@@ -18,7 +16,7 @@ require (
 	github.com/mdlayher/netlink v1.1.1 // indirect
 	github.com/metal-stack/metal-go v0.14.0
 	github.com/metal-stack/metal-lib v0.7.2
-	github.com/metal-stack/metal-networker v0.6.4
+	github.com/metal-stack/metal-networker v0.7.2
 	github.com/metal-stack/v v1.0.3
 	github.com/txn2/txeh v1.3.0
 	github.com/vishvananda/netlink v1.1.0
