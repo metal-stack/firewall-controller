@@ -17,6 +17,8 @@ limitations under the License.
 package controllers
 
 import (
+	"crypto/md5" //nolint:gosec
+	"encoding/json"
 	"path/filepath"
 	"testing"
 
@@ -94,18 +96,18 @@ func setupScheme() *apimachineryruntime.Scheme {
 	return scheme
 }
 
-func newCNWPReconciler(
+func newCWNPReconciler(
 	createFW CreateFirewall,
 	cache nftables.FQDNCache,
 	objects []runtime.Object,
-	policySpecs map[string]firewallv1.PolicySpec,
+	policySpecsChecksums map[string][16]byte,
 ) *ClusterwideNetworkPolicyReconciler {
 	return &ClusterwideNetworkPolicyReconciler{
-		Client:         fake.NewFakeClientWithScheme(setupScheme(), objects...),
-		Log:            zap.New(zap.UseDevMode(true)),
-		Cache:          cache,
-		CreateFirewall: createFW,
-		policySpecs:    policySpecs,
+		Client:               fake.NewFakeClientWithScheme(setupScheme(), objects...),
+		Log:                  zap.New(zap.UseDevMode(true)),
+		Cache:                cache,
+		CreateFirewall:       createFW,
+		policySpecsChecksums: policySpecsChecksums,
 	}
 }
 
@@ -127,7 +129,7 @@ func newFirewall() *firewallv1.Firewall {
 	}
 }
 
-func newCNWP(name string, egress []firewallv1.EgressRule) *firewallv1.ClusterwideNetworkPolicy {
+func newCWNP(name string, egress []firewallv1.EgressRule) *firewallv1.ClusterwideNetworkPolicy {
 	spec := firewallv1.PolicySpec{
 		Egress: egress,
 	}
@@ -145,6 +147,12 @@ func newCNWP(name string, egress []firewallv1.EgressRule) *firewallv1.Clusterwid
 		ObjectMeta: objMeta,
 		Spec:       spec,
 	}
+}
+
+func getCWNPChecksum(name string, egress []firewallv1.EgressRule) [16]byte {
+	spec := newCWNP(name, egress).Spec
+	j, _ := json.Marshal(spec) //nolint
+	return md5.Sum(j)
 }
 
 func createTestFirewallFunc(fw FirewallInterface) CreateFirewall {

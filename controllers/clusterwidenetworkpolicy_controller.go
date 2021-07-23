@@ -16,6 +16,8 @@ package controllers
 
 import (
 	"context"
+	"crypto/md5" //nolint:gosec
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"time"
@@ -46,11 +48,11 @@ const (
 // +kubebuilder:rbac:groups=metal-stack.io,resources=events,verbs=create;patch
 type ClusterwideNetworkPolicyReconciler struct {
 	client.Client
-	Log            logr.Logger
-	Scheme         *runtime.Scheme
-	Cache          nftables.FQDNCache
-	CreateFirewall CreateFirewall
-	policySpecs    map[string]firewallv1.PolicySpec
+	Log                  logr.Logger
+	Scheme               *runtime.Scheme
+	Cache                nftables.FQDNCache
+	CreateFirewall       CreateFirewall
+	policySpecsChecksums map[string][16]byte
 }
 
 // Reconcile ClusterwideNetworkPolicy and creates nftables rules accordingly
@@ -59,20 +61,24 @@ type ClusterwideNetworkPolicyReconciler struct {
 func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("cwnp", req.Name)
 
-	var cnwps firewallv1.ClusterwideNetworkPolicyList
-	if err := r.List(ctx, &cnwps, client.InNamespace(firewallv1.ClusterwideNetworkPolicyNamespace)); err != nil {
+	var cwnps firewallv1.ClusterwideNetworkPolicyList
+	if err := r.List(ctx, &cwnps, client.InNamespace(firewallv1.ClusterwideNetworkPolicyNamespace)); err != nil {
 		return done, err
 	}
 
-	// Check if new sets added or CNWP specs updated
-	if r.isSpecsChanged(cnwps) || r.nftableSetsAdded() {
-		return r.reconcileRules(ctx, log, cnwps)
+	// Check if new sets added or CWNP specs updated
+	changed, err := r.isSpecsChanged(cwnps)
+	if err != nil {
+		return done, err
+	}
+	if changed || r.nftableSetsAdded(cwnps) {
+		return r.reconcileRules(ctx, log, cwnps)
 	}
 
 	return done, nil
 }
 
-func (r *ClusterwideNetworkPolicyReconciler) reconcileRules(ctx context.Context, log logr.Logger, cnwps firewallv1.ClusterwideNetworkPolicyList) (ctrl.Result, error) {
+func (r *ClusterwideNetworkPolicyReconciler) reconcileRules(ctx context.Context, log logr.Logger, cwnps firewallv1.ClusterwideNetworkPolicyList) (ctrl.Result, error) {
 	var f firewallv1.Firewall
 	nn := types.NamespacedName{
 		Name:      firewallName,
@@ -90,61 +96,66 @@ func (r *ClusterwideNetworkPolicyReconciler) reconcileRules(ctx context.Context,
 	if err := r.List(ctx, &services); err != nil {
 		return done, err
 	}
-	nftablesFirewall := r.CreateFirewall(&cnwps, &services, f.Spec, r.Cache, log)
+	nftablesFirewall := r.CreateFirewall(&cwnps, &services, f.Spec, r.Cache, log)
 	if err := nftablesFirewall.Reconcile(); err != nil {
 		return done, err
 	}
 
-	for _, i := range cnwps.Items {
+	for _, i := range cwnps.Items {
 		o := i
 		if err := r.Update(ctx, &o); err != nil {
 			return done, err
 		}
+
+		j, err := json.Marshal(o.Spec)
+		if err != nil {
+			return done, fmt.Errorf("failed to parse updated '%s' CWNP spec: %w", o.Name, err)
+		}
+		currentSum := md5.Sum(j) //nolint:gosec
+
+		onn := types.NamespacedName{
+			Name:      o.Name,
+			Namespace: o.Namespace,
+		}
+		r.policySpecsChecksums[onn.String()] = currentSum
 	}
 
 	return done, nil
 }
 
-func (r *ClusterwideNetworkPolicyReconciler) isSpecsChanged(cnwps firewallv1.ClusterwideNetworkPolicyList) bool {
-	for _, cnwp := range cnwps.Items {
+func (r *ClusterwideNetworkPolicyReconciler) isSpecsChanged(cwnps firewallv1.ClusterwideNetworkPolicyList) (bool, error) {
+	if r.policySpecsChecksums == nil {
+		r.policySpecsChecksums = make(map[string][16]byte)
+	}
+
+	for _, cwnp := range cwnps.Items {
 		nn := types.NamespacedName{
-			Name:      cnwp.Name,
-			Namespace: cnwp.Namespace,
+			Name:      cwnp.Name,
+			Namespace: cwnp.Namespace,
 		}
-		spec, exists := r.policySpecs[nn.String()]
+		oldSum, exists := r.policySpecsChecksums[nn.String()]
 		if !exists {
-			return true
+			return true, nil
 		}
 
-		ingressEqual := reflect.DeepEqual(cnwp.Spec.Ingress, spec.Ingress)
-		if !ingressEqual {
-			return true
+		j, err := json.Marshal(cwnp.Spec)
+		if err != nil {
+			return false, fmt.Errorf("failed to parse '%s' CWNP spec: %w", cwnp.Name, err)
 		}
 
-		egressEqual := true
-		for i, e := range cnwp.Spec.Egress {
-			old := spec.Egress[i]
-			egressEqual = reflect.DeepEqual(e.Ports, old.Ports)
-			egressEqual = egressEqual && reflect.DeepEqual(e.To, old.To)
-
-			for i, fqdn := range e.ToFQDNs {
-				o := old.ToFQDNs[i]
-				egressEqual = egressEqual && (fqdn.MatchName == o.MatchName)
-				egressEqual = egressEqual && (fqdn.MatchPattern == o.MatchPattern)
-			}
-		}
-		if !egressEqual {
-			return true
+		currentSum := md5.Sum(j) //nolint:gosec
+		if exists && !reflect.DeepEqual(oldSum, currentSum) {
+			return true, nil
 		}
 	}
 
-	return false
+	return false, nil
 }
 
-func (r *ClusterwideNetworkPolicyReconciler) nftableSetsAdded() bool {
+func (r *ClusterwideNetworkPolicyReconciler) nftableSetsAdded(cwnps firewallv1.ClusterwideNetworkPolicyList) bool {
 	// Aggregate all sets
-	for _, spec := range r.policySpecs {
-		for _, e := range spec.Egress {
+	for _, cwnp := range cwnps.Items {
+		for _, e := range cwnp.Spec.Egress {
 			if len(e.To) > 0 {
 				continue
 			}
