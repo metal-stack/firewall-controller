@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/go-logr/logr"
+
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 )
 
@@ -77,18 +78,19 @@ func Test_GetSetsForFQDN(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		tc := tt
+		t.Run(tc.name, func(t *testing.T) {
 			cache := DNSCache{
 				log:         logr.DiscardLogger{},
-				fqdnToEntry: tt.fqdnToEntry,
+				fqdnToEntry: tc.fqdnToEntry,
 				setNames:    make(map[string]struct{}),
 				ipv4Enabled: true,
 				ipv6Enabled: true,
 			}
-			result := cache.GetSetsForFQDN(tt.fqdnSelector, tt.fqdnSelector.Sets != nil)
+			result := cache.GetSetsForFQDN(tc.fqdnSelector, tc.fqdnSelector.Sets != nil)
 
-			set := make(map[string]bool, len(tt.expectedSets))
-			for _, s := range tt.expectedSets {
+			set := make(map[string]bool, len(tc.expectedSets))
+			for _, s := range tc.expectedSets {
 				set[s] = false
 			}
 			for _, r := range result {
@@ -104,7 +106,7 @@ func Test_GetSetsForFQDN(t *testing.T) {
 			}
 
 			// Check if cache was updated
-			for _, s := range tt.fqdnSelector.Sets {
+			for _, s := range tc.fqdnSelector.Sets {
 				if _, ok := cache.setNames[s.SetName]; !ok {
 					t.Errorf("set name %s wasn't added to cache", s.SetName)
 				}

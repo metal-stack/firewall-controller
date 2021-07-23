@@ -96,7 +96,8 @@ func (r *ClusterwideNetworkPolicyReconciler) reconcileRules(ctx context.Context,
 	}
 
 	for _, i := range cnwps.Items {
-		if err := r.Update(ctx, &i); err != nil {
+		o := i
+		if err := r.Update(ctx, &o); err != nil {
 			return done, err
 		}
 	}

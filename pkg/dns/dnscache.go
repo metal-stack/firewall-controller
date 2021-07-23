@@ -1,7 +1,7 @@
 package dns
 
 import (
-	"crypto/md5"
+	"crypto/md5" //nolint:gosec
 	"encoding/hex"
 	"fmt"
 	"math"
@@ -14,9 +14,10 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/google/nftables"
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	dnsgo "github.com/miekg/dns"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 )
 
 const (
@@ -33,7 +34,7 @@ type ipEntry struct {
 	setName        string
 }
 
-func newIPEntry(setName string, expirationTime time.Time, dtype nftables.SetDatatype) *ipEntry {
+func newIPEntry(setName string, expirationTime time.Time) *ipEntry {
 	return &ipEntry{
 		expirationTime: expirationTime,
 		setName:        setName,
@@ -314,14 +315,14 @@ func (c *DNSCache) updateIPEntry(qname string, ips []net.IP, expirationTime time
 	case nftables.TypeIPAddr:
 		if entry.ipv4 == nil {
 			setName := c.createSetName(qname, dtype.Name, 0)
-			ipe = newIPEntry(setName, expirationTime, dtype)
+			ipe = newIPEntry(setName, expirationTime)
 			entry.ipv4 = ipe
 		}
 		ipe = entry.ipv4
 	case nftables.TypeIP6Addr:
 		if entry.ipv6 == nil {
 			setName := c.createSetName(qname, dtype.Name, 0)
-			ipe = newIPEntry(setName, expirationTime, dtype)
+			ipe = newIPEntry(setName, expirationTime)
 			entry.ipv6 = ipe
 		}
 		ipe = entry.ipv6
@@ -338,7 +339,7 @@ func (c *DNSCache) updateIPEntry(qname string, ips []net.IP, expirationTime time
 }
 
 func (c *DNSCache) createSetName(qname, dataType string, suffix int) (setName string) {
-	md5Hash := md5.Sum([]byte(qname + dataType))
+	md5Hash := md5.Sum([]byte(qname + dataType)) //nolint:gosec
 	hex := hex.EncodeToString(md5Hash[:])
 
 	for i, ch := range hex {
@@ -378,7 +379,7 @@ func updateNftSet(
 
 	// Skip if set doesn't exist
 	if s, err := conn.GetSetByName(table, setName); s == nil || err != nil {
-		return nil
+		return nil //nolint:nilerr
 	}
 
 	if err := conn.SetAddElements(set, newIPs); err != nil {
