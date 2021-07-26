@@ -59,7 +59,7 @@ type FirewallReconciler struct {
 	recorder             record.EventRecorder
 	Log                  logr.Logger
 	Scheme               *runtime.Scheme
-	EnableIDS            bool
+	Suricata             *suricata.Suricata
 	EnableSignatureCheck bool
 	CAPubKey             *rsa.PublicKey
 	policySpecsChecksums map[string][16]byte
@@ -145,14 +145,19 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	log.Info("reconciling network settings")
-	changed, err = network.ReconcileNetwork(f, log)
+	kb := network.GetUpdatedKnowledgeBase(f)
+	changed, err = network.ReconcileNetwork(kb)
 	if changed && err == nil {
 		r.recorder.Event(&f, corev1.EventTypeNormal, "Network settings", "reconcilation succeeded (frr.conf)")
 	} else if changed && err != nil {
 		r.recorder.Event(&f, corev1.EventTypeWarning, "Network settings", fmt.Sprintf("reconcilation failed (frr.conf): %v", err))
 	}
-
 	if err != nil {
+		errors = multierror.Append(errors, err)
+	}
+
+	log.Info("reconciling suricata config")
+	if err := r.Suricata.ReconcileSuricata(kb, f.Spec.EnableIDS); err != nil {
 		errors = multierror.Append(errors, err)
 	}
 
@@ -438,9 +443,8 @@ func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Fire
 	f.Status.FirewallStats.DeviceStats = deviceStats
 
 	idsStats := firewallv1.IDSStatsByDevice{}
-	if r.EnableIDS { // checks the CLI-flag
-		s := suricata.New()
-		ss, err := s.InterfaceStats()
+	if f.Spec.EnableIDS {
+		ss, err := r.Suricata.InterfaceStats()
 		if err != nil {
 			return err
 		}

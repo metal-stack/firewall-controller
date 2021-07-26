@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"text/template"
 
-	"github.com/go-logr/logr"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/metal-go/api/models"
 	"github.com/metal-stack/metal-networker/pkg/netconf"
@@ -22,11 +21,12 @@ const (
 //go:embed *.tpl
 var templates embed.FS
 
-// ReconcileNetwork reconciles the network settings for a firewall
-// in the current stage it only changes the FRR-Configuration when network prefixes or FRR template changes
-func ReconcileNetwork(f firewallv1.Firewall, log logr.Logger) (bool, error) {
-	kb := netconf.NewKnowledgeBase(MetalKnowledgeBase)
+func GetKnowledgeBase() netconf.KnowledgeBase {
+	return netconf.NewKnowledgeBase(MetalKnowledgeBase)
+}
 
+func GetUpdatedKnowledgeBase(f firewallv1.Firewall) netconf.KnowledgeBase {
+	kb := GetKnowledgeBase()
 	networkMap := map[string]firewallv1.FirewallNetwork{}
 	for _, n := range f.Spec.FirewallNetworks {
 		if n.Networktype == nil {
@@ -43,6 +43,12 @@ func ReconcileNetwork(f firewallv1.Firewall, log logr.Logger) (bool, error) {
 	}
 	kb.Networks = newNetworks
 
+	return kb
+}
+
+// ReconcileNetwork reconciles the network settings for a firewall
+// Changes both the FRR-Configuration and Nftable rules when network prefixes or FRR template changes
+func ReconcileNetwork(kb netconf.KnowledgeBase) (changed bool, err error) {
 	tmpFile, err := tmpFile(FrrConfig)
 	if err != nil {
 		return false, fmt.Errorf("error during network reconcilation %v: %w", tmpFile, err)
@@ -57,12 +63,12 @@ func ReconcileNetwork(f firewallv1.Firewall, log logr.Logger) (bool, error) {
 		return false, fmt.Errorf("error during network reconcilation: %v: %w", tmpFile, err)
 	}
 
-	changed, err := a.Apply(*tpl, tmpFile, FrrConfig, true)
+	changed, err = a.Apply(*tpl, tmpFile, FrrConfig, true)
 	if err != nil {
 		return changed, fmt.Errorf("error during network reconcilation: %v: %w", tmpFile, err)
 	}
 
-	return changed, nil
+	return
 }
 
 func tmpFile(file string) (string, error) {
