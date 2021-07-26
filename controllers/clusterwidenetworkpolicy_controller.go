@@ -107,17 +107,9 @@ func (r *ClusterwideNetworkPolicyReconciler) reconcileRules(ctx context.Context,
 			return done, err
 		}
 
-		j, err := json.Marshal(o.Spec)
-		if err != nil {
-			return done, fmt.Errorf("failed to parse updated '%s' CWNP spec: %w", o.Name, err)
+		if err := r.updateCWNPChecksum(o); err != nil {
+			return done, err
 		}
-		currentSum := md5.Sum(j) //nolint:gosec
-
-		onn := types.NamespacedName{
-			Name:      o.Name,
-			Namespace: o.Namespace,
-		}
-		r.policySpecsChecksums[onn.String()] = currentSum
 	}
 
 	return done, nil
@@ -150,6 +142,20 @@ func (r *ClusterwideNetworkPolicyReconciler) isSpecsChanged(cwnps firewallv1.Clu
 	}
 
 	return false, nil
+}
+
+func (r *ClusterwideNetworkPolicyReconciler) updateCWNPChecksum(cwnp firewallv1.ClusterwideNetworkPolicy) error {
+	j, err := json.Marshal(cwnp.Spec)
+	if err != nil {
+		return fmt.Errorf("failed to parse updated '%s' CWNP spec: %w", cwnp.Name, err)
+	}
+
+	nn := types.NamespacedName{
+		Name:      cwnp.Name,
+		Namespace: cwnp.Namespace,
+	}
+	r.policySpecsChecksums[nn.String()] = md5.Sum(j) //nolint:gosec
+	return nil
 }
 
 func (r *ClusterwideNetworkPolicyReconciler) nftableSetsAdded(cwnps firewallv1.ClusterwideNetworkPolicyList) bool {
