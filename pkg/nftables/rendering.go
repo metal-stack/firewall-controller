@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"reflect"
 	"strings"
 	"text/template"
 )
@@ -51,16 +53,32 @@ func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 	}, nil
 }
 
-func (d *firewallRenderingData) write(file string) error {
-	c, err := d.renderString()
+func (d *firewallRenderingData) write(file string) (bool, string, error) {
+	newContent, err := d.renderString()
 	if err != nil {
-		return err
+		return false, "", err
 	}
-	err = os.WriteFile(file, []byte(c), 0600)
+
+	newContentBytes := []byte(newContent)
+	oldContentBytes, err := os.ReadFile(file)
+	if err != nil && !os.IsNotExist(err) {
+		return false, "", err
+	}
+
+	if !os.IsNotExist(err) && reflect.DeepEqual(newContentBytes, oldContentBytes) {
+		return false, "", nil
+	}
+
+	tmpFile, err := os.CreateTemp(filepath.Dir(file), filepath.Base(file))
 	if err != nil {
-		return fmt.Errorf("error writing to nftables file '%s': %w", file, err)
+		return false, "", err
 	}
-	return nil
+
+	err = os.WriteFile(tmpFile.Name(), newContentBytes, 0600)
+	if err != nil {
+		return false, "", fmt.Errorf("error writing to nftables file '%s': %w", file, err)
+	}
+	return true, tmpFile.Name(), nil
 }
 
 func (d *firewallRenderingData) renderString() (string, error) {

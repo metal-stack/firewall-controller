@@ -18,9 +18,7 @@ package controllers
 
 import (
 	"context"
-	"crypto/md5" //nolint:gosec
 	"crypto/rsa"
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"time"
@@ -62,7 +60,6 @@ type FirewallReconciler struct {
 	EnableIDS            bool
 	EnableSignatureCheck bool
 	CAPubKey             *rsa.PublicKey
-	policySpecsChecksums map[string][16]byte
 }
 
 const (
@@ -127,25 +124,14 @@ func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		requeue.RequeueAfter = i
 	}
 
-	var cwnps firewallv1.ClusterwideNetworkPolicyList
-	if err := r.List(ctx, &cwnps, client.InNamespace(f.Namespace)); err != nil {
-		return done, err
-	}
-	changed, err := r.isSpecsChanged(cwnps)
-	if err != nil {
-		return done, err
-	}
-
 	var errors *multierror.Error
-	if changed {
-		log.Info("reconciling nftables rules")
-		if err = r.reconcileRules(ctx, f, cwnps, log); err != nil {
-			errors = multierror.Append(errors, err)
-		}
+	log.Info("reconciling nftables rules")
+	if err = r.reconcileRules(ctx, f, log); err != nil {
+		errors = multierror.Append(errors, err)
 	}
 
 	log.Info("reconciling network settings")
-	changed, err = network.ReconcileNetwork(f, log)
+	changed, err := network.ReconcileNetwork(f, log)
 	if changed && err == nil {
 		r.recorder.Event(&f, corev1.EventTypeNormal, "Network settings", "reconcilation succeeded (frr.conf)")
 	} else if changed && err != nil {
@@ -246,25 +232,23 @@ func convert(np networking.NetworkPolicy) (*firewallv1.ClusterwideNetworkPolicy,
 }
 
 // reconcileRules reconciles the nftable rules for this firewall
-func (r *FirewallReconciler) reconcileRules(ctx context.Context, f firewallv1.Firewall, cwnps firewallv1.ClusterwideNetworkPolicyList, log logr.Logger) error {
-	var services corev1.ServiceList
+func (r *FirewallReconciler) reconcileRules(ctx context.Context, f firewallv1.Firewall, log logr.Logger) error {
+	var (
+		services corev1.ServiceList
+		cwnps    firewallv1.ClusterwideNetworkPolicyList
+	)
+
+	if err := r.List(ctx, &cwnps, client.InNamespace(f.Namespace)); err != nil {
+		return err
+	}
 	if err := r.List(ctx, &services); err != nil {
 		return err
 	}
 
 	nftablesFirewall := nftables.NewFirewall(&cwnps, &services, f.Spec, log)
-	if err := nftablesFirewall.Reconcile(); err != nil {
-		return err
-	}
+	err := nftablesFirewall.Reconcile()
 
-	// It's assumed that nftablesFirewall.Reconcile can modify CWNPs
-	for _, cwnp := range cwnps.Items {
-		if err := r.updateCWNPChecksum(cwnp); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return err
 }
 
 type firewallService struct {
@@ -459,49 +443,6 @@ func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Fire
 	if err := r.Status().Update(ctx, &f); err != nil {
 		return fmt.Errorf("unable to update firewall status, err: %w", err)
 	}
-	return nil
-}
-
-func (r *FirewallReconciler) isSpecsChanged(cwnps firewallv1.ClusterwideNetworkPolicyList) (bool, error) {
-	if r.policySpecsChecksums == nil {
-		r.policySpecsChecksums = make(map[string][16]byte)
-	}
-
-	for _, cwnp := range cwnps.Items {
-		nn := types.NamespacedName{
-			Name:      cwnp.Name,
-			Namespace: cwnp.Namespace,
-		}
-		oldSum, exists := r.policySpecsChecksums[nn.String()]
-		if !exists {
-			return true, nil
-		}
-
-		j, err := json.Marshal(cwnp.Spec)
-		if err != nil {
-			return false, fmt.Errorf("failed to parse '%s' CWNP spec: %w", cwnp.Name, err)
-		}
-
-		currentSum := md5.Sum(j) //nolint:gosec
-		if exists && !reflect.DeepEqual(oldSum, currentSum) {
-			return true, nil
-		}
-	}
-
-	return false, nil
-}
-
-func (r *FirewallReconciler) updateCWNPChecksum(cwnp firewallv1.ClusterwideNetworkPolicy) error {
-	j, err := json.Marshal(cwnp.Spec)
-	if err != nil {
-		return fmt.Errorf("failed to parse updated '%s' CWNP spec: %w", cwnp.Name, err)
-	}
-
-	nn := types.NamespacedName{
-		Name:      cwnp.Name,
-		Namespace: cwnp.Namespace,
-	}
-	r.policySpecsChecksums[nn.String()] = md5.Sum(j) //nolint:gosec
 	return nil
 }
 

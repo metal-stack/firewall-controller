@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 
 	"github.com/go-logr/logr"
 	"github.com/hashicorp/go-multierror"
+
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 
 	mn "github.com/metal-stack/metal-lib/pkg/net"
@@ -105,35 +105,18 @@ func (f *Firewall) Flush() error {
 
 // Reconcile drives the nftables firewall against the desired state by comparison with the current rule file.
 func (f *Firewall) Reconcile() error {
-	tmpFile, err := os.CreateTemp(filepath.Dir(f.ipv4RuleFile()), filepath.Base(f.ipv4RuleFile()))
-	if err != nil {
-		return err
-	}
-	defer os.Remove(tmpFile.Name())
-
-	err = f.reconcileIfaceAddresses()
-	if err != nil {
+	if err := f.reconcileIfaceAddresses(); err != nil {
 		return err
 	}
 
-	desired := tmpFile.Name()
-	err = f.renderFile(desired)
+	updated, err := f.renderFile()
 	if err != nil {
 		return err
 	}
-
-	if equal(f.ipv4RuleFile(), desired) {
+	if !updated {
 		return nil
 	}
 
-	err = os.Rename(desired, f.ipv4RuleFile())
-	if err != nil {
-		return err
-	}
-
-	if f.dryRun {
-		return nil
-	}
 	err = f.reload()
 	if err != nil {
 		return err
@@ -141,24 +124,39 @@ func (f *Firewall) Reconcile() error {
 	return nil
 }
 
-func (f *Firewall) renderFile(file string) error {
+func (f *Firewall) renderFile() (bool, error) {
 	fd, err := newFirewallRenderingData(f)
 	if err != nil {
-		return err
+		return false, err
 	}
 
-	err = fd.write(file)
+	updated, tmpFile, err := fd.write(f.ipv4RuleFile())
+	defer os.Remove(tmpFile)
 	if err != nil {
-		return err
+		return false, err
+	}
+	if !updated {
+		return false, nil
 	}
 	if f.dryRun {
-		return nil
+		return false, nil
 	}
-	err = f.validate(file)
+
+	err = f.validate(tmpFile)
 	if err != nil {
-		return err
+		return false, err
 	}
-	return nil
+
+	if equal(f.ipv4RuleFile(), tmpFile) {
+		return false, nil
+	}
+
+	err = os.Rename(tmpFile, f.ipv4RuleFile())
+	if err != nil {
+		return false, err
+	}
+
+	return updated, nil
 }
 
 func (f *Firewall) validate(file string) error {
