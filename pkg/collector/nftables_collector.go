@@ -10,6 +10,7 @@ import (
 	"github.com/google/nftables"
 
 	"github.com/google/nftables/expr"
+
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 )
 
@@ -75,7 +76,7 @@ func (n nfCollector) CollectDeviceStats() (firewallv1.DeviceStatsByDevice, error
 func getCounter(countername, tablename string) (*firewallv1.Counter, error) {
 	c := nftables.Conn{}
 	table := &nftables.Table{
-		Family: nftables.TableFamilyIPv4,
+		Family: nftables.TableFamilyINet,
 		Name:   tablename,
 	}
 	counterObj := &nftables.CounterObj{
