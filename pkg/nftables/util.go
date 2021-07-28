@@ -25,13 +25,6 @@ func uniqueSorted(elements []string) []string {
 }
 
 func equal(source, target string) bool {
-
-	// sort new nftables rule file line by line and create checksum
-	// c.Sort.Hash
-
-	// read existing nftables rule file, sort line by line and create checksum
-	// if checksum differs write
-
 	sourceChecksum, err := checksum(source)
 	if err != nil {
 		return false

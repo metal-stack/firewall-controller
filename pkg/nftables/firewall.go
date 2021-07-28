@@ -123,6 +123,7 @@ func (f *Firewall) Reconcile() error {
 	}
 
 	if equal(f.ipv4RuleFile(), desired) {
+		f.log.Info("no changes in nftables detected", "existing rules", f.ipv4RuleFile(), "new rules", desired)
 		return nil
 	}
 
@@ -130,6 +131,7 @@ func (f *Firewall) Reconcile() error {
 	if err != nil {
 		return err
 	}
+	f.log.Info("changes in nftables detected, reloading nft", "existing rules", f.ipv4RuleFile(), "new rules", desired)
 
 	if f.dryRun {
 		return nil
