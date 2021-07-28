@@ -148,6 +148,7 @@ table ip firewall {
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
 		s, err := os.CreateTemp("/tmp", "source")
 		if err != nil {
 			t.Fail()
