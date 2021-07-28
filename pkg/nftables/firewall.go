@@ -9,14 +9,14 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/hashicorp/go-multierror"
-
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
-	"github.com/metal-stack/metal-networker/pkg/netconf"
-
-	mn "github.com/metal-stack/metal-lib/pkg/net"
 	"github.com/vishvananda/netlink"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
+
+	mn "github.com/metal-stack/metal-lib/pkg/net"
+	"github.com/metal-stack/metal-networker/pkg/netconf"
+
+	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 )
 
 const (
@@ -32,7 +32,7 @@ var templates embed.FS
 //go:generate mockgen -destination=./mocks/mock_fqdncache.go -package=mocks . FQDNCache
 type FQDNCache interface {
 	UpdateDNSServerAddr(addr string)
-	GetSetsForRendering() (result []firewallv1.IPSet)
+	GetSetsForRendering(fqdns []firewallv1.FQDNSelector) (result []firewallv1.IPSet)
 	GetSetsForFQDN(fqdn firewallv1.FQDNSelector, update bool) (result []firewallv1.IPSet)
 }
 
@@ -123,43 +123,44 @@ func (f *Firewall) Flush() error {
 }
 
 // Reconcile drives the nftables firewall against the desired state by comparison with the current rule file.
-func (f *Firewall) Reconcile() error {
+func (f *Firewall) Reconcile() (updated bool, err error) {
 	tmpFile, err := os.CreateTemp(filepath.Dir(f.ipv4RuleFile()), "."+filepath.Base(f.ipv4RuleFile()))
 	if err != nil {
-		return err
+		return
 	}
 	defer os.Remove(tmpFile.Name())
 
 	err = f.reconcileIfaceAddresses()
 	if err != nil {
-		return err
+		return
 	}
 
 	desired := tmpFile.Name()
 	err = f.renderFile(desired)
 	if err != nil {
-		return err
+		return
 	}
 
 	if equal(f.ipv4RuleFile(), desired) {
 		f.log.Info("no changes in nftables detected", "existing rules", f.ipv4RuleFile(), "new rules", desired)
-		return nil
+		return
 	}
 
 	err = os.Rename(desired, f.ipv4RuleFile())
 	if err != nil {
-		return err
+		return
 	}
 	f.log.Info("changes in nftables detected, reloading nft", "existing rules", f.ipv4RuleFile(), "new rules", desired)
 
 	if f.dryRun {
-		return nil
+		return
 	}
 	err = f.reload()
 	if err != nil {
-		return err
+		return
 	}
-	return nil
+
+	return true, nil
 }
 
 func (f *Firewall) ReconcileNetconfTables(kb netconf.KnowledgeBase, enableDNS bool) error {

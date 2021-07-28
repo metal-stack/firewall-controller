@@ -15,11 +15,8 @@ limitations under the License.
 package controllers
 
 import (
-	"context"
-	"crypto/md5" //nolint:gosec
-	"encoding/json"
+	"context" //nolint:gosec
 	"fmt"
-	"reflect"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -48,11 +45,10 @@ const (
 // +kubebuilder:rbac:groups=metal-stack.io,resources=events,verbs=create;patch
 type ClusterwideNetworkPolicyReconciler struct {
 	client.Client
-	Log                  logr.Logger
-	Scheme               *runtime.Scheme
-	Cache                nftables.FQDNCache
-	CreateFirewall       CreateFirewall
-	policySpecsChecksums map[string][16]byte
+	Log            logr.Logger
+	Scheme         *runtime.Scheme
+	Cache          nftables.FQDNCache
+	CreateFirewall CreateFirewall
 }
 
 // Reconcile ClusterwideNetworkPolicy and creates nftables rules accordingly
@@ -66,16 +62,7 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, req 
 		return done, err
 	}
 
-	// Check if new sets added or CWNP specs updated
-	changed, err := r.isSpecsChanged(cwnps)
-	if err != nil {
-		return done, err
-	}
-	if changed || r.nftableSetsAdded(cwnps) {
-		return r.reconcileRules(ctx, log, cwnps)
-	}
-
-	return done, nil
+	return r.reconcileRules(ctx, log, cwnps)
 }
 
 func (r *ClusterwideNetworkPolicyReconciler) reconcileRules(ctx context.Context, log logr.Logger, cwnps firewallv1.ClusterwideNetworkPolicyList) (ctrl.Result, error) {
@@ -97,100 +84,21 @@ func (r *ClusterwideNetworkPolicyReconciler) reconcileRules(ctx context.Context,
 		return done, err
 	}
 	nftablesFirewall := r.CreateFirewall(&cwnps, &services, f.Spec, r.Cache, log)
-	if err := nftablesFirewall.Reconcile(); err != nil {
+	updated, err := nftablesFirewall.Reconcile()
+	if err != nil {
 		return done, err
 	}
 
-	for _, i := range cwnps.Items {
-		o := i
-		if err := r.Update(ctx, &o); err != nil {
-			return done, err
-		}
-
-		if err := r.updateCWNPChecksum(o); err != nil {
-			return done, err
+	if updated {
+		for _, i := range cwnps.Items {
+			o := i
+			if err := r.Update(ctx, &o); err != nil {
+				return done, err
+			}
 		}
 	}
 
 	return done, nil
-}
-
-func (r *ClusterwideNetworkPolicyReconciler) isSpecsChanged(cwnps firewallv1.ClusterwideNetworkPolicyList) (bool, error) {
-	if r.policySpecsChecksums == nil {
-		r.policySpecsChecksums = make(map[string][16]byte)
-	}
-
-	for _, cwnp := range cwnps.Items {
-		nn := types.NamespacedName{
-			Name:      cwnp.Name,
-			Namespace: cwnp.Namespace,
-		}
-		oldSum, exists := r.policySpecsChecksums[nn.String()]
-		if !exists {
-			return true, nil
-		}
-
-		j, err := json.Marshal(cwnp.Spec)
-		if err != nil {
-			return false, fmt.Errorf("failed to parse '%s' CWNP spec: %w", cwnp.Name, err)
-		}
-
-		currentSum := md5.Sum(j) //nolint:gosec
-		if exists && !reflect.DeepEqual(oldSum, currentSum) {
-			return true, nil
-		}
-	}
-
-	return false, nil
-}
-
-func (r *ClusterwideNetworkPolicyReconciler) updateCWNPChecksum(cwnp firewallv1.ClusterwideNetworkPolicy) error {
-	j, err := json.Marshal(cwnp.Spec)
-	if err != nil {
-		return fmt.Errorf("failed to parse updated '%s' CWNP spec: %w", cwnp.Name, err)
-	}
-
-	nn := types.NamespacedName{
-		Name:      cwnp.Name,
-		Namespace: cwnp.Namespace,
-	}
-	r.policySpecsChecksums[nn.String()] = md5.Sum(j) //nolint:gosec
-	return nil
-}
-
-func (r *ClusterwideNetworkPolicyReconciler) nftableSetsAdded(cwnps firewallv1.ClusterwideNetworkPolicyList) bool {
-	// Aggregate all sets
-	for _, cwnp := range cwnps.Items {
-		for _, e := range cwnp.Spec.Egress {
-			if len(e.To) > 0 {
-				continue
-			}
-
-			for _, fqdn := range e.ToFQDNs {
-				unique := map[string]bool{}
-				sets := r.Cache.GetSetsForFQDN(fqdn, false)
-				for _, s := range sets {
-					unique[s.SetName] = false
-				}
-
-				for _, s := range fqdn.Sets {
-					if _, ok := unique[s.SetName]; !ok {
-						return true
-					}
-
-					unique[s.SetName] = true
-				}
-
-				for _, old := range unique {
-					if !old {
-						return true
-					}
-				}
-			}
-		}
-	}
-
-	return false
 }
 
 // SetupWithManager configures this controller to run in schedule

@@ -155,6 +155,17 @@ type IPSet struct {
 	Version        IPVersion   `json:"version,omitempty"`
 }
 
+func (l *ClusterwideNetworkPolicyList) GetFQDNs() []FQDNSelector {
+	s := []FQDNSelector{}
+	for _, i := range l.Items {
+		for _, e := range i.Spec.Egress {
+			s = append(s, e.ToFQDNs...)
+		}
+	}
+
+	return s
+}
+
 func (s FQDNSelector) GetName() string {
 	if s.MatchName != "" {
 		return s.MatchName

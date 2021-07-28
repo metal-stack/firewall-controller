@@ -100,14 +100,12 @@ func newCWNPReconciler(
 	createFW CreateFirewall,
 	cache nftables.FQDNCache,
 	objects []runtime.Object,
-	policySpecsChecksums map[string][16]byte,
 ) *ClusterwideNetworkPolicyReconciler {
 	return &ClusterwideNetworkPolicyReconciler{
-		Client:               fake.NewFakeClientWithScheme(setupScheme(), objects...),
-		Log:                  zap.New(zap.UseDevMode(true)),
-		Cache:                cache,
-		CreateFirewall:       createFW,
-		policySpecsChecksums: policySpecsChecksums,
+		Client:         fake.NewFakeClientWithScheme(setupScheme(), objects...),
+		Log:            zap.New(zap.UseDevMode(true)),
+		Cache:          cache,
+		CreateFirewall: createFW,
 	}
 }
 

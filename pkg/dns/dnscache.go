@@ -7,6 +7,7 @@ import (
 	"math"
 	"net"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -52,6 +53,7 @@ func (e *ipEntry) update(setName string, ips []net.IP, expirationTime time.Time,
 		for i, ip := range ips {
 			e.ips[i] = ip.String()
 		}
+		sort.Strings(e.ips)
 
 		if err := updateNftSet(newIPs, deletedIPs, setName, dtype); err != nil {
 			return fmt.Errorf("failed to update nft set: %w", err)
@@ -139,13 +141,29 @@ func (c *DNSCache) GetSetsForFQDN(fqdn firewallv1.FQDNSelector, update bool) (re
 	return
 }
 
-func (c *DNSCache) GetSetsForRendering() (result []firewallv1.IPSet) {
+func (c *DNSCache) GetSetsForRendering(fqdns []firewallv1.FQDNSelector) (result []firewallv1.IPSet) {
 	for n, e := range c.fqdnToEntry {
-		if e.ipv4 != nil {
-			result = append(result, createIPSetFromIPEntry(n, IPv4, e.ipv4))
+		var matched bool
+		for _, fqdn := range fqdns {
+			if fqdn.MatchName != "" {
+				if fqdn.GetMatchName() == n {
+					matched = true
+					break
+				}
+			} else if fqdn.MatchPattern != "" {
+				if m, _ := regexp.MatchString(fqdn.GetRegex(), n); m {
+					matched = true
+					break
+				}
+			}
 		}
-		if e.ipv6 != nil {
-			result = append(result, createIPSetFromIPEntry(n, IPv6, e.ipv6))
+		if matched {
+			if e.ipv4 != nil {
+				result = append(result, createIPSetFromIPEntry(n, IPv4, e.ipv4))
+			}
+			if e.ipv6 != nil {
+				result = append(result, createIPSetFromIPEntry(n, IPv6, e.ipv6))
+			}
 		}
 	}
 

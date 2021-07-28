@@ -18,10 +18,12 @@ package controllers
 import (
 	"fmt"
 
+	"github.com/metal-stack/firewall-controller/controllers/mocks"
+
 	"github.com/golang/mock/gomock"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
-	"github.com/metal-stack/firewall-controller/pkg/nftables/mocks"
+	nftmocks "github.com/metal-stack/firewall-controller/pkg/nftables/mocks"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -33,10 +35,9 @@ import (
 
 var _ = Describe("Reconcile CWNP resources", func() {
 	type CWNPTestCase struct {
-		objects              []runtime.Object
-		policySpecsChecksums map[string][16]byte
-		mockFunc             func(*mocks.MockFQDNCache)
-		reconcile            bool
+		objects   []runtime.Object
+		mockFunc  func(*nftmocks.MockFQDNCache)
+		reconcile bool
 	}
 
 	testFunc := func(tc CWNPTestCase) {
@@ -44,9 +45,9 @@ var _ = Describe("Reconcile CWNP resources", func() {
 		defer ctrl.Finish()
 
 		firewall := mocks.NewMockFirewallInterface(ctrl)
-		fqdnCache := mocks.NewMockFQDNCache(ctrl)
+		fqdnCache := nftmocks.NewMockFQDNCache(ctrl)
 
-		r := newCWNPReconciler(createTestFirewallFunc(firewall), fqdnCache, tc.objects, tc.policySpecsChecksums)
+		r := newCWNPReconciler(createTestFirewallFunc(firewall), fqdnCache, tc.objects)
 		req := reconcile.Request{
 			NamespacedName: types.NamespacedName{
 				Name:      firewallName,
@@ -55,7 +56,7 @@ var _ = Describe("Reconcile CWNP resources", func() {
 		}
 
 		if tc.reconcile {
-			firewall.EXPECT().Reconcile().Return(nil)
+			firewall.EXPECT().Reconcile().Return(true, nil)
 		}
 		if tc.mockFunc != nil {
 			tc.mockFunc(fqdnCache)
@@ -66,7 +67,7 @@ var _ = Describe("Reconcile CWNP resources", func() {
 	}
 
 	DescribeTable("Policies update", testFunc,
-		Entry("Should reconcile when new CWNP resource added", CWNPTestCase{
+		Entry("Should reconcile when new CWNP resource", CWNPTestCase{
 			objects: []runtime.Object{
 				newFirewall(),
 				newCWNP("test", []firewallv1.EgressRule{
@@ -78,112 +79,6 @@ var _ = Describe("Reconcile CWNP resources", func() {
 						},
 					},
 				}),
-			},
-			reconcile: true,
-		}),
-		Entry("Shouldn't update when resource not updated", CWNPTestCase{
-			objects: []runtime.Object{
-				newFirewall(),
-				newCWNP("test", []firewallv1.EgressRule{
-					{
-						ToFQDNs: []firewallv1.FQDNSelector{
-							{
-								MatchName: "test.com",
-								Sets: []firewallv1.IPSet{
-									{
-										SetName: "test",
-									},
-									{
-										SetName: "test2",
-									},
-								},
-							},
-						},
-					},
-				}),
-			},
-			policySpecsChecksums: map[string][16]byte{
-				getPolicySpecKey("test"): getCWNPChecksum("test", []firewallv1.EgressRule{
-					{
-						ToFQDNs: []firewallv1.FQDNSelector{
-							{
-								MatchName: "test.com",
-								Sets: []firewallv1.IPSet{
-									{
-										SetName: "test",
-									},
-									{
-										SetName: "test2",
-									},
-								},
-							},
-						},
-					},
-				}),
-			},
-			mockFunc: func(cache *mocks.MockFQDNCache) {
-				cache.EXPECT().GetSetsForFQDN(gomock.Any(), false).Return([]firewallv1.IPSet{
-					{
-						SetName: "test2",
-					},
-					{
-						SetName: "test",
-					},
-				})
-			},
-		}),
-		Entry("Should reconcile when updated", CWNPTestCase{
-			objects: []runtime.Object{
-				newFirewall(),
-				newCWNP("test", []firewallv1.EgressRule{
-					{
-						ToFQDNs: []firewallv1.FQDNSelector{
-							{
-								MatchName: "test.com",
-							},
-						},
-					},
-				}),
-			},
-			policySpecsChecksums: map[string][16]byte{
-				getPolicySpecKey("test"): getCWNPChecksum("test", []firewallv1.EgressRule{
-					{
-						ToFQDNs: []firewallv1.FQDNSelector{
-							{
-								MatchName: "test2.com",
-							},
-						},
-					},
-				}),
-			},
-			reconcile: true,
-		}),
-		Entry("Should reconcile when FQDN cache updated", CWNPTestCase{
-			objects: []runtime.Object{
-				newFirewall(),
-				newCWNP("test", []firewallv1.EgressRule{
-					{
-						ToFQDNs: []firewallv1.FQDNSelector{
-							{
-								MatchName: "test.com",
-							},
-						},
-					},
-				}),
-			},
-			policySpecsChecksums: map[string][16]byte{
-				getPolicySpecKey("test"): getCWNPChecksum("test", []firewallv1.EgressRule{
-					{
-						ToFQDNs: []firewallv1.FQDNSelector{
-							{
-								MatchName: "test.com",
-							},
-						},
-					},
-				}),
-			},
-			mockFunc: func(cache *mocks.MockFQDNCache) {
-				cache.EXPECT().GetSetsForFQDN(gomock.Any(), false).Return([]firewallv1.IPSet{{SetName: "test"}})
 			},
 			reconcile: true,
 		}),

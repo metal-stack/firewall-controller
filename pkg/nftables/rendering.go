@@ -53,7 +53,7 @@ func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 		},
 		RateLimitRules: rateLimitRules(f),
 		SnatRules:      snatRules,
-		Sets:           f.cache.GetSetsForRendering(),
+		Sets:           f.cache.GetSetsForRendering(f.clusterwideNetworkPolicies.GetFQDNs()),
 	}, nil
 }
 

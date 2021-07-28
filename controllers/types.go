@@ -16,9 +16,10 @@ package controllers
 
 import (
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
+
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/pkg/nftables"
-	corev1 "k8s.io/api/core/v1"
 )
 
 type CreateFirewall = func(
@@ -31,7 +32,7 @@ type CreateFirewall = func(
 
 //go:generate mockgen -destination=./mocks/mock_firewall.go -package=mocks . FirewallInterface
 type FirewallInterface interface {
-	Reconcile() error
+	Reconcile() (bool, error)
 	Flush() error
 }
 
