@@ -142,9 +142,7 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	nftablesFirewall := nftables.NewDefaultFirewall()
-	if err = nftablesFirewall.ReconcileNetconfTables(kb, r.EnableDNS); err != nil {
-		errors = multierror.Append(errors, err)
-	}
+	nftablesFirewall.ReconcileNetconfTables(kb, r.EnableDNS)
 
 	log.Info("reconciling firewall services")
 	if err = r.reconcileFirewallServices(ctx, f); err != nil {

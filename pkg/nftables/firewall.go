@@ -163,7 +163,7 @@ func (f *Firewall) Reconcile() (updated bool, err error) {
 	return true, nil
 }
 
-func (f *Firewall) ReconcileNetconfTables(kb netconf.KnowledgeBase, enableDNS bool) error {
+func (f *Firewall) ReconcileNetconfTables(kb netconf.KnowledgeBase, enableDNS bool) {
 	configurator := netconf.FirewallConfigurator{
 		CommonConfigurator: netconf.CommonConfigurator{
 			Kb: kb,
@@ -172,11 +172,6 @@ func (f *Firewall) ReconcileNetconfTables(kb netconf.KnowledgeBase, enableDNS bo
 	}
 
 	configurator.ConfugureNftables()
-	if err := f.reload(); err != nil {
-		return fmt.Errorf("failed to reload netconf nftables: %w", err)
-	}
-
-	return nil
 }
 
 func (f *Firewall) renderFile(file string) error {
