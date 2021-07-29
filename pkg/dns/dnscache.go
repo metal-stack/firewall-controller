@@ -215,7 +215,11 @@ func (c *DNSCache) getSetNameForFQDN(fqdn string) (result []firewallv1.IPSet) {
 			c.log.Error(err, "failed to load data for FQDN")
 			return nil
 		}
-		return c.getSetNameForFQDN(fqdn)
+
+		if entry, found = c.fqdnToEntry[fqdn]; !found {
+			c.log.Error(nil, "failed to find DNS entry for FQDN")
+			return nil
+		}
 	}
 
 	defer c.RUnlock()
@@ -295,6 +299,8 @@ func (c *DNSCache) Update(lookupTime time.Time, msg *dnsgo.Msg) error {
 			if minIPv6TTL > rr.Hdr.Ttl {
 				minIPv6TTL = rr.Hdr.Ttl
 			}
+		default:
+			c.log.Info("unknown DNS response type: %s", rr.String())
 		}
 	}
 
