@@ -33,10 +33,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/controllers"
 	"github.com/metal-stack/firewall-controller/controllers/crd"
-
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	// +kubebuilder:scaffold:imports
 )
 
