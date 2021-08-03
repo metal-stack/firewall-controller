@@ -6,8 +6,13 @@ import (
 	"strconv"
 
 	"github.com/go-logr/logr"
-	"github.com/metal-stack/firewall-controller/pkg/network"
 	dnsgo "github.com/miekg/dns"
+
+	"github.com/metal-stack/firewall-controller/pkg/network"
+)
+
+const (
+	defaultDNSPort uint = 53
 )
 
 type DNSHandler interface {
@@ -16,8 +21,9 @@ type DNSHandler interface {
 }
 
 type DNSProxy struct {
-	log   logr.Logger
-	cache *DNSCache
+	log    logr.Logger
+	cache  *DNSCache
+	stopCh chan struct{}
 
 	udpServer *dnsgo.Server
 	tcpServer *dnsgo.Server
@@ -25,11 +31,15 @@ type DNSProxy struct {
 	handler DNSHandler
 }
 
-func NewDNSProxy(port uint, log logr.Logger, cache *DNSCache) (*DNSProxy, error) {
+func NewDNSProxy(port *uint, log logr.Logger, cache *DNSCache) (*DNSProxy, error) {
 	handler := NewDNSProxyHandler(log, cache)
 
 	host := getHost()
-	udpConn, tcpListener, err := bindToPort(host, port, log)
+	p := defaultDNSPort
+	if port != nil {
+		p = *port
+	}
+	udpConn, tcpListener, err := bindToPort(host, p, log)
 	if err != nil {
 		return nil, fmt.Errorf("failed to bind to port: %w", err)
 	}
@@ -38,8 +48,9 @@ func NewDNSProxy(port uint, log logr.Logger, cache *DNSCache) (*DNSProxy, error)
 	tcpServer := &dnsgo.Server{Listener: tcpListener, Addr: udpConn.LocalAddr().String(), Net: "tcp", Handler: handler}
 
 	return &DNSProxy{
-		log:   log,
-		cache: cache,
+		log:    log,
+		cache:  cache,
+		stopCh: make(chan struct{}),
 
 		udpServer: udpServer,
 		tcpServer: tcpServer,
@@ -49,7 +60,7 @@ func NewDNSProxy(port uint, log logr.Logger, cache *DNSCache) (*DNSProxy, error)
 }
 
 // Run starts TCP/UDP servers
-func (p *DNSProxy) Run(stopCh <-chan struct{}) {
+func (p *DNSProxy) Run() {
 	go func() {
 		p.log.Info("starting UDP server")
 		if err := p.udpServer.ActivateAndServe(); err != nil {
@@ -64,7 +75,7 @@ func (p *DNSProxy) Run(stopCh <-chan struct{}) {
 		}
 	}()
 
-	<-stopCh
+	<-p.stopCh
 
 	if err := p.udpServer.Shutdown(); err != nil {
 		p.log.Error(err, "failed to shut down UDP server")
@@ -72,6 +83,11 @@ func (p *DNSProxy) Run(stopCh <-chan struct{}) {
 	if err := p.tcpServer.Shutdown(); err != nil {
 		p.log.Error(err, "failed to shut down TCP server")
 	}
+}
+
+// Stop starts TCP/UDP servers
+func (p *DNSProxy) Stop() {
+	close(p.stopCh)
 }
 
 func (p *DNSProxy) UpdateDNSServerAddr(addr string) error {

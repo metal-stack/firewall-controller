@@ -85,6 +85,8 @@ type Data struct {
 	FirewallNetworks []FirewallNetwork `json:"firewallNetworks,omitempty"`
 	// DNSServerAddress specifies DNS server address used by DNS proxy
 	DNSServerAddress string `json:"dnsServerAddress,omitempty"`
+	// DNSPort specifies port to which DNS proxy should be bound
+	DNSPort *uint `json:"dnsPort,omitempty"`
 }
 
 // FirewallStatus defines the observed state of Firewall

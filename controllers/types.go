@@ -37,7 +37,9 @@ type FirewallInterface interface {
 }
 
 type DNSProxy interface {
+	Run()
 	UpdateDNSServerAddr(addr string) error
+	Stop()
 }
 
 func NewFirewall(

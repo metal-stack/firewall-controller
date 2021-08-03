@@ -53,6 +53,9 @@ spec:
                 description: ControllerVersion holds the firewall-controller version
                   to reconcile.
                 type: string
+              dnsPort:
+                description: DNSPort specifies port to which DNS proxy should be bound
+                type: integer
               dnsServerAddress:
                 description: DNSServerAddress specifies DNS server address used by
                   DNS proxy

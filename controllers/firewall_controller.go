@@ -24,7 +24,10 @@ import (
 	"github.com/metal-stack/v"
 
 	"github.com/go-logr/logr"
+	"github.com/hashicorp/go-multierror"
+	mn "github.com/metal-stack/metal-lib/pkg/net"
 	corev1 "k8s.io/api/core/v1"
+	networking "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -38,11 +41,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-
-	"github.com/hashicorp/go-multierror"
-
-	mn "github.com/metal-stack/metal-lib/pkg/net"
-	networking "k8s.io/api/networking/v1"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/pkg/collector"
@@ -59,10 +57,8 @@ type FirewallReconciler struct {
 	Log                  logr.Logger
 	Scheme               *runtime.Scheme
 	EnableIDS            bool
-	EnableDNS            bool
 	EnableSignatureCheck bool
 	CAPubKey             *rsa.PublicKey
-	DNSProxy             DNSProxy
 }
 
 const (
@@ -141,19 +137,9 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		errors = multierror.Append(errors, err)
 	}
 
-	nftablesFirewall := nftables.NewDefaultFirewall()
-	nftablesFirewall.ReconcileNetconfTables(kb, r.EnableDNS)
-
 	log.Info("reconciling firewall services")
 	if err = r.reconcileFirewallServices(ctx, f); err != nil {
 		errors = multierror.Append(errors, err)
-	}
-
-	// If proxy is ON, update DNS address(if it's set in spec)
-	if r.DNSProxy != nil && f.Spec.Data.DNSServerAddress != "" {
-		if err = r.DNSProxy.UpdateDNSServerAddr(f.Spec.Data.DNSServerAddress); err != nil {
-			errors = multierror.Append(errors, err)
-		}
 	}
 
 	log.Info("updating status field")

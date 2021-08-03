@@ -104,8 +104,9 @@ func newCWNPReconciler(
 	return &ClusterwideNetworkPolicyReconciler{
 		Client:         fake.NewFakeClientWithScheme(setupScheme(), objects...),
 		Log:            zap.New(zap.UseDevMode(true)),
-		Cache:          cache,
 		CreateFirewall: createFW,
+		cache:          cache,
+		skipDNS:        true,
 	}
 }
 

@@ -19,6 +19,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/metal-stack/firewall-controller/pkg/network"
+
+	"github.com/metal-stack/firewall-controller/pkg/dns"
+
 	"github.com/go-logr/logr"
 
 	corev1 "k8s.io/api/core/v1"
@@ -47,8 +51,10 @@ type ClusterwideNetworkPolicyReconciler struct {
 	client.Client
 	Log            logr.Logger
 	Scheme         *runtime.Scheme
-	Cache          nftables.FQDNCache
 	CreateFirewall CreateFirewall
+	cache          nftables.FQDNCache
+	dnsProxy       DNSProxy
+	skipDNS        bool
 }
 
 // Reconcile ClusterwideNetworkPolicy and creates nftables rules accordingly
@@ -79,11 +85,15 @@ func (r *ClusterwideNetworkPolicyReconciler) reconcileRules(ctx context.Context,
 		return done, client.IgnoreNotFound(err)
 	}
 
+	if err := r.manageDNSProxy(f, cwnps, log); err != nil {
+		return done, err
+	}
+
 	var services corev1.ServiceList
 	if err := r.List(ctx, &services); err != nil {
 		return done, err
 	}
-	nftablesFirewall := r.CreateFirewall(&cwnps, &services, f.Spec, r.Cache, log)
+	nftablesFirewall := r.CreateFirewall(&cwnps, &services, f.Spec, r.cache, log)
 	updated, err := nftablesFirewall.Reconcile()
 	if err != nil {
 		return done, err
@@ -99,6 +109,43 @@ func (r *ClusterwideNetworkPolicyReconciler) reconcileRules(ctx context.Context,
 	}
 
 	return done, nil
+}
+
+// manageDNSProxy start DNS proxy if toFQDN rules are present
+// if rules were deleted it will stop running DNS proxy
+func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(f firewallv1.Firewall, cwnps firewallv1.ClusterwideNetworkPolicyList, log logr.Logger) (err error) {
+	// Skipping is needed for testing
+	if r.skipDNS {
+		return nil
+	}
+
+	enableDNS := len(cwnps.GetFQDNs()) > 0
+	kb := network.GetUpdatedKnowledgeBase(f)
+	nftablesFirewall := nftables.NewDefaultFirewall()
+	nftablesFirewall.ReconcileNetconfTables(kb, enableDNS)
+
+	if enableDNS && r.dnsProxy == nil {
+		if r.cache == nil {
+			r.cache = dns.NewDNSCache(true, false, log.WithName("DNS cache"))
+		}
+
+		if r.dnsProxy, err = dns.NewDNSProxy(f.Spec.DNSPort, ctrl.Log.WithName("DNS proxy"), r.cache.(*dns.DNSCache)); err != nil {
+			return fmt.Errorf("failed to init DNS proxy: %w", err)
+		}
+		go r.dnsProxy.Run()
+	} else if !enableDNS && r.dnsProxy != nil {
+		r.dnsProxy.Stop()
+		r.dnsProxy = nil
+	}
+
+	// If proxy is ON, update DNS address(if it's set in spec)
+	if r.dnsProxy != nil && f.Spec.DNSServerAddress != "" {
+		if err = r.dnsProxy.UpdateDNSServerAddr(f.Spec.Data.DNSServerAddress); err != nil {
+			return fmt.Errorf("failed to update DNS server address: %w", err)
+		}
+	}
+
+	return nil
 }
 
 // SetupWithManager configures this controller to run in schedule

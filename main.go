@@ -33,10 +33,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/controllers"
 	"github.com/metal-stack/firewall-controller/controllers/crd"
-	"github.com/metal-stack/firewall-controller/pkg/dns"
+
+	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -65,8 +65,6 @@ func main() {
 		enableIDS            bool
 		enableSignatureCheck bool
 		hostsFile            string
-		disableDNS           bool
-		dnsPort              uint
 	)
 	flag.BoolVar(&isVersion, "v", false, "Show firewall-controller version")
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
@@ -76,8 +74,6 @@ func main() {
 	flag.BoolVar(&enableIDS, "enable-IDS", true, "Set this to false to exclude IDS.")
 	flag.StringVar(&hostsFile, "hosts-file", "/etc/hosts", "The hosts file to manipulate for the droptailer.")
 	flag.BoolVar(&enableSignatureCheck, "enable-signature-check", true, "Set this to false to ignore signature checking.")
-	flag.BoolVar(&disableDNS, "disable-dns", false, "Set this to true to disable DNS based policies and DNS proxy")
-	flag.UintVar(&dnsPort, "dns-port", 53, "Specify port to which DNS proxy should be bound")
 	flag.Parse()
 
 	if isVersion {
@@ -133,21 +129,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Start DNS proxy if disableDNS is specified
-	var (
-		dnsCache *dns.DNSCache
-		dnsProxy *dns.DNSProxy
-	)
-	if !disableDNS {
-		dnsCache = dns.NewDNSCache(true, false, ctrl.Log.WithName("DNS cache"))
-		if dnsProxy, err = dns.NewDNSProxy(dnsPort, ctrl.Log.WithName("DNS proxy"), dnsCache); err != nil {
-			setupLog.Error(err, "failed to init DNS proxy")
-			os.Exit(1)
-		}
-
-		go dnsProxy.Run(ctx.Done())
-	}
-
 	// Droptailer Reconciler
 	if err = (&controllers.DroptailerReconciler{
 		Client:    mgr.GetClient(),
@@ -164,7 +145,6 @@ func main() {
 		Client:         mgr.GetClient(),
 		Log:            ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicy"),
 		Scheme:         mgr.GetScheme(),
-		Cache:          dnsCache,
 		CreateFirewall: controllers.NewFirewall,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ClusterwideNetworkPolicy")
@@ -199,10 +179,8 @@ func main() {
 		Log:                  ctrl.Log.WithName("controllers").WithName("Firewall"),
 		Scheme:               mgr.GetScheme(),
 		EnableIDS:            enableIDS,
-		EnableDNS:            !disableDNS,
 		EnableSignatureCheck: enableSignatureCheck,
 		CAPubKey:             caPubKey,
-		DNSProxy:             dnsProxy,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Firewall")
 		os.Exit(1)
