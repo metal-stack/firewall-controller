@@ -81,7 +81,7 @@ func clusterwideNetworkPolicyEgressRules(
 				}
 			}
 			ruleBases = append(ruleBases, ruleBase{base: rb})
-		} else if len(e.ToFQDNs) > 0 {
+		} else if len(e.ToFQDNs) > 0 && cache != nil {
 			// Generate allow rules based on DNS selectors
 			rbs, u := clusterwideNetworkPolicyEgressToFQDNRules(cache, e)
 			np.Spec.Egress[i] = u

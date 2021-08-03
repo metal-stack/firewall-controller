@@ -44,6 +44,10 @@ func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 		return &firewallRenderingData{}, err
 	}
 
+	var sets []firewallv1.IPSet
+	if f.cache != nil {
+		sets = f.cache.GetSetsForRendering(f.clusterwideNetworkPolicies.GetFQDNs())
+	}
 	return &firewallRenderingData{
 		PrivateVrfID:     uint(*f.primaryPrivateNet.Vrf),
 		InternalPrefixes: strings.Join(f.spec.InternalPrefixes, ", "),
@@ -53,7 +57,7 @@ func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 		},
 		RateLimitRules: rateLimitRules(f),
 		SnatRules:      snatRules,
-		Sets:           f.cache.GetSetsForRendering(f.clusterwideNetworkPolicies.GetFQDNs()),
+		Sets:           sets,
 	}, nil
 }
 

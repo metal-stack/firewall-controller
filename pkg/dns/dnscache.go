@@ -216,12 +216,13 @@ func (c *DNSCache) getSetNameForFQDN(fqdn string) (result []firewallv1.IPSet) {
 			return nil
 		}
 
+		c.RLock()
 		if entry, found = c.fqdnToEntry[fqdn]; !found {
 			c.log.Error(nil, "failed to find DNS entry for FQDN")
+			c.RUnlock()
 			return nil
 		}
 	}
-
 	defer c.RUnlock()
 
 	if entry.ipv4 != nil {
