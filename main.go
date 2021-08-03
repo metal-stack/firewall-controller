@@ -24,8 +24,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/metal-stack/firewall-controller/controllers"
-	"github.com/metal-stack/firewall-controller/controllers/crd"
 	"github.com/metal-stack/metal-lib/pkg/sign"
 	"github.com/metal-stack/v"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
@@ -36,6 +34,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	"github.com/metal-stack/firewall-controller/controllers"
+	"github.com/metal-stack/firewall-controller/controllers/crd"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -58,12 +58,14 @@ func init() {
 
 func main() {
 	var (
+		isVersion            bool
 		metricsAddr          string
 		enableLeaderElection bool
 		enableIDS            bool
 		enableSignatureCheck bool
 		hostsFile            string
 	)
+	flag.BoolVar(&isVersion, "v", false, "Show firewall-controller version")
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. "+
@@ -72,6 +74,11 @@ func main() {
 	flag.StringVar(&hostsFile, "hosts-file", "/etc/hosts", "The hosts file to manipulate for the droptailer.")
 	flag.BoolVar(&enableSignatureCheck, "enable-signature-check", true, "Set this to false to ignore signature checking.")
 	flag.Parse()
+
+	if isVersion {
+		fmt.Println(v.V.String())
+		return
+	}
 
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
