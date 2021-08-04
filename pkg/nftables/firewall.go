@@ -105,7 +105,7 @@ func (f *Firewall) Flush() error {
 
 // Reconcile drives the nftables firewall against the desired state by comparison with the current rule file.
 func (f *Firewall) Reconcile() error {
-	tmpFile, err := os.CreateTemp(filepath.Dir(f.ipv4RuleFile()), filepath.Base(f.ipv4RuleFile()))
+	tmpFile, err := os.CreateTemp(filepath.Dir(f.ipv4RuleFile()), "."+filepath.Base(f.ipv4RuleFile()))
 	if err != nil {
 		return err
 	}
