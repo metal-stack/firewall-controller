@@ -140,12 +140,7 @@ func main() {
 	}
 
 	// ClusterwideNetworkPolicy Reconciler
-	if err = (&controllers.ClusterwideNetworkPolicyReconciler{
-		Client:         mgr.GetClient(),
-		Log:            ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicy"),
-		Scheme:         mgr.GetScheme(),
-		CreateFirewall: controllers.NewFirewall,
-	}).SetupWithManager(mgr); err != nil {
+	if err = controllers.NewClusterwideNetworkPolicyReconciler(mgr).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ClusterwideNetworkPolicy")
 		os.Exit(1)
 	}

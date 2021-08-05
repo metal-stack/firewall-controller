@@ -69,6 +69,8 @@ type FirewallSpec struct {
 type Data struct {
 	// Interval on which rule reconciliation should happen
 	Interval string `json:"interval,omitempty"`
+	// CWNPInterval on which CWNP reconciliation should happen. By default set to 30 seconds.
+	CWNPInterval string `json:"cwnpInterval,omitempty"`
 	// DryRun if set to true, firewall rules are not applied
 	DryRun bool `json:"dryrun,omitempty"`
 	// TrafficControl defines where to store the generated ipv4 firewall rules on disk

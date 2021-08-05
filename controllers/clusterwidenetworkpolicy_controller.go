@@ -42,7 +42,7 @@ import (
 )
 
 const (
-	rulesReconcileInterval = 30 * time.Second
+	cwnpDefaultInterval = 30 * time.Second
 )
 
 // ClusterwideNetworkPolicyReconciler reconciles a ClusterwideNetworkPolicy object
@@ -52,9 +52,20 @@ type ClusterwideNetworkPolicyReconciler struct {
 	Log            logr.Logger
 	Scheme         *runtime.Scheme
 	CreateFirewall CreateFirewall
+	Interval       time.Duration
 	cache          nftables.FQDNCache
 	dnsProxy       DNSProxy
 	skipDNS        bool
+}
+
+func NewClusterwideNetworkPolicyReconciler(mgr ctrl.Manager) *ClusterwideNetworkPolicyReconciler {
+	return &ClusterwideNetworkPolicyReconciler{
+		Client:         mgr.GetClient(),
+		Log:            ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicy"),
+		Scheme:         mgr.GetScheme(),
+		CreateFirewall: NewFirewall,
+		Interval:       cwnpDefaultInterval,
+	}
 }
 
 // Reconcile ClusterwideNetworkPolicy and creates nftables rules accordingly
@@ -83,6 +94,11 @@ func (r *ClusterwideNetworkPolicyReconciler) reconcileRules(ctx context.Context,
 		}
 
 		return done, client.IgnoreNotFound(err)
+	}
+
+	// Set CWNP requeue interval
+	if interval, err := time.ParseDuration(f.Spec.CWNPInterval); err == nil {
+		r.Interval = interval
 	}
 
 	if err := r.manageDNSProxy(f, cwnps, log); err != nil {
@@ -148,18 +164,31 @@ func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(f firewallv1.Firewal
 	return nil
 }
 
+func (r *ClusterwideNetworkPolicyReconciler) getReconcilationTicker(scheduleChan chan<- event.GenericEvent) manager.RunnableFunc {
+	return func(c <-chan struct{}) error {
+		e := event.GenericEvent{}
+		ticker := time.NewTicker(r.Interval)
+
+	loop:
+		for {
+			select {
+			case <-ticker.C:
+				scheduleChan <- e
+				ticker.Stop()
+				ticker = time.NewTicker(r.Interval)
+			case <-c:
+				break loop
+			}
+		}
+
+		return nil
+	}
+}
+
 // SetupWithManager configures this controller to run in schedule
 func (r *ClusterwideNetworkPolicyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	scheduleChan := make(chan event.GenericEvent)
-	if err := mgr.Add(manager.RunnableFunc(func(c <-chan struct{}) error {
-		e := event.GenericEvent{}
-		ticker := time.NewTicker(rulesReconcileInterval)
-
-		for range ticker.C {
-			scheduleChan <- e
-		}
-		return nil
-	})); err != nil {
+	if err := mgr.Add(r.getReconcilationTicker(scheduleChan)); err != nil {
 		return fmt.Errorf("failed to add runnable to manager: %w", err)
 	}
 
