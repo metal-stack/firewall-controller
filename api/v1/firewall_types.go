@@ -85,9 +85,10 @@ type Data struct {
 
 // FirewallStatus defines the observed state of Firewall
 type FirewallStatus struct {
-	Message       string        `json:"message,omitempty"`
-	FirewallStats FirewallStats `json:"stats"`
-	Updated       metav1.Time   `json:"lastRun,omitempty"`
+	Message           string        `json:"message,omitempty"`
+	FirewallStats     FirewallStats `json:"stats"`
+	ControllerVersion string        `json:"controllerVersion"`
+	Updated           metav1.Time   `json:"lastRun,omitempty"`
 }
 
 // FirewallStats contains firewall statistics

@@ -23,6 +23,8 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/metal-stack/v"
+
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -40,14 +42,15 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 
+	mn "github.com/metal-stack/metal-lib/pkg/net"
+	networking "k8s.io/api/networking/v1"
+
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/pkg/collector"
 	"github.com/metal-stack/firewall-controller/pkg/network"
 	"github.com/metal-stack/firewall-controller/pkg/nftables"
 	"github.com/metal-stack/firewall-controller/pkg/suricata"
 	"github.com/metal-stack/firewall-controller/pkg/updater"
-	mn "github.com/metal-stack/metal-lib/pkg/net"
-	networking "k8s.io/api/networking/v1"
 )
 
 // FirewallReconciler reconciles a Firewall object
@@ -437,6 +440,7 @@ func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Fire
 	}
 	f.Status.FirewallStats.IDSStats = idsStats
 
+	f.Status.ControllerVersion = v.Version
 	f.Status.Updated.Time = time.Now()
 
 	if err := r.Status().Update(ctx, &f); err != nil {
