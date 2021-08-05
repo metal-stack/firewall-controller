@@ -164,6 +164,14 @@ func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(f firewallv1.Firewal
 	return nil
 }
 
+// IMPORTANT!
+// We shouldn't implement reconcilation loop by assigning RequeueAfter in result like it's done in Firewall controller.
+// Here's case when it would go bad:
+//  DNS Proxy is ON and Firewall machine is rebooted.
+// There will be at least 2 problems:
+//  1. When it's rebooted, metal-networker will generate basic nftables config and apply it.
+//     In basic config there's now DNAT rules required for DNS Proxy.
+//  2. DNS Proxy is started by CWNP controller and it will not be started until some CWNP resource is created/updated/deleted.
 func (r *ClusterwideNetworkPolicyReconciler) getReconcilationTicker(scheduleChan chan<- event.GenericEvent) manager.RunnableFunc {
 	return func(c <-chan struct{}) error {
 		e := event.GenericEvent{}
