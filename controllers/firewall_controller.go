@@ -62,8 +62,8 @@ type FirewallReconciler struct {
 }
 
 const (
-	firewallReconcileInterval = time.Second * 10
-	firewallName              = "firewall"
+	reconcilationInterval = 10 * time.Second
+	firewallName          = "firewall"
 
 	nftablesExporterService   = "node-exporter"
 	nftablesExporterNamedPort = "nodeexporter"
@@ -77,7 +77,7 @@ const (
 var (
 	done            = ctrl.Result{}
 	firewallRequeue = ctrl.Result{
-		RequeueAfter: firewallReconcileInterval,
+		RequeueAfter: reconcilationInterval,
 	}
 )
 

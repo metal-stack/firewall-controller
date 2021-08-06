@@ -41,10 +41,6 @@ import (
 	"github.com/metal-stack/firewall-controller/pkg/nftables"
 )
 
-const (
-	cwnpDefaultInterval = 30 * time.Second
-)
-
 // ClusterwideNetworkPolicyReconciler reconciles a ClusterwideNetworkPolicy object
 // +kubebuilder:rbac:groups=metal-stack.io,resources=events,verbs=create;patch
 type ClusterwideNetworkPolicyReconciler struct {
@@ -64,7 +60,7 @@ func NewClusterwideNetworkPolicyReconciler(mgr ctrl.Manager) *ClusterwideNetwork
 		Log:            ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicy"),
 		Scheme:         mgr.GetScheme(),
 		CreateFirewall: NewFirewall,
-		Interval:       cwnpDefaultInterval,
+		Interval:       reconcilationInterval,
 	}
 }
 
@@ -97,7 +93,7 @@ func (r *ClusterwideNetworkPolicyReconciler) reconcileRules(ctx context.Context,
 	}
 
 	// Set CWNP requeue interval
-	if interval, err := time.ParseDuration(f.Spec.CWNPInterval); err == nil {
+	if interval, err := time.ParseDuration(f.Spec.Interval); err == nil {
 		r.Interval = interval
 	}
 
