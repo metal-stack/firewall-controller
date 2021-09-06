@@ -125,3 +125,41 @@ func TestPolicySpec_Validate(t *testing.T) {
 		})
 	}
 }
+
+func TestFQDNSelector_GetRegex(t *testing.T) {
+	tests := []struct {
+		name          string
+		selector      FQDNSelector
+		expectedRegex string
+	}{
+		{
+			name: "match all cases",
+			selector: FQDNSelector{
+				MatchPattern: "*",
+			},
+			expectedRegex: "(^(" + allowedDNSCharsREGroup + "+[.])+$)|(^[.]$)",
+		},
+		{
+			name: "selector with match-all and literal",
+			selector: FQDNSelector{
+				MatchPattern: "*.com",
+			},
+			expectedRegex: "^" + allowedDNSCharsREGroup + "*[.]com[.]$",
+		},
+		{
+			name: "selector with static value",
+			selector: FQDNSelector{
+				MatchPattern: "example.com",
+			},
+			expectedRegex: "^example[.]com[.]$",
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			if r := tt.selector.GetRegex(); tt.expectedRegex != r {
+				t.Errorf("FQDNSelector.GetRegex returned %s, expected %s", r, tt.expectedRegex)
+			}
+		})
+	}
+}
