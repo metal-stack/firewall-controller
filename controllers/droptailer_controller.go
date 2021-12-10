@@ -177,7 +177,6 @@ func (r *DroptailerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Pod{}).
-		Owns(&corev1.Namespace{}).
 		Watches(&source.Kind{Type: &corev1.Secret{}}, triggerDroptailerReconcilation).
 		Complete(r)
 }
