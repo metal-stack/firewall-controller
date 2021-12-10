@@ -2,13 +2,11 @@
 FROM golang:1.17 as builder
 
 ENV KUBEBUILDER_DOWNLOAD_URL=https://github.com/kubernetes-sigs/kubebuilder/releases/download
-ENV KUBEBUILDER_VER=3.2.0
-ENV KUBEBUILDER_ASSETS=/usr/local/bin
+ENV KUBEBUILDER_VER=v3.2.0
 RUN set -ex \
- && mkdir -p /tmp/kubebuilder /usr/local/bin \
- && curl -L ${KUBEBUILDER_DOWNLOAD_URL}/v${KUBEBUILDER_VER}/kubebuilder_${KUBEBUILDER_VER}_linux_amd64.tar.gz -o /tmp/kubebuilder-${KUBEBUILDER_VER}-linux-amd64.tar.gz \
- && tar xzvf /tmp/kubebuilder-${KUBEBUILDER_VER}-linux-amd64.tar.gz -C /tmp/kubebuilder --strip-components=1 \
- && mv /tmp/kubebuilder/bin/* ${KUBEBUILDER_ASSETS}/
+ && mkdir -p /usr/local/bin \
+ && curl -L ${KUBEBUILDER_DOWNLOAD_URL}/v${KUBEBUILDER_VER}/kubebuilder_linux_amd64 -o /usr/local/bin/kubebuilder \
+ && chmod +x /usr/local/bin/kubebuilder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
