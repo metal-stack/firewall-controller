@@ -94,16 +94,16 @@ func main() {
 		setupLog.Error(err, "unable to start firewall-controller manager")
 		os.Exit(1)
 	}
-	stopCh := ctrl.SetupSignalHandler()
+	ctx := ctrl.SetupSignalHandler()
 	go func() {
 		setupLog.Info("starting firewall-controller", "version", v.V)
-		if err := mgr.Start(stopCh); err != nil {
+		if err := mgr.Start(ctx); err != nil {
 			setupLog.Error(err, "problem running firewall-controller")
 			panic(err)
 		}
 	}()
 
-	if started := mgr.GetCache().WaitForCacheSync(stopCh); !started {
+	if started := mgr.GetCache().WaitForCacheSync(ctx); !started {
 		panic("not all started")
 	}
 
@@ -174,8 +174,6 @@ func main() {
 	}
 	// +kubebuilder:scaffold:builder
 
-	// FIXME howto cope with OS signals ?
-	<-stopCh
 }
 
 func readCRDsFromVFS() (map[string][]byte, error) {

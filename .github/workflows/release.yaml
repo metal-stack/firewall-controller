@@ -37,10 +37,10 @@ jobs:
         service_account_email: ${{ secrets.GCP_SA_EMAIL }}
         service_account_key: ${{ secrets.GCP_SA_KEY }}
 
-    - name: Set up Go 1.16
-      uses: actions/setup-go@v2.1.3
+    - name: Set up Go 1.17
+      uses: actions/setup-go@v2
       with:
-        go-version: '1.16.x'
+        go-version: '1.17.x'
 
     - name: Get release
       id: get_release

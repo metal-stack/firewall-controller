@@ -1,8 +1,8 @@
 # Build the firewall-controller binary
-FROM golang:1.16 as builder
+FROM golang:1.17 as builder
 
 ENV KUBEBUILDER_DOWNLOAD_URL=https://github.com/kubernetes-sigs/kubebuilder/releases/download
-ENV KUBEBUILDER_VER=2.3.1
+ENV KUBEBUILDER_VER=3.2.0
 ENV KUBEBUILDER_ASSETS=/usr/local/bin
 RUN set -ex \
  && mkdir -p /tmp/kubebuilder /usr/local/bin \
