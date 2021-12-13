@@ -114,7 +114,7 @@ func TestClusterwideNetworkPolicyEgressRules(t *testing.T) {
 		want  nftablesRules
 	}{
 		{
-			name: "multiple protocols, multiple ip block + excepetion egress policy",
+			name: "multiple protocols, multiple ip block + exception egress policy",
 			input: firewallv1.ClusterwideNetworkPolicy{
 				Spec: firewallv1.PolicySpec{
 					Egress: []firewallv1.EgressRule{
