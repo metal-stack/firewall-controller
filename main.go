@@ -174,9 +174,7 @@ func main() {
 	}
 	// +kubebuilder:scaffold:builder
 
-	// FIXME
-	select {}
-
+	<-ctx.Done()
 }
 
 func readCRDsFromVFS() (map[string][]byte, error) {
