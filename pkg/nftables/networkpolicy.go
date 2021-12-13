@@ -71,10 +71,14 @@ func clusterwideNetworkPolicyEgressRules(np firewallv1.ClusterwideNetworkPolicy)
 		udpPorts := []string{}
 		for _, p := range e.Ports {
 			proto := proto(p.Protocol)
+			portStr := fmt.Sprint(p.Port)
+			if p.EndPort != nil {
+				portStr = fmt.Sprintf("%s-%d", p.Port, *p.EndPort)
+			}
 			if proto == "tcp" {
-				tcpPorts = append(tcpPorts, fmt.Sprint(p.Port))
+				tcpPorts = append(tcpPorts, portStr)
 			} else if proto == "udp" {
-				udpPorts = append(udpPorts, fmt.Sprint(p.Port))
+				udpPorts = append(udpPorts, portStr)
 			}
 		}
 		allow := []string{}

@@ -95,6 +95,7 @@ func main() {
 		os.Exit(1)
 	}
 	ctx := ctrl.SetupSignalHandler()
+	// FIXME better at the end and not in a go func
 	go func() {
 		setupLog.Info("starting firewall-controller", "version", v.V)
 		if err := mgr.Start(ctx); err != nil {
