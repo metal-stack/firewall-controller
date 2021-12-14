@@ -87,7 +87,7 @@ type Data struct {
 type FirewallStatus struct {
 	Message           string        `json:"message,omitempty"`
 	FirewallStats     FirewallStats `json:"stats"`
-	ControllerVersion string        `json:"controllerVersion"`
+	ControllerVersion string        `json:"controllerVersion,omitempty"`
 	Updated           metav1.Time   `json:"lastRun,omitempty"`
 }
 

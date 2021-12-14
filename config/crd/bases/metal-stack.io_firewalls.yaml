@@ -238,7 +238,6 @@ spec:
                 - rules
                 type: object
             required:
-            - controllerVersion
             - stats
             type: object
         type: object
