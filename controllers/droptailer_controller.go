@@ -8,17 +8,19 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
+
 	"github.com/go-logr/logr"
 	"github.com/txn2/txeh"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
-
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 const (
@@ -53,9 +55,6 @@ func (r *DroptailerReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	log := r.Log.WithValues("Droptailer", req.NamespacedName)
 	requeue := ctrl.Result{
 		RequeueAfter: droptailerReconcileInterval,
-	}
-	if req.Namespace != namespace {
-		return requeue, nil
 	}
 
 	var secrets corev1.SecretList
@@ -166,6 +165,9 @@ func (r *DroptailerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if certificateBase == "" {
 		r.certificateBase = certificateBase
 	}
+	namespacePredicate := predicate.NewPredicateFuncs(func(obj client.Object) bool {
+		return obj.GetNamespace() == namespace
+	})
 	triggerDroptailerReconcilation := handler.EnqueueRequestsFromMapFunc(func(a client.Object) []reconcile.Request {
 		return []reconcile.Request{
 			{NamespacedName: types.NamespacedName{
@@ -176,7 +178,7 @@ func (r *DroptailerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	})
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&corev1.Pod{}).
+		For(&corev1.Pod{}, builder.WithPredicates(namespacePredicate)).
 		Watches(&source.Kind{Type: &corev1.Secret{}}, triggerDroptailerReconcilation).
 		Complete(r)
 }
