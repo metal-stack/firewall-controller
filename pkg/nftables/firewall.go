@@ -53,7 +53,7 @@ type forwardingRules struct {
 // NewDefaultFirewall creates a new default nftables firewall.
 func NewDefaultFirewall() *Firewall {
 	defaultSpec := firewallv1.FirewallSpec{}
-	return NewFirewall(&firewallv1.ClusterwideNetworkPolicyList{}, &corev1.ServiceList{}, defaultSpec, nil)
+	return NewFirewall(&firewallv1.ClusterwideNetworkPolicyList{}, &corev1.ServiceList{}, defaultSpec, logr.Discard())
 }
 
 // NewFirewall creates a new nftables firewall object based on k8s entities
