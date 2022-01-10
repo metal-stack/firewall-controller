@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 )
 
 // clusterwideNetworkPolicyRules generates nftables rules for a clusterwidenetworkpolicy
@@ -39,16 +40,7 @@ func clusterwideNetworkPolicyIngressRules(np firewallv1.ClusterwideNetworkPolicy
 		if len(allow) > 0 {
 			common = append(common, fmt.Sprintf("ip saddr { %s }", strings.Join(allow, ", ")))
 		}
-		tcpPorts := []string{}
-		udpPorts := []string{}
-		for _, p := range i.Ports {
-			proto := proto(p.Protocol)
-			if proto == "tcp" {
-				tcpPorts = append(tcpPorts, fmt.Sprint(p.Port))
-			} else if proto == "udp" {
-				udpPorts = append(udpPorts, fmt.Sprint(p.Port))
-			}
-		}
+		tcpPorts, udpPorts := calculatePorts(i.Ports)
 		comment := fmt.Sprintf("accept traffic for k8s network policy %s", np.ObjectMeta.Name)
 		if len(tcpPorts) > 0 {
 			rules = append(rules, assembleDestinationPortRule(common, "tcp", tcpPorts, comment+" tcp"))
@@ -67,16 +59,7 @@ func clusterwideNetworkPolicyEgressRules(np firewallv1.ClusterwideNetworkPolicy)
 	}
 	rules := nftablesRules{}
 	for _, e := range egress {
-		tcpPorts := []string{}
-		udpPorts := []string{}
-		for _, p := range e.Ports {
-			proto := proto(p.Protocol)
-			if proto == "tcp" {
-				tcpPorts = append(tcpPorts, fmt.Sprint(p.Port))
-			} else if proto == "udp" {
-				udpPorts = append(udpPorts, fmt.Sprint(p.Port))
-			}
-		}
+		tcpPorts, udpPorts := calculatePorts(e.Ports)
 		allow := []string{}
 		except := []string{}
 		for _, ipBlock := range e.To {
@@ -101,4 +84,20 @@ func clusterwideNetworkPolicyEgressRules(np firewallv1.ClusterwideNetworkPolicy)
 		}
 	}
 	return uniqueSorted(rules)
+}
+
+func calculatePorts(ports []networkingv1.NetworkPolicyPort) (tcpPorts, udpPorts []string) {
+	for _, p := range ports {
+		proto := proto(p.Protocol)
+		portStr := fmt.Sprint(p.Port)
+		if p.EndPort != nil {
+			portStr = fmt.Sprintf("%s-%d", p.Port, *p.EndPort)
+		}
+		if proto == "tcp" {
+			tcpPorts = append(tcpPorts, portStr)
+		} else if proto == "udp" {
+			udpPorts = append(udpPorts, portStr)
+		}
+	}
+	return tcpPorts, udpPorts
 }

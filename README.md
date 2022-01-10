@@ -65,6 +65,10 @@ spec:
       port: 53
     - protocol: TCP
       port: 53
+    - protocol: TCP
+      port: 8080
+      # Optional, if specified this is the way to specify a port range from port to endPort
+      endPort: 8088 
 ```
 
 ## Status

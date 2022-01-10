@@ -7,8 +7,6 @@ VERSION := $(or ${GITHUB_TAG_NAME},$(shell git describe --tags --exact-match 2> 
 # Image URL to use all building/pushing image targets
 DOCKER_TAG := $(or ${GITHUB_TAG_NAME}, latest)
 DOCKER_IMG ?= ghcr.io/metal-stack/firewall-controller:${DOCKER_TAG}
-# Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
-CRD_OPTIONS ?= "crd:trivialVersions=true"
 # this version is used to include template from the metal-networker to the firewall-controller
 # version should be not that far away from the compile dependency in go.mod
 METAL_NETWORKER_VERSION := v0.7.2
@@ -68,7 +66,7 @@ deploy: manifests
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen fetch-template
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) crd rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 # Fetch firewall template
 fetch-template:
@@ -104,7 +102,7 @@ ifeq (, $(shell which controller-gen))
 	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
 	cd $$CONTROLLER_GEN_TMP_DIR ;\
 	go mod init tmp ;\
-	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.0 ;\
+	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.7.0 ;\
 	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
 	}
 CONTROLLER_GEN=$(GOBIN)/controller-gen

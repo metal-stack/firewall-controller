@@ -8,6 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/pointer"
 )
 
 func port(p int) *intstr.IntOrString {
@@ -53,6 +54,11 @@ func TestClusterwideNetworkPolicyRules(t *testing.T) {
 									Protocol: &udp,
 									Port:     port(53),
 								},
+								{
+									Protocol: &tcp,
+									Port:     port(443),
+									EndPort:  pointer.Int32(448),
+								},
 							},
 						},
 					},
@@ -69,6 +75,11 @@ func TestClusterwideNetworkPolicyRules(t *testing.T) {
 									Protocol: &tcp,
 									Port:     port(80),
 								},
+								{
+									Protocol: &tcp,
+									Port:     port(443),
+									EndPort:  pointer.Int32(448),
+								},
 							},
 						},
 					},
@@ -76,10 +87,10 @@ func TestClusterwideNetworkPolicyRules(t *testing.T) {
 			},
 			want: want{
 				ingress: nftablesRules{
-					`ip saddr != { 1.1.0.1 } ip saddr { 1.1.0.0/24 } tcp dport { 80 } counter accept comment "accept traffic for k8s network policy  tcp"`,
+					`ip saddr != { 1.1.0.1 } ip saddr { 1.1.0.0/24 } tcp dport { 80, 443-448 } counter accept comment "accept traffic for k8s network policy  tcp"`,
 				},
 				egress: nftablesRules{
-					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } tcp dport { 53 } counter accept comment "accept traffic for np  tcp"`,
+					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } tcp dport { 53, 443-448 } counter accept comment "accept traffic for np  tcp"`,
 					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } udp dport { 53 } counter accept comment "accept traffic for np  udp"`,
 				},
 			},
@@ -108,7 +119,7 @@ func TestClusterwideNetworkPolicyEgressRules(t *testing.T) {
 		want  nftablesRules
 	}{
 		{
-			name: "multiple protocols, multiple ip block + excepetion egress policy",
+			name: "multiple protocols, multiple ip block + exception egress policy",
 			input: firewallv1.ClusterwideNetworkPolicy{
 				Spec: firewallv1.PolicySpec{
 					Egress: []firewallv1.EgressRule{

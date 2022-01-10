@@ -34,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -86,8 +87,7 @@ var done = ctrl.Result{}
 // - updating the firewall object with nftable rule statistics grouped by action
 // +kubebuilder:rbac:groups=metal-stack.io,resources=firewalls,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=metal-stack.io,resources=firewalls/status,verbs=get;update;patch
-func (r *FirewallReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
+func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("firewall", req.NamespacedName)
 	requeue := ctrl.Result{
 		RequeueAfter: firewallReconcileInterval,
@@ -452,20 +452,19 @@ func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Fire
 // SetupWithManager configures this controller to watch for the CRDs in a specific namespace
 func (r *FirewallReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.recorder = mgr.GetEventRecorderFor("FirewallController")
-	mapToFirewallReconcilation := handler.ToRequestsFunc(
-		func(a handler.MapObject) []reconcile.Request {
-			return []reconcile.Request{
-				{NamespacedName: types.NamespacedName{
-					Name:      firewallName,
-					Namespace: firewallNamespace,
-				}},
-			}
-		})
-	triggerFirewallReconcilation := &handler.EnqueueRequestsFromMapFunc{
-		ToRequests: mapToFirewallReconcilation,
-	}
+	triggerFirewallReconcilation := handler.EnqueueRequestsFromMapFunc(func(a client.Object) []reconcile.Request {
+		return []reconcile.Request{
+			{NamespacedName: types.NamespacedName{
+				Name:      firewallName,
+				Namespace: firewallNamespace,
+			}},
+		}
+	})
+	namespacePredicate := predicate.NewPredicateFuncs(func(obj client.Object) bool {
+		return obj.GetNamespace() == namespace
+	})
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&firewallv1.Firewall{}).
+		For(&firewallv1.Firewall{}, builder.WithPredicates(namespacePredicate)).
 		// don't trigger a reconcilation for status updates
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Watches(&source.Kind{Type: &firewallv1.ClusterwideNetworkPolicy{}}, triggerFirewallReconcilation).

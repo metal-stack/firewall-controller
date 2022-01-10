@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	mn "github.com/metal-stack/metal-lib/pkg/net"
@@ -107,7 +108,7 @@ func TestSnatRules(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			f := NewFirewall(nil, nil, tt.input, nil)
+			f := NewFirewall(nil, nil, tt.input, logr.Discard())
 			got, err := snatRules(f)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("snatRules() error = %v, wantErr %v", err, tt.err)
