@@ -30,6 +30,7 @@ func TestPolicySpec_Validate(t *testing.T) {
 	port1 := intstr.FromInt(8080)
 	port2 := intstr.FromInt(8081)
 	invalid := intstr.FromString("invalid")
+	invalidPort := intstr.FromInt(99999)
 	tests := []struct {
 		name    string
 		Ingress []IngressRule
@@ -85,6 +86,25 @@ func TestPolicySpec_Validate(t *testing.T) {
 						{
 							Protocol: nil,
 							Port:     &invalid,
+						},
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid port",
+			Ingress: []IngressRule{
+				{
+					From: []networking.IPBlock{
+						{
+							CIDR: "1.1.0.0/24",
+						},
+					},
+					Ports: []networking.NetworkPolicyPort{
+						{
+							Protocol: &tcp,
+							Port:     &invalidPort,
 						},
 					},
 				},
