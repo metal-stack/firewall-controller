@@ -133,6 +133,10 @@ func validatePorts(ports []networking.NetworkPolicyPort) *multierror.Error {
 			errors = multierror.Append(errors, fmt.Errorf("only int ports are supported, but %v given", p.Port))
 		}
 
+		if p.Port != nil && (p.Port.IntValue() > 65535 || p.Port.IntValue() <= 0) {
+			errors = multierror.Append(errors, fmt.Errorf("only ports between 0 and 65535 are allowed, but %v given", p.Port))
+		}
+
 		if p.Protocol != nil {
 			proto := *p.Protocol
 			if proto != corev1.ProtocolUDP && proto != corev1.ProtocolTCP {
