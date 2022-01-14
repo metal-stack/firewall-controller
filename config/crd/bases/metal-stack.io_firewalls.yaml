@@ -45,6 +45,10 @@ spec:
           spec:
             description: FirewallSpec defines the desired state of Firewall
             properties:
+              acceptlog:
+                description: AcceptLog if set to true, also log accepted connections
+                  in the droptailer log
+                type: boolean
               controllerURL:
                 description: ControllerURL points to the downloadable binary artifact
                   of the firewall controller

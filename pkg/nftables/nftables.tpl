@@ -48,6 +48,7 @@ table ip firewall {
 
 		# icmp
 		ip protocol icmp icmp type echo-request limit rate over 10/second burst 4 packets counter drop comment "drop ping floods"
+		# TODO make icmp accept logging respect acceptLog parameter as well
 		ip protocol icmp icmp type { destination-unreachable, router-solicitation, router-advertisement, time-exceeded, parameter-problem } counter log prefix "nftables-firewall-accept: " accept comment "accept icmp"
 
 		# dynamic ingress rules

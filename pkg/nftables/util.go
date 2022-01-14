@@ -55,11 +55,13 @@ func checksum(file string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-func assembleDestinationPortRule(common []string, protocol string, ports []string, comment string) string {
+func assembleDestinationPortRule(common []string, protocol string, ports []string, acceptLog bool, comment string) string {
 	parts := common
 	parts = append(parts, fmt.Sprintf("%s dport { %s }", protocol, strings.Join(ports, ", ")))
 	parts = append(parts, "counter")
-	parts = append(parts, "log prefix \"nftables-firewall-accept: \"")
+	if acceptLog {
+		parts = append(parts, "log prefix \"nftables-firewall-accept: \"")
+	}
 	parts = append(parts, "accept")
 	if comment != "" {
 		parts = append(parts, "comment", fmt.Sprintf(`"%s"`, comment))

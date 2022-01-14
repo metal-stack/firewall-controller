@@ -41,6 +41,7 @@ func TestSerialization(t *testing.T) {
 			data: &Data{
 				Interval:     "10s",
 				DryRun:       false,
+				AcceptLog:    true,
 				Ipv4RuleFile: "/etc/nftables/firewall-controller.ipv4",
 				RateLimits: []RateLimit{
 					{

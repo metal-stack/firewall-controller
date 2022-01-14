@@ -69,6 +69,8 @@ type Data struct {
 	Interval string `json:"interval,omitempty"`
 	// DryRun if set to true, firewall rules are not applied
 	DryRun bool `json:"dryrun,omitempty"`
+	// AcceptLog if set to true, also log accepted connections in the droptailer log
+	AcceptLog bool `json:"acceptlog,omitempty"`
 	// TrafficControl defines where to store the generated ipv4 firewall rules on disk
 	Ipv4RuleFile string `json:"ipv4rulefile,omitempty"`
 	// RateLimits allows configuration of rate limit rules for interfaces.

@@ -9,18 +9,18 @@ import (
 )
 
 // clusterwideNetworkPolicyRules generates nftables rules for a clusterwidenetworkpolicy
-func clusterwideNetworkPolicyRules(np firewallv1.ClusterwideNetworkPolicy) (nftablesRules, nftablesRules) {
+func clusterwideNetworkPolicyRules(np firewallv1.ClusterwideNetworkPolicy, acceptLog bool) (nftablesRules, nftablesRules) {
 	ingress, egress := nftablesRules{}, nftablesRules{}
 	if len(np.Spec.Egress) > 0 {
-		egress = append(egress, clusterwideNetworkPolicyEgressRules(np)...)
+		egress = append(egress, clusterwideNetworkPolicyEgressRules(np, acceptLog)...)
 	}
 	if len(np.Spec.Ingress) > 0 {
-		ingress = append(ingress, clusterwideNetworkPolicyIngressRules(np)...)
+		ingress = append(ingress, clusterwideNetworkPolicyIngressRules(np, acceptLog)...)
 	}
 	return ingress, egress
 }
 
-func clusterwideNetworkPolicyIngressRules(np firewallv1.ClusterwideNetworkPolicy) nftablesRules {
+func clusterwideNetworkPolicyIngressRules(np firewallv1.ClusterwideNetworkPolicy, acceptLog bool) nftablesRules {
 	ingress := np.Spec.Ingress
 	if ingress == nil {
 		return nil
@@ -43,16 +43,16 @@ func clusterwideNetworkPolicyIngressRules(np firewallv1.ClusterwideNetworkPolicy
 		tcpPorts, udpPorts := calculatePorts(i.Ports)
 		comment := fmt.Sprintf("accept traffic for k8s network policy %s", np.ObjectMeta.Name)
 		if len(tcpPorts) > 0 {
-			rules = append(rules, assembleDestinationPortRule(common, "tcp", tcpPorts, comment+" tcp"))
+			rules = append(rules, assembleDestinationPortRule(common, "tcp", tcpPorts, acceptLog, comment+" tcp"))
 		}
 		if len(udpPorts) > 0 {
-			rules = append(rules, assembleDestinationPortRule(common, "udp", udpPorts, comment+" udp"))
+			rules = append(rules, assembleDestinationPortRule(common, "udp", udpPorts, acceptLog, comment+" udp"))
 		}
 	}
 	return uniqueSorted(rules)
 }
 
-func clusterwideNetworkPolicyEgressRules(np firewallv1.ClusterwideNetworkPolicy) nftablesRules {
+func clusterwideNetworkPolicyEgressRules(np firewallv1.ClusterwideNetworkPolicy, acceptLog bool) nftablesRules {
 	egress := np.Spec.Egress
 	if egress == nil {
 		return nil
@@ -77,10 +77,10 @@ func clusterwideNetworkPolicyEgressRules(np firewallv1.ClusterwideNetworkPolicy)
 		}
 		comment := fmt.Sprintf("accept traffic for np %s", np.ObjectMeta.Name)
 		if len(tcpPorts) > 0 {
-			rules = append(rules, assembleDestinationPortRule(ruleBase, "tcp", tcpPorts, comment+" tcp"))
+			rules = append(rules, assembleDestinationPortRule(ruleBase, "tcp", tcpPorts, acceptLog, comment+" tcp"))
 		}
 		if len(udpPorts) > 0 {
-			rules = append(rules, assembleDestinationPortRule(ruleBase, "udp", udpPorts, comment+" udp"))
+			rules = append(rules, assembleDestinationPortRule(ruleBase, "udp", udpPorts, acceptLog, comment+" udp"))
 		}
 	}
 	return uniqueSorted(rules)
