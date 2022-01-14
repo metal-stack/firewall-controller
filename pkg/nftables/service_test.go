@@ -43,7 +43,7 @@ func TestServiceRules(t *testing.T) {
 				},
 			},
 			want: nftablesRules{
-				`ip saddr { 185.0.0.0/16, 185.1.0.0/16 } ip daddr { 185.0.0.1 } tcp dport { 443 } counter accept comment "accept traffic for k8s service test/svc"`,
+				`ip saddr { 185.0.0.0/16, 185.1.0.0/16 } ip daddr { 185.0.0.1 } tcp dport { 443 } counter log prefix "nftables-firewall-accept: " accept comment "accept traffic for k8s service test/svc"`,
 			},
 		},
 		{

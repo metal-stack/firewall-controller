@@ -87,11 +87,11 @@ func TestClusterwideNetworkPolicyRules(t *testing.T) {
 			},
 			want: want{
 				ingress: nftablesRules{
-					`ip saddr != { 1.1.0.1 } ip saddr { 1.1.0.0/24 } tcp dport { 80, 443-448 } counter accept comment "accept traffic for k8s network policy  tcp"`,
+					`ip saddr != { 1.1.0.1 } ip saddr { 1.1.0.0/24 } tcp dport { 80, 443-448 } counter log prefix "nftables-firewall-accept: " accept comment "accept traffic for k8s network policy  tcp"`,
 				},
 				egress: nftablesRules{
-					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } tcp dport { 53, 443-448 } counter accept comment "accept traffic for np  tcp"`,
-					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } udp dport { 53 } counter accept comment "accept traffic for np  udp"`,
+					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } tcp dport { 53, 443-448 } counter log prefix "nftables-firewall-accept: " accept comment "accept traffic for np  tcp"`,
+					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } udp dport { 53 } counter log prefix "nftables-firewall-accept: " accept comment "accept traffic for np  udp"`,
 				},
 			},
 		},
@@ -148,8 +148,8 @@ func TestClusterwideNetworkPolicyEgressRules(t *testing.T) {
 				},
 			},
 			want: nftablesRules{
-				`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } tcp dport { 53 } counter accept comment "accept traffic for np  tcp"`,
-				`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } udp dport { 53 } counter accept comment "accept traffic for np  udp"`,
+				`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } tcp dport { 53 } counter log prefix "nftables-firewall-accept: " accept comment "accept traffic for np  tcp"`,
+				`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } udp dport { 53 } counter log prefix "nftables-firewall-accept: " accept comment "accept traffic for np  udp"`,
 			},
 		},
 	}
