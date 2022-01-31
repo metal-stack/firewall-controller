@@ -70,7 +70,7 @@ table ip firewall {
 
 		# icmp
 		ip protocol icmp icmp type echo-request limit rate over 10/second burst 4 packets counter drop comment "drop ping floods"
-		ip protocol icmp icmp type { destination-unreachable, router-solicitation, router-advertisement, time-exceeded, parameter-problem } counter log prefix "nftables-firewall-accept: " accept comment "accept icmp"
+		ip protocol icmp icmp type { destination-unreachable, router-solicitation, router-advertisement, time-exceeded, parameter-problem } counter log prefix "nftables-firewall-accepted: " accept comment "accept icmp"
 
 		# dynamic ingress rules
 		ingress rule
@@ -132,7 +132,7 @@ table ip firewall {
 
 		# icmp
 		ip protocol icmp icmp type echo-request limit rate over 10/second burst 4 packets counter drop comment "drop ping floods"
-		ip protocol icmp icmp type { destination-unreachable, router-solicitation, router-advertisement, time-exceeded, parameter-problem } counter log prefix "nftables-firewall-accept: " accept comment "accept icmp"
+		ip protocol icmp icmp type { destination-unreachable, router-solicitation, router-advertisement, time-exceeded, parameter-problem } counter log prefix "nftables-firewall-accepted: " accept comment "accept icmp"
 
 		# dynamic ingress rules
 		ingress rule

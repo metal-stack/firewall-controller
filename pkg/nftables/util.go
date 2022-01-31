@@ -60,7 +60,7 @@ func assembleDestinationPortRule(common []string, protocol string, ports []strin
 	parts = append(parts, fmt.Sprintf("%s dport { %s }", protocol, strings.Join(ports, ", ")))
 	parts = append(parts, "counter")
 	if acceptLog {
-		parts = append(parts, "log prefix \"nftables-firewall-accept: \"")
+		parts = append(parts, "log prefix \"nftables-firewall-accepted: \"")
 	}
 	parts = append(parts, "accept")
 	if comment != "" {
