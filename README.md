@@ -34,7 +34,7 @@ spec:
   # Ratelimits specify on which physical interface, which maximum rate of traffic is allowed
   ratelimits:
   # Acceptlog specifies whether accepted connections should be logged by the firewall in addition to dropped/rejected connections
-  acceptlog: true
+  acceptlog: false
   # The name of the interface visible with ip link show
   - interface: vrf104009
     # The maximum rate in MBits/s
