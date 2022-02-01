@@ -16,12 +16,16 @@ func uniqueSorted(elements []string) []string {
 	for _, e := range elements {
 		t[e] = true
 	}
-	r := []string{}
+	rawRules := []string{}
 	for k := range t {
-		r = append(r, k)
+		rawRules = append(rawRules, k)
 	}
-	sort.Strings(r)
-	return r
+	sort.Strings(rawRules)
+	rules := []string{}
+	for _, r := range rawRules { // split multiline log\naccept rules for pretty nftables file formatting
+		rules = append(rules, strings.Split(r, "\n")...)
+	}
+	return rules
 }
 
 func equal(source, target string) bool {

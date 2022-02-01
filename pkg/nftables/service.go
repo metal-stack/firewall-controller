@@ -78,5 +78,5 @@ func serviceRules(svc corev1.Service, acceptLog bool) nftablesRules {
 	if len(udpPorts) > 0 {
 		rules = append(rules, assembleDestinationPortRule(ruleBase, "udp", udpPorts, acceptLog, comment))
 	}
-	return rules
+	return uniqueSorted(rules)
 }
