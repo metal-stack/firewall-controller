@@ -52,7 +52,8 @@ func TestServiceRules(t *testing.T) {
 					`ip saddr { 185.0.0.0/16, 185.1.0.0/16 } ip daddr { 185.0.0.1 } tcp dport { 443 } counter accept comment "accept traffic for k8s service test/svc"`,
 				},
 				ingressAL: nftablesRules{
-					`ip saddr { 185.0.0.0/16, 185.1.0.0/16 } ip daddr { 185.0.0.1 } tcp dport { 443 } counter log prefix "nftables-firewall-accepted: " accept comment "accept traffic for k8s service test/svc"`,
+					`ip saddr { 185.0.0.0/16, 185.1.0.0/16 } ip daddr { 185.0.0.1 } tcp dport { 443 } log prefix "nftables-firewall-accepted: " limit rate 10/second
+ip saddr { 185.0.0.0/16, 185.1.0.0/16 } ip daddr { 185.0.0.1 } tcp dport { 443 } counter accept comment "accept traffic for k8s service test/svc"`,
 				},
 			},
 		},

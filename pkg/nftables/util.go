@@ -56,17 +56,23 @@ func checksum(file string) (string, error) {
 }
 
 func assembleDestinationPortRule(common []string, protocol string, ports []string, acceptLog bool, comment string) string {
+	logRule := ""
+	rule := ""
 	parts := common
 	parts = append(parts, fmt.Sprintf("%s dport { %s }", protocol, strings.Join(ports, ", ")))
-	parts = append(parts, "counter")
 	if acceptLog {
-		parts = append(parts, "log prefix \"nftables-firewall-accepted: \"")
+		logParts := append(parts, "log prefix \"nftables-firewall-accepted: \" limit rate 10/second")
+		logRule = strings.Join(logParts, " ")
 	}
-	parts = append(parts, "accept")
+	parts = append(parts, "counter", "accept")
 	if comment != "" {
 		parts = append(parts, "comment", fmt.Sprintf(`"%s"`, comment))
 	}
-	return strings.Join(parts, " ")
+	rule = strings.Join(parts, " ")
+	if logRule != "" {
+		rule = logRule + "\n" + rule
+	}
+	return rule
 }
 
 func proto(p *corev1.Protocol) string {
