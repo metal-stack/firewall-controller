@@ -169,7 +169,7 @@ func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(f firewallv1.Firewal
 //     In basic config there's now DNAT rules required for DNS Proxy.
 //  2. DNS Proxy is started by CWNP controller and it will not be started until some CWNP resource is created/updated/deleted.
 func (r *ClusterwideNetworkPolicyReconciler) getReconcilationTicker(scheduleChan chan<- event.GenericEvent) manager.RunnableFunc {
-	return func(c <-chan struct{}) error {
+	return func(ctx context.Context) error {
 		e := event.GenericEvent{}
 		ticker := time.NewTicker(r.Interval)
 
@@ -180,7 +180,7 @@ func (r *ClusterwideNetworkPolicyReconciler) getReconcilationTicker(scheduleChan
 				scheduleChan <- e
 				ticker.Stop()
 				ticker = time.NewTicker(r.Interval)
-			case <-c:
+			case <-ctx.Done():
 				break loop
 			}
 		}
@@ -196,20 +196,14 @@ func (r *ClusterwideNetworkPolicyReconciler) SetupWithManager(mgr ctrl.Manager) 
 		return fmt.Errorf("failed to add runnable to manager: %w", err)
 	}
 
-	firewallHandler := &handler.EnqueueRequestsFromMapFunc{
-		ToRequests: handler.ToRequestsFunc(
-			func(a handler.MapObject) []reconcile.Request {
-				return []reconcile.Request{
-					{
-						NamespacedName: types.NamespacedName{
-							Name:      firewallName,
-							Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
-						},
-					},
-				}
-			},
-		),
-	}
+	firewallHandler := handler.EnqueueRequestsFromMapFunc(func(a client.Object) []reconcile.Request {
+		return []reconcile.Request{
+			{NamespacedName: types.NamespacedName{
+				Name:      firewallName,
+				Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
+			}},
+		}
+	})
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&firewallv1.ClusterwideNetworkPolicy{}).

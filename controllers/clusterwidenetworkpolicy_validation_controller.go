@@ -17,14 +17,16 @@ package controllers
 import (
 	"context"
 	"fmt"
+
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/go-logr/logr"
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 )
 
 // ClusterwideNetworkPolicyValidationReconciler validates a ClusterwideNetworkPolicy object
@@ -39,9 +41,7 @@ type ClusterwideNetworkPolicyValidationReconciler struct {
 // Validates ClusterwideNetworkPolicy object
 // +kubebuilder:rbac:groups=metal-stack.io,resources=clusterwidenetworkpolicies,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=metal-stack.io,resources=clusterwidenetworkpolicies/status,verbs=get;update;patch
-func (r *ClusterwideNetworkPolicyValidationReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
-
+func (r *ClusterwideNetworkPolicyValidationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var clusterNP firewallv1.ClusterwideNetworkPolicy
 	if err := r.Get(ctx, req.NamespacedName, &clusterNP); err != nil {
 		return done, client.IgnoreNotFound(err)

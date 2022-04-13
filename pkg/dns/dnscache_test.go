@@ -81,7 +81,7 @@ func Test_GetSetsForFQDN(t *testing.T) {
 		tc := tt
 		t.Run(tc.name, func(t *testing.T) {
 			cache := DNSCache{
-				log:         logr.DiscardLogger{},
+				log:         logr.Discard(),
 				fqdnToEntry: tc.fqdnToEntry,
 				setNames:    make(map[string]struct{}),
 				ipv4Enabled: true,

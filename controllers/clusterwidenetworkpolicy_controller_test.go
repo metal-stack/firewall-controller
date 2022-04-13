@@ -16,6 +16,7 @@ limitations under the License.
 package controllers
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/metal-stack/firewall-controller/controllers/mocks"
@@ -40,6 +41,7 @@ var _ = Describe("Reconcile CWNP resources", func() {
 		reconcile bool
 	}
 
+	ctx := context.TODO()
 	testFunc := func(tc CWNPTestCase) {
 		ctrl := gomock.NewController(GinkgoT())
 		defer ctrl.Finish()
@@ -62,7 +64,7 @@ var _ = Describe("Reconcile CWNP resources", func() {
 			tc.mockFunc(fqdnCache)
 		}
 
-		_, err := r.Reconcile(req)
+		_, err := r.Reconcile(ctx, req)
 		Expect(err).ToNot(HaveOccurred())
 	}
 
