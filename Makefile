@@ -13,7 +13,7 @@ METAL_NETWORKER_VERSION := v0.8.3
 
 # Kubebuilder installation environment variables
 KUBEBUILDER_DOWNLOAD_URL := https://github.com/kubernetes-sigs/kubebuilder/releases/download
-KUBEBUILDER_VER := 2.3.2
+KUBEBUILDER_VER := 3.3.0
 KUBEBUILDER_ASSETS := /usr/local/bin
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)

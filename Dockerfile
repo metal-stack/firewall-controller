@@ -2,7 +2,7 @@
 FROM golang:1.19 as builder
 
 ENV KUBEBUILDER_DOWNLOAD_URL=https://github.com/kubernetes-sigs/kubebuilder/releases/download
-ENV KUBEBUILDER_VER=v3.2.0
+ENV KUBEBUILDER_VER=v3.3.0
 RUN set -ex \
  && mkdir -p /usr/local/bin \
  && curl -L ${KUBEBUILDER_DOWNLOAD_URL}/v${KUBEBUILDER_VER}/kubebuilder_linux_amd64 -o /usr/local/bin/kubebuilder \
