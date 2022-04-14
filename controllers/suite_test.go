@@ -17,8 +17,8 @@ limitations under the License.
 package controllers
 
 import (
-	"crypto/md5" //nolint:gosec
-	"encoding/json"
+	//nolint:gosec
+
 	"path/filepath"
 	"testing"
 
@@ -146,12 +146,6 @@ func newCWNP(name string, egress []firewallv1.EgressRule) *firewallv1.Clusterwid
 		ObjectMeta: objMeta,
 		Spec:       spec,
 	}
-}
-
-func getCWNPChecksum(name string, egress []firewallv1.EgressRule) [16]byte {
-	spec := newCWNP(name, egress).Spec
-	j, _ := json.Marshal(spec) //nolint
-	return md5.Sum(j)
 }
 
 func createTestFirewallFunc(fw FirewallInterface) CreateFirewall {
