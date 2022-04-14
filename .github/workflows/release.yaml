@@ -13,10 +13,10 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v2
-    - name: Set up Go 1.18
+    - name: Set up Go 1.17
       uses: actions/setup-go@v2
       with:
-        go-version: '1.18.x'
+        go-version: '1.17.x'
 
     - name: run integration tests
       run: |
@@ -38,10 +38,10 @@ jobs:
         service_account_email: ${{ secrets.GCP_SA_EMAIL }}
         service_account_key: ${{ secrets.GCP_SA_KEY }}
 
-    - name: Set up Go 1.18
+    - name: Set up Go 1.17
       uses: actions/setup-go@v2
       with:
-        go-version: '1.18.x'
+        go-version: '1.17.x'
 
     - name: Get release
       id: get_release

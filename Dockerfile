@@ -26,6 +26,10 @@ COPY config config/
 COPY pkg/ pkg/
 COPY hack/ hack/
 
+# Install kubenuilder
+ENV KUBEBUILDER_ASSETS=/usr/local/bin
+RUN make kubebuilder
+
 # Build
 RUN make test all
 

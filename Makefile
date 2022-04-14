@@ -14,7 +14,8 @@ METAL_NETWORKER_VERSION := v0.8.3
 # Kubebuilder installation environment variables
 KUBEBUILDER_DOWNLOAD_URL := https://github.com/kubernetes-sigs/kubebuilder/releases/download
 KUBEBUILDER_VER := 3.3.0
-KUBEBUILDER_ASSETS := /usr/local/bin
+KUBEBUILDER_ASSETS ?= /usr/local/kubebuilder/bin
+K8S_VERSION := 1.22.1
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -27,13 +28,13 @@ all: firewall-controller
 
 # Run tests
 test: generate fmt vet manifests
-	go test ./... -short -coverprofile cover.out
+	KUBEBUILDER_ASSETS=${KUBEBUILDER_ASSETS} go test ./... -short -coverprofile cover.out
 
 test-all: generate fmt vet manifests kubebuilder
-	go test ./... -v -coverprofile cover.out
+	KUBEBUILDER_ASSETS=${KUBEBUILDER_ASSETS} go test ./... -v -coverprofile cover.out
 
 test-integration: generate fmt vet manifests
-	go test ./... -v Integration
+	KUBEBUILDER_ASSETS=${KUBEBUILDER_ASSETS} go test ./... -v Integration
 
 clean:
 	rm -rf bin/* pkg/network/frr.firewall.tpl
@@ -99,10 +100,11 @@ docker-push:
 
 kubebuilder:
 	set -ex \
- 		&& mkdir -p /tmp/kubebuilder /usr/local/bin \
- 		&& curl -L ${KUBEBUILDER_DOWNLOAD_URL}/v${KUBEBUILDER_VER}/kubebuilder_${KUBEBUILDER_VER}_linux_amd64.tar.gz -o /tmp/kubebuilder-${KUBEBUILDER_VER}-linux-amd64.tar.gz \
- 		&& tar xzvf /tmp/kubebuilder-${KUBEBUILDER_VER}-linux-amd64.tar.gz -C /tmp/kubebuilder --strip-components=1 \
- 		&& mv /tmp/kubebuilder/bin/* ${KUBEBUILDER_ASSETS}/
+ 		&& mkdir -p /tmp/kubebuilder ${KUBEBUILDER_ASSETS} \
+ 		&& curl -L ${KUBEBUILDER_DOWNLOAD_URL}/v${KUBEBUILDER_VER}/kubebuilder_linux_amd64 -o ${KUBEBUILDER_ASSETS}/kubebuilder \
+ 		&& chmod +x ${KUBEBUILDER_ASSETS}/kubebuilder \
+ 		&& curl -sSLo /tmp/kubebuilder/envtest-bins.tar.gz "https://go.kubebuilder.io/test-tools/${K8S_VERSION}/linux/amd64" \
+ 		&& tar -C ${KUBEBUILDER_ASSETS} --strip-components=2 -zvxf /tmp/kubebuilder/envtest-bins.tar.gz
 
 # find or download controller-gen
 # download controller-gen if necessary
