@@ -67,7 +67,6 @@ func clusterwideNetworkPolicyEgressRules(
 ) (rules nftablesRules, updated firewallv1.ClusterwideNetworkPolicy) {
 	for i, e := range np.Spec.Egress {
 		tcpPorts, udpPorts := calculatePorts(e.Ports)
-
 		ruleBases := []ruleBase{}
 		if len(e.To) > 0 {
 			allow, except := clusterwideNetworkPolicyEgressToRules(e)
