@@ -182,7 +182,6 @@ func main() {
 	// +kubebuilder:scaffold:builder
 
 	<-ctx.Done()
-	fmt.Println("firewall controller was stopped")
 }
 
 func readCRDsFromVFS() (map[string][]byte, error) {
