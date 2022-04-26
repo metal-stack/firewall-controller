@@ -13,7 +13,7 @@ require (
 	github.com/metal-stack/metal-lib v0.11.2
 	github.com/metal-stack/metal-networker v0.8.4-0.20220525194712-c94e89eacdf5
 	github.com/metal-stack/v v1.0.3
-	github.com/miekg/dns v1.1.43
+	github.com/miekg/dns v1.1.48
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.19.0
 	github.com/txn2/txeh v1.3.0
@@ -107,4 +107,9 @@ require (
 require (
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	inet.af/netaddr v0.0.0-20211027220019-c74959edd3b6 // indirect
+)
+
+require (
+	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
+	golang.org/x/tools v0.1.12 // indirect
 )
