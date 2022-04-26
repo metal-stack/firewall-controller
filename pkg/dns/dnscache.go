@@ -301,7 +301,7 @@ func (c *DNSCache) Update(lookupTime time.Time, msg *dnsgo.Msg) error {
 				minIPv6TTL = rr.Hdr.Ttl
 			}
 		default:
-			c.log.Info("unknown DNS response type", "type", rr.String())
+			continue
 		}
 	}
 
