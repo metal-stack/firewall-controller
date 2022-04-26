@@ -65,6 +65,7 @@ jobs:
     - name: Lint
       uses: golangci/golangci-lint-action@v2
       with:
+        skip-go-installation: true
         args: -p bugs -p unused --timeout=3m
 
     - name: Build
