@@ -9,7 +9,8 @@ DOCKER_TAG := $(or ${GITHUB_TAG_NAME}, latest)
 DOCKER_IMG ?= ghcr.io/metal-stack/firewall-controller:${DOCKER_TAG}
 # this version is used to include template from the metal-networker to the firewall-controller
 # version should be not that far away from the compile dependency in go.mod
-METAL_NETWORKER_VERSION := v0.7.2
+# FIXME this must be done in a more stable way, e.g. move metal-networker into this repo
+METAL_NETWORKER_VERSION := v0.8.3
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
