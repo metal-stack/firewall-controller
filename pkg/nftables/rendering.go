@@ -25,13 +25,13 @@ func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 		if err != nil {
 			continue
 		}
-		i, e := clusterwideNetworkPolicyRules(np, f.acceptLog)
+		i, e := clusterwideNetworkPolicyRules(np, f.logAcceptedConnections)
 		ingress = append(ingress, i...)
 		egress = append(egress, e...)
 	}
 
 	for _, svc := range f.services.Items {
-		ingress = append(ingress, serviceRules(svc, f.acceptLog)...)
+		ingress = append(ingress, serviceRules(svc, f.logAcceptedConnections)...)
 	}
 
 	snatRules, err := snatRules(f)

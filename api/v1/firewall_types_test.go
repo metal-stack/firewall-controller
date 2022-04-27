@@ -39,10 +39,10 @@ func TestSerialization(t *testing.T) {
 		{
 			name: "test for api breaking changes in firewall spec",
 			data: &Data{
-				Interval:     "10s",
-				DryRun:       false,
-				AcceptLog:    false,
-				Ipv4RuleFile: "/etc/nftables/firewall-controller.ipv4",
+				Interval:               "10s",
+				DryRun:                 false,
+				LogAcceptedConnections: false,
+				Ipv4RuleFile:           "/etc/nftables/firewall-controller.ipv4",
 				RateLimits: []RateLimit{
 					{
 						NetworkID: "internet",

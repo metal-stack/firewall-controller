@@ -38,8 +38,8 @@ type Firewall struct {
 	primaryPrivateNet *firewallv1.FirewallNetwork
 	networkMap        networkMap
 
-	dryRun    bool
-	acceptLog bool
+	dryRun                 bool
+	logAcceptedConnections bool
 }
 
 type networkMap map[string]firewallv1.FirewallNetwork
@@ -78,7 +78,7 @@ func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.Serv
 		primaryPrivateNet:          primaryPrivateNet,
 		networkMap:                 networkMap,
 		dryRun:                     spec.DryRun,
-		acceptLog:                  spec.AcceptLog,
+		logAcceptedConnections:     spec.LogAcceptedConnections,
 		log:                        log,
 	}
 }

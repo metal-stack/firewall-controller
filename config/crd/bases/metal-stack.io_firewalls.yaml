@@ -45,8 +45,8 @@ spec:
           spec:
             description: FirewallSpec defines the desired state of Firewall
             properties:
-              acceptlog:
-                description: AcceptLog if set to true, also log accepted connections
+              logAcceptedConnections:
+                description: LogAcceptedConnections if set to true, also log accepted connections
                   in the droptailer log
                 type: boolean
               controllerURL:

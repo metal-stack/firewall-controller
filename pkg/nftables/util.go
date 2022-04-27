@@ -59,12 +59,12 @@ func checksum(file string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-func assembleDestinationPortRule(common []string, protocol string, ports []string, acceptLog bool, comment string) string {
+func assembleDestinationPortRule(common []string, protocol string, ports []string, logAcceptedConnections bool, comment string) string {
 	logRule := ""
 	rule := ""
 	parts := common
 	parts = append(parts, fmt.Sprintf("%s dport { %s }", protocol, strings.Join(ports, ", ")))
-	if acceptLog {
+	if logAcceptedConnections {
 		logParts := append(parts, "log prefix \"nftables-firewall-accepted: \" limit rate 10/second")
 		logRule = strings.Join(logParts, " ")
 	}

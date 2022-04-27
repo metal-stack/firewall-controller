@@ -19,7 +19,7 @@ func isIP(ip string) bool {
 }
 
 // serviceRules generates nftables rules base on a k8s service definition
-func serviceRules(svc corev1.Service, acceptLog bool) nftablesRules {
+func serviceRules(svc corev1.Service, logAcceptedConnections bool) nftablesRules {
 	if svc.Spec.Type != corev1.ServiceTypeLoadBalancer && svc.Spec.Type != corev1.ServiceTypeNodePort {
 		return nil
 	}
@@ -73,10 +73,10 @@ func serviceRules(svc corev1.Service, acceptLog bool) nftablesRules {
 	comment := fmt.Sprintf("accept traffic for k8s service %s/%s", svc.ObjectMeta.Namespace, svc.ObjectMeta.Name)
 	rules := nftablesRules{}
 	if len(tcpPorts) > 0 {
-		rules = append(rules, assembleDestinationPortRule(ruleBase, "tcp", tcpPorts, acceptLog, comment))
+		rules = append(rules, assembleDestinationPortRule(ruleBase, "tcp", tcpPorts, logAcceptedConnections, comment))
 	}
 	if len(udpPorts) > 0 {
-		rules = append(rules, assembleDestinationPortRule(ruleBase, "udp", udpPorts, acceptLog, comment))
+		rules = append(rules, assembleDestinationPortRule(ruleBase, "udp", udpPorts, logAcceptedConnections, comment))
 	}
 	return uniqueSorted(rules)
 }
