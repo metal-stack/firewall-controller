@@ -108,6 +108,7 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return done, client.IgnoreNotFound(err)
 	}
 
+	log.Info("ACCEPTDEBUG", "Firewallspec before validation", f.Spec)
 	if err := r.validateFirewall(f); err != nil {
 		r.recorder.Event(&f, corev1.EventTypeWarning, "Unapplicable", err.Error())
 		// don't requeue invalid firewall objects
