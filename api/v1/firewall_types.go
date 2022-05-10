@@ -61,6 +61,9 @@ type FirewallSpec struct {
 	ControllerVersion string `json:"controllerVersion,omitempty"`
 	// ControllerURL points to the downloadable binary artifact of the firewall controller
 	ControllerURL string `json:"controllerURL,omitempty"`
+	// LogAcceptedConnections if set to true, also log accepted connections in the droptailer log
+	// FIXME This really should be under Data; but we need to solve how we deal with the Data signatures.
+	LogAcceptedConnections bool `json:"logAcceptedConnections,omitempty"`
 }
 
 // Data contains the fields over which the signature is calculated.
@@ -69,8 +72,6 @@ type Data struct {
 	Interval string `json:"interval,omitempty"`
 	// DryRun if set to true, firewall rules are not applied
 	DryRun bool `json:"dryrun,omitempty"`
-	// LogAcceptedConnections if set to true, also log accepted connections in the droptailer log
-	LogAcceptedConnections bool `json:"logAcceptedConnections,omitempty"`
 	// TrafficControl defines where to store the generated ipv4 firewall rules on disk
 	Ipv4RuleFile string `json:"ipv4rulefile,omitempty"`
 	// RateLimits allows configuration of rate limit rules for interfaces.
