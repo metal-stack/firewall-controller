@@ -62,7 +62,6 @@ type FirewallSpec struct {
 	// ControllerURL points to the downloadable binary artifact of the firewall controller
 	ControllerURL string `json:"controllerURL,omitempty"`
 	// LogAcceptedConnections if set to true, also log accepted connections in the droptailer log
-	// FIXME This really should be under Data; but we need to solve how we deal with the Data signatures.
 	LogAcceptedConnections bool `json:"logAcceptedConnections,omitempty"`
 }
 
