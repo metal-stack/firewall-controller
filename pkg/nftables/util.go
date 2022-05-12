@@ -16,12 +16,16 @@ func uniqueSorted(elements []string) []string {
 	for _, e := range elements {
 		t[e] = true
 	}
-	r := []string{}
+	rawRules := []string{}
 	for k := range t {
-		r = append(r, k)
+		rawRules = append(rawRules, k)
 	}
-	sort.Strings(r)
-	return r
+	sort.Strings(rawRules)
+	rules := []string{}
+	for _, r := range rawRules { // split multiline log\naccept rules for pretty nftables file formatting
+		rules = append(rules, strings.Split(r, "\n")...)
+	}
+	return rules
 }
 
 func equal(source, target string) bool {
@@ -55,15 +59,24 @@ func checksum(file string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-func assembleDestinationPortRule(common []string, protocol string, ports []string, comment string) string {
+func assembleDestinationPortRule(common []string, protocol string, ports []string, logAcceptedConnections bool, comment string) string {
+	logRule := ""
+	rule := ""
 	parts := common
 	parts = append(parts, fmt.Sprintf("%s dport { %s }", protocol, strings.Join(ports, ", ")))
-	parts = append(parts, "counter")
-	parts = append(parts, "accept")
+	if logAcceptedConnections {
+		logParts := append(parts, "log prefix \"nftables-firewall-accepted: \" limit rate 10/second")
+		logRule = strings.Join(logParts, " ")
+	}
+	parts = append(parts, "counter", "accept")
 	if comment != "" {
 		parts = append(parts, "comment", fmt.Sprintf(`"%s"`, comment))
 	}
-	return strings.Join(parts, " ")
+	rule = strings.Join(parts, " ")
+	if logRule != "" {
+		rule = logRule + "\n" + rule
+	}
+	return rule
 }
 
 func proto(p *corev1.Protocol) string {

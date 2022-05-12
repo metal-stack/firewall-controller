@@ -9,10 +9,15 @@ import (
 )
 
 func TestServiceRules(t *testing.T) {
+	type want struct {
+		ingress   nftablesRules
+		ingressAL nftablesRules
+	}
+
 	tests := []struct {
 		name  string
 		input corev1.Service
-		want  nftablesRules
+		want  want
 	}{
 		{
 			name: "standard service type loadbalancer with restricted source IP range",
@@ -42,8 +47,14 @@ func TestServiceRules(t *testing.T) {
 					},
 				},
 			},
-			want: nftablesRules{
-				`ip saddr { 185.0.0.0/16, 185.1.0.0/16 } ip daddr { 185.0.0.1 } tcp dport { 443 } counter accept comment "accept traffic for k8s service test/svc"`,
+			want: want{
+				ingress: nftablesRules{
+					`ip saddr { 185.0.0.0/16, 185.1.0.0/16 } ip daddr { 185.0.0.1 } tcp dport { 443 } counter accept comment "accept traffic for k8s service test/svc"`,
+				},
+				ingressAL: nftablesRules{
+					`ip saddr { 185.0.0.0/16, 185.1.0.0/16 } ip daddr { 185.0.0.1 } tcp dport { 443 } log prefix "nftables-firewall-accepted: " limit rate 10/second`,
+					`ip saddr { 185.0.0.0/16, 185.1.0.0/16 } ip daddr { 185.0.0.1 } tcp dport { 443 } counter accept comment "accept traffic for k8s service test/svc"`,
+				},
 			},
 		},
 		{
@@ -60,7 +71,7 @@ func TestServiceRules(t *testing.T) {
 					},
 				},
 			},
-			want: nil,
+			want: want{nil, nil},
 		},
 		{
 			name: "service type clusterip is a noop",
@@ -76,15 +87,19 @@ func TestServiceRules(t *testing.T) {
 					},
 				},
 			},
-			want: nil,
+			want: want{nil, nil},
 		},
 	}
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			got := serviceRules(tt.input)
-			if !cmp.Equal(got, tt.want) {
-				t.Errorf("serviceRules() diff: %v", cmp.Diff(got, tt.want))
+			ingress := serviceRules(tt.input, false)
+			if !cmp.Equal(ingress, tt.want.ingress) {
+				t.Errorf("serviceRules() diff: %v", cmp.Diff(ingress, tt.want.ingress))
+			}
+			ingressAL := serviceRules(tt.input, true)
+			if !cmp.Equal(ingressAL, tt.want.ingressAL) {
+				t.Errorf("serviceRules() diff: %v", cmp.Diff(ingressAL, tt.want.ingressAL))
 			}
 		})
 	}

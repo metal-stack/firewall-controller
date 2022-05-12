@@ -61,6 +61,8 @@ type FirewallSpec struct {
 	ControllerVersion string `json:"controllerVersion,omitempty"`
 	// ControllerURL points to the downloadable binary artifact of the firewall controller
 	ControllerURL string `json:"controllerURL,omitempty"`
+	// LogAcceptedConnections if set to true, also log accepted connections in the droptailer log
+	LogAcceptedConnections bool `json:"logAcceptedConnections,omitempty"`
 }
 
 // Data contains the fields over which the signature is calculated.

@@ -33,6 +33,8 @@ spec:
   interval: 10s
   # Ratelimits specify on which physical interface, which maximum rate of traffic is allowed
   ratelimits:
+  # LogAcceptedConnections specifies whether accepted connections should be logged by the firewall in addition to dropped/rejected connections
+  logAcceptedConnections: false
   # The name of the interface visible with ip link show
   - interface: vrf104009
     # The maximum rate in MBits/s
@@ -207,12 +209,12 @@ The output will look like:
 
 ```json
 
-droptailer-6d556bd988-4g8gp droptailer 2020-06-17 13:23:27 +0000 UTC {"DPT":"4000","DST":"1.2.3.4","ID":"54321","IN":"vrf104009","LEN":"40","MAC":"ca:41:f9:80:fa:89:aa:bb:0e:62:8c:a6:08:00","OUT":"vlan179","PREC":"0x00","PROTO":"TCP","RES":"0x00","SPT":"38464","SRC":"2.3.4.5","SYN":"","TOS":"0x00","TTL":"236","URGP":"0","WINDOW":"65535","timestamp":"2020-06-17 13:23:27 +0000 UTC"}
-droptailer-6d556bd988-4g8gp droptailer 2020-06-17 13:23:34 +0000 UTC {"DPT":"2362","DST":"1.2.3.4","ID":"44545","IN":"vrf104009","LEN":"40","MAC":"ca:41:f9:80:fa:89:aa:bb:0e:62:8c:a6:08:00","OUT":"","PREC":"0x00","PROTO":"TCP","RES":"0x00","SPT":"40194","SRC":"2.3.4.5","SYN":"","TOS":"0x00","TTL":"242","URGP":"0","WINDOW":"1024","timestamp":"2020-06-17 13:23:34 +0000 UTC"}
-droptailer-6d556bd988-4g8gp droptailer 2020-06-17 13:23:30 +0000 UTC {"DPT":"650","DST":"1.2.3.4","ID":"12399","IN":"vrf104009","LEN":"40","MAC":"ca:41:f9:80:fa:89:aa:bb:0e:62:8c:a6:08:00","OUT":"vlan179","PREC":"0x00","PROTO":"TCP","RES":"0x00","SPT":"40194","SRC":"2.3.4.5","SYN":"","TOS":"0x00","TTL":"241","URGP":"0","WINDOW":"1024","timestamp":"2020-06-17 13:23:30 +0000 UTC"}
-droptailer-6d556bd988-4g8gp droptailer 2020-06-17 13:23:34 +0000 UTC {"DPT":"2362","DST":"1.2.3.4","ID":"44545","IN":"vrf104009","LEN":"40","MAC":"ca:41:f9:80:fa:89:aa:bb:0e:62:8c:a6:08:00","OUT":"","PREC":"0x00","PROTO":"TCP","RES":"0x00","SPT":"40194","SRC":"2.3.4.5","SYN":"","TOS":"0x00","TTL":"242","URGP":"0","WINDOW":"1024","timestamp":"2020-06-17 13:23:34 +0000 UTC"}
-droptailer-6d556bd988-4g8gp droptailer 2020-06-17 13:23:10 +0000 UTC {"DPT":"63351","DST":"1.2.3.4","ID":"11855","IN":"vrf104009","LEN":"40","MAC":"ca:41:f9:80:fa:89:aa:bb:0e:62:8c:a6:08:00","OUT":"vlan179","PREC":"0x00","PROTO":"TCP","RES":"0x00","SPT":"54589","SRC":"2.3.4.5","SYN":"","TOS":"0x00","TTL":"245","URGP":"0","WINDOW":"1024","timestamp":"2020-06-17 13:23:10 +0000 UTC"}
-droptailer-6d556bd988-4g8gp droptailer 2020-06-17 13:23:51 +0000 UTC {"DPT":"8002","DST":"1.2.3.4","ID":"17539","IN":"vrf104009","LEN":"40","MAC":"ca:41:f9:80:fa:89:aa:bb:0e:62:8c:a6:08:00","OUT":"","PREC":"0x00","PROTO":"TCP","RES":"0x00","SPT":"47615","SRC":"2.3.4.5","SYN":"","TOS":"0x08","TTL":"239","URGP":"0","WINDOW":"1024","timestamp":"2020-06-17 13:23:51 +0000 UTC"}
+droptailer-6d556bd988-4g8gp droptailer 2020-06-17 13:23:27 +0000 UTC {"ACTION":"Drop","DPT":"4000","DST":"1.2.3.4","ID":"54321","IN":"vrf104009","LEN":"40","MAC":"ca:41:f9:80:fa:89:aa:bb:0e:62:8c:a6:08:00","OUT":"vlan179","PREC":"0x00","PROTO":"TCP","RES":"0x00","SPT":"38464","SRC":"2.3.4.5","SYN":"","TOS":"0x00","TTL":"236","URGP":"0","WINDOW":"65535","timestamp":"2020-06-17 13:23:27 +0000 UTC"}
+droptailer-6d556bd988-4g8gp droptailer 2020-06-17 13:23:34 +0000 UTC {"ACTION":"Drop","DPT":"2362","DST":"1.2.3.4","ID":"44545","IN":"vrf104009","LEN":"40","MAC":"ca:41:f9:80:fa:89:aa:bb:0e:62:8c:a6:08:00","OUT":"","PREC":"0x00","PROTO":"TCP","RES":"0x00","SPT":"40194","SRC":"2.3.4.5","SYN":"","TOS":"0x00","TTL":"242","URGP":"0","WINDOW":"1024","timestamp":"2020-06-17 13:23:34 +0000 UTC"}
+droptailer-6d556bd988-4g8gp droptailer 2020-06-17 13:23:30 +0000 UTC {"ACTION":"Accept","DPT":"650","DST":"1.2.3.4","ID":"12399","IN":"vrf104009","LEN":"40","MAC":"ca:41:f9:80:fa:89:aa:bb:0e:62:8c:a6:08:00","OUT":"vlan179","PREC":"0x00","PROTO":"TCP","RES":"0x00","SPT":"40194","SRC":"2.3.4.5","SYN":"","TOS":"0x00","TTL":"241","URGP":"0","WINDOW":"1024","timestamp":"2020-06-17 13:23:30 +0000 UTC"}
+droptailer-6d556bd988-4g8gp droptailer 2020-06-17 13:23:34 +0000 UTC {"ACTION":"Accept","DPT":"2362","DST":"1.2.3.4","ID":"44545","IN":"vrf104009","LEN":"40","MAC":"ca:41:f9:80:fa:89:aa:bb:0e:62:8c:a6:08:00","OUT":"","PREC":"0x00","PROTO":"TCP","RES":"0x00","SPT":"40194","SRC":"2.3.4.5","SYN":"","TOS":"0x00","TTL":"242","URGP":"0","WINDOW":"1024","timestamp":"2020-06-17 13:23:34 +0000 UTC"}
+droptailer-6d556bd988-4g8gp droptailer 2020-06-17 13:23:10 +0000 UTC {"ACTION":"Accept","DPT":"63351","DST":"1.2.3.4","ID":"11855","IN":"vrf104009","LEN":"40","MAC":"ca:41:f9:80:fa:89:aa:bb:0e:62:8c:a6:08:00","OUT":"vlan179","PREC":"0x00","PROTO":"TCP","RES":"0x00","SPT":"54589","SRC":"2.3.4.5","SYN":"","TOS":"0x00","TTL":"245","URGP":"0","WINDOW":"1024","timestamp":"2020-06-17 13:23:10 +0000 UTC"}
+droptailer-6d556bd988-4g8gp droptailer 2020-06-17 13:23:51 +0000 UTC {"ACTION":"Accept","DPT":"8002","DST":"1.2.3.4","ID":"17539","IN":"vrf104009","LEN":"40","MAC":"ca:41:f9:80:fa:89:aa:bb:0e:62:8c:a6:08:00","OUT":"","PREC":"0x00","PROTO":"TCP","RES":"0x00","SPT":"47615","SRC":"2.3.4.5","SYN":"","TOS":"0x08","TTL":"239","URGP":"0","WINDOW":"1024","timestamp":"2020-06-17 13:23:51 +0000 UTC"}
 ```
 
 You can forward the droptailer logs to any log aggregation infrastructure you have in place.
