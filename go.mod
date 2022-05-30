@@ -11,7 +11,7 @@ require (
 	github.com/ks2211/go-suricata v0.0.0-20200823200910-986ce1470707
 	github.com/metal-stack/metal-go v0.21.4
 	github.com/metal-stack/metal-lib v0.11.2
-	github.com/metal-stack/metal-networker v0.8.4-0.20220525194712-c94e89eacdf5
+	github.com/metal-stack/metal-networker v0.8.4-0.20220530124700-e638aa05ed41
 	github.com/metal-stack/v v1.0.3
 	github.com/miekg/dns v1.1.48
 	github.com/onsi/ginkgo v1.16.5
