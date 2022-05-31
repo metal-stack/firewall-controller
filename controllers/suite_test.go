@@ -13,12 +13,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-//nolint
 package controllers
 
 import (
-	//nolint:gosec
-
 	"path/filepath"
 	"testing"
 
@@ -102,9 +99,9 @@ func newCWNPReconciler(
 	objects []runtime.Object,
 ) *ClusterwideNetworkPolicyReconciler {
 	return &ClusterwideNetworkPolicyReconciler{
-		Client:         fake.NewFakeClientWithScheme(setupScheme(), objects...),
-		Log:            zap.New(zap.UseDevMode(true)),
-		CreateFirewall: createFW,
+		Client:         fake.NewClientBuilder().WithScheme(setupScheme()).WithRuntimeObjects(objects...).Build(),
+		log:            zap.New(zap.UseDevMode(true)),
+		createFirewall: createFW,
 		cache:          cache,
 		skipDNS:        true,
 	}

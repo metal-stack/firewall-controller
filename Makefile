@@ -86,6 +86,10 @@ fmt:
 vet:
 	go vet ./...
 
+# Run golangci-lint
+lint:
+	docker run --rm -v $(PWD):/app -w /app golangci/golangci-lint:v1.44.2 golangci-lint run -v
+
 # Generate code
 generate: controller-gen manifests
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."

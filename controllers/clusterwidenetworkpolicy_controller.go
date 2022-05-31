@@ -15,7 +15,7 @@ limitations under the License.
 package controllers
 
 import (
-	"context" //nolint:gosec
+	"context"
 	"fmt"
 	"time"
 
@@ -27,7 +27,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -45,10 +44,9 @@ import (
 // +kubebuilder:rbac:groups=metal-stack.io,resources=events,verbs=create;patch
 type ClusterwideNetworkPolicyReconciler struct {
 	client.Client
-	Log            logr.Logger
-	Scheme         *runtime.Scheme
-	CreateFirewall CreateFirewall
-	Interval       time.Duration
+	log            logr.Logger
+	createFirewall CreateFirewall
+	interval       time.Duration
 	cache          nftables.FQDNCache
 	dnsProxy       DNSProxy
 	skipDNS        bool
@@ -57,10 +55,9 @@ type ClusterwideNetworkPolicyReconciler struct {
 func NewClusterwideNetworkPolicyReconciler(mgr ctrl.Manager) *ClusterwideNetworkPolicyReconciler {
 	return &ClusterwideNetworkPolicyReconciler{
 		Client:         mgr.GetClient(),
-		Log:            ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicy"),
-		Scheme:         mgr.GetScheme(),
-		CreateFirewall: NewFirewall,
-		Interval:       reconcilationInterval,
+		log:            ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicy"),
+		createFirewall: NewFirewall,
+		interval:       reconcilationInterval,
 	}
 }
 
@@ -68,7 +65,7 @@ func NewClusterwideNetworkPolicyReconciler(mgr ctrl.Manager) *ClusterwideNetwork
 // +kubebuilder:rbac:groups=metal-stack.io,resources=clusterwidenetworkpolicies,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=metal-stack.io,resources=clusterwidenetworkpolicies/status,verbs=get;update;patch
 func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := r.Log.WithValues("cwnp", req.Name)
+	log := r.log.WithValues("cwnp", req.Name)
 
 	var cwnps firewallv1.ClusterwideNetworkPolicyList
 	if err := r.List(ctx, &cwnps, client.InNamespace(firewallv1.ClusterwideNetworkPolicyNamespace)); err != nil {
@@ -94,7 +91,7 @@ func (r *ClusterwideNetworkPolicyReconciler) reconcileRules(ctx context.Context,
 
 	// Set CWNP requeue interval
 	if interval, err := time.ParseDuration(f.Spec.Interval); err == nil {
-		r.Interval = interval
+		r.interval = interval
 	}
 
 	if err := r.manageDNSProxy(f, cwnps, log); err != nil {
@@ -105,7 +102,7 @@ func (r *ClusterwideNetworkPolicyReconciler) reconcileRules(ctx context.Context,
 	if err := r.List(ctx, &services); err != nil {
 		return done, err
 	}
-	nftablesFirewall := r.CreateFirewall(&cwnps, &services, f.Spec, r.cache, log)
+	nftablesFirewall := r.createFirewall(&cwnps, &services, f.Spec, r.cache, log)
 	updated, err := nftablesFirewall.Reconcile()
 	if err != nil {
 		return done, err
@@ -171,7 +168,7 @@ func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(f firewallv1.Firewal
 func (r *ClusterwideNetworkPolicyReconciler) getReconcilationTicker(scheduleChan chan<- event.GenericEvent) manager.RunnableFunc {
 	return func(ctx context.Context) error {
 		e := event.GenericEvent{}
-		ticker := time.NewTicker(r.Interval)
+		ticker := time.NewTicker(r.interval)
 
 	loop:
 		for {
@@ -179,7 +176,7 @@ func (r *ClusterwideNetworkPolicyReconciler) getReconcilationTicker(scheduleChan
 			case <-ticker.C:
 				scheduleChan <- e
 				ticker.Stop()
-				ticker = time.NewTicker(r.Interval)
+				ticker = time.NewTicker(r.interval)
 			case <-ctx.Done():
 				break loop
 			}
