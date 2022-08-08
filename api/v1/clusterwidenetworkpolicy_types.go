@@ -120,9 +120,9 @@ type EgressRule struct {
 	// +optional
 	To []networking.IPBlock `json:"to,omitempty"`
 
-	// List of FQDNs(fully qualified domain name) for outgoing traffic of a cluster for this rule.
+	// List of FQDNs (fully qualified domain names) for outgoing traffic of a cluster for this rule.
 	// Items in this list are combined using a logical OR operation. This field is used as
-	// whitelist of DNS names. If none specified, rule will not be applied.
+	// whitelist for DNS names. If none specified, no rule will be applied.
 	// ToFQDNs rules can't contain To rules.
 	// +optional
 	ToFQDNs []FQDNSelector `json:"toFQDNs,omitempty"`
