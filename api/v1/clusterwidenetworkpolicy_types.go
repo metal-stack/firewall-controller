@@ -189,7 +189,7 @@ func (s FQDNSelector) GetRegex() string {
 	pattern = strings.ToLower(dnsgo.Fqdn(pattern))
 
 	// "*" -- match-all allowed chars
-	pattern = strings.Replace(pattern, "*", allowedDNSCharsREGroup+"*", -1)
+	pattern = strings.ReplaceAll(pattern, "*", allowedDNSCharsREGroup+"*")
 
 	// "." becomes a literal .
 	pattern = strings.Replace(pattern, ".", "[.]", -1)
