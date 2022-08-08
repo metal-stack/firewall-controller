@@ -192,7 +192,7 @@ func (s FQDNSelector) GetRegex() string {
 	pattern = strings.ReplaceAll(pattern, "*", allowedDNSCharsREGroup+"*")
 
 	// "." becomes a literal .
-	pattern = strings.Replace(pattern, ".", "[.]", -1)
+	pattern = strings.ReplaceAll(pattern, ".", "[.]")
 
 	// Anchor the match to require the whole string to match this expression
 	return "^" + pattern + "$"
