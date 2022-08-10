@@ -123,11 +123,11 @@ spec:
                         type: object
                       type: array
                     toFQDNs:
-                      description: List of FQDNs(fully qualified domain name) for
+                      description: List of FQDNs (fully qualified domain names) for
                         outgoing traffic of a cluster for this rule. Items in this
                         list are combined using a logical OR operation. This field
-                        is used as whitelist of DNS names. If none specified, rule
-                        will not be applied. ToFQDNs rules can't contain To rules.
+                        is used as whitelist for DNS names. If none specified, no
+                        rule will be applied. ToFQDNs rules can't contain To rules.
                       items:
                         description: FQDNSelector describes rules for matching DNS
                           names.
@@ -142,9 +142,9 @@ spec:
                             pattern: ^([-a-zA-Z0-9_*]+[.]?)+$
                             type: string
                           sets:
-                            description: Sets stores nftables sets used for rule.
-                              Stored in Spec so that reconciler would receive always
-                              up-to-date data. Client caches Status, so additional
+                            description: Sets store nftables sets used for a firewall
+                              rule. Stored in Spec so that reconciler would receive
+                              always up-to-date data. Client caches Status, so additional
                               actions would be required to guarantee that up-to-date
                               data is used.
                             items:

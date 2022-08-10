@@ -108,7 +108,11 @@ func newCWNPReconciler(
 }
 
 func newFirewall() *firewallv1.Firewall {
-	spec := firewallv1.FirewallSpec{}
+	spec := firewallv1.FirewallSpec{
+		Data: firewallv1.Data{
+			Interval: "1h",
+		},
+	}
 	typeMeta := metav1.TypeMeta{
 		Kind:       "Firewall",
 		APIVersion: firewallv1.GroupVersion.String(),

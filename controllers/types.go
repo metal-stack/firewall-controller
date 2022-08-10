@@ -36,12 +36,6 @@ type FirewallInterface interface {
 	Flush() error
 }
 
-type DNSProxy interface {
-	Run()
-	UpdateDNSServerAddr(addr string) error
-	Stop()
-}
-
 func NewFirewall(
 	cwnps *firewallv1.ClusterwideNetworkPolicyList,
 	svcs *corev1.ServiceList,

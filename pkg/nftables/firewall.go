@@ -164,14 +164,8 @@ func (f *Firewall) Reconcile() (updated bool, err error) {
 }
 
 func (f *Firewall) ReconcileNetconfTables(kb netconf.KnowledgeBase, enableDNS bool) {
-	configurator := netconf.FirewallConfigurator{
-		CommonConfigurator: netconf.CommonConfigurator{
-			Kb: kb,
-		},
-		EnableDNSProxy: enableDNS,
-	}
-
-	configurator.ConfugureNftables()
+	configurator := netconf.NewConfigurator(netconf.Firewall, kb, enableDNS)
+	configurator.ConfigureNftables()
 }
 
 func (f *Firewall) renderFile(file string) error {
