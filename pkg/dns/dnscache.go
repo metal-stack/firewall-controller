@@ -103,7 +103,7 @@ type DNSCache struct {
 	ipv6Enabled   bool
 }
 
-func NewDNSCache(ipv4Enabled, ipv6Enabled bool, log logr.Logger) *DNSCache {
+func newDNSCache(ipv4Enabled, ipv6Enabled bool, log logr.Logger) *DNSCache {
 	return &DNSCache{
 		log:           log,
 		fqdnToEntry:   map[string]cacheEntry{},
@@ -114,8 +114,8 @@ func NewDNSCache(ipv4Enabled, ipv6Enabled bool, log logr.Logger) *DNSCache {
 	}
 }
 
-// GetSetsForFQDN returns sets for FQDN selector
-func (c *DNSCache) GetSetsForFQDN(fqdn firewallv1.FQDNSelector, update bool) (result []firewallv1.IPSet) {
+// getSetsForFQDN returns sets for FQDN selector
+func (c *DNSCache) getSetsForFQDN(fqdn firewallv1.FQDNSelector, update bool) (result []firewallv1.IPSet) {
 	if update {
 		c.restoreSets(fqdn)
 	}
@@ -141,7 +141,7 @@ func (c *DNSCache) GetSetsForFQDN(fqdn firewallv1.FQDNSelector, update bool) (re
 	return
 }
 
-func (c *DNSCache) GetSetsForRendering(fqdns []firewallv1.FQDNSelector) (result []firewallv1.IPSet) {
+func (c *DNSCache) getSetsForRendering(fqdns []firewallv1.FQDNSelector) (result []firewallv1.IPSet) {
 	for n, e := range c.fqdnToEntry {
 		var matched bool
 		for _, fqdn := range fqdns {
@@ -170,7 +170,7 @@ func (c *DNSCache) GetSetsForRendering(fqdns []firewallv1.FQDNSelector) (result 
 	return
 }
 
-func (c *DNSCache) UpdateDNSServerAddr(addr string) {
+func (c *DNSCache) updateDNSServerAddr(addr string) {
 	c.dnsServerAddr = addr
 }
 

@@ -17,14 +17,10 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/metal-stack/firewall-controller/controllers/mocks"
 
 	"github.com/golang/mock/gomock"
-
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
-	nftmocks "github.com/metal-stack/firewall-controller/pkg/nftables/mocks"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -32,12 +28,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 )
 
 var _ = Describe("Reconcile CWNP resources", func() {
 	type CWNPTestCase struct {
 		objects   []runtime.Object
-		mockFunc  func(*nftmocks.MockFQDNCache)
 		reconcile bool
 	}
 
@@ -47,9 +44,7 @@ var _ = Describe("Reconcile CWNP resources", func() {
 		defer ctrl.Finish()
 
 		firewall := mocks.NewMockFirewallInterface(ctrl)
-		fqdnCache := nftmocks.NewMockFQDNCache(ctrl)
-
-		r := newCWNPReconciler(createTestFirewallFunc(firewall), fqdnCache, tc.objects)
+		r := newCWNPReconciler(createTestFirewallFunc(firewall), tc.objects)
 		req := reconcile.Request{
 			NamespacedName: types.NamespacedName{
 				Name:      firewallName,
@@ -59,9 +54,6 @@ var _ = Describe("Reconcile CWNP resources", func() {
 
 		if tc.reconcile {
 			firewall.EXPECT().Reconcile().Return(true, nil)
-		}
-		if tc.mockFunc != nil {
-			tc.mockFunc(fqdnCache)
 		}
 
 		_, err := r.Reconcile(ctx, req)
@@ -86,7 +78,3 @@ var _ = Describe("Reconcile CWNP resources", func() {
 		}),
 	)
 })
-
-func getPolicySpecKey(name string) string {
-	return fmt.Sprintf("%s%c%s", firewallv1.ClusterwideNetworkPolicyNamespace, types.Separator, name)
-}

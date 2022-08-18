@@ -95,14 +95,12 @@ func setupScheme() *apimachineryruntime.Scheme {
 
 func newCWNPReconciler(
 	createFW CreateFirewall,
-	cache nftables.FQDNCache,
 	objects []runtime.Object,
 ) *ClusterwideNetworkPolicyReconciler {
 	return &ClusterwideNetworkPolicyReconciler{
 		Client:         fake.NewClientBuilder().WithScheme(setupScheme()).WithRuntimeObjects(objects...).Build(),
 		log:            zap.New(zap.UseDevMode(true)),
 		createFirewall: createFW,
-		cache:          cache,
 		skipDNS:        true,
 	}
 }

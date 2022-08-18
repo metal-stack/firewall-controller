@@ -147,6 +147,13 @@ func TestFQDNSelector_GetRegex(t *testing.T) {
 			expectedRegex: "^" + allowedDNSCharsREGroup + "*[.]com[.]$",
 		},
 		{
+			name: "selector with match-all at the end",
+			selector: FQDNSelector{
+				MatchPattern: "example.*",
+			},
+			expectedRegex: "^example[.]" + allowedDNSCharsREGroup + "*[.]$",
+		},
+		{
 			name: "selector with static value",
 			selector: FQDNSelector{
 				MatchPattern: "example.com",

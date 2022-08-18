@@ -87,7 +87,7 @@ func Test_GetSetsForFQDN(t *testing.T) {
 				ipv4Enabled: true,
 				ipv6Enabled: true,
 			}
-			result := cache.GetSetsForFQDN(tc.fqdnSelector, tc.fqdnSelector.Sets != nil)
+			result := cache.getSetsForFQDN(tc.fqdnSelector, tc.fqdnSelector.Sets != nil)
 
 			set := make(map[string]bool, len(tc.expectedSets))
 			for _, s := range tc.expectedSets {

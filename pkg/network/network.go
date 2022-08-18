@@ -23,11 +23,14 @@ const (
 //go:embed *.tpl
 var templates embed.FS
 
+// GetKnowledgeBase returns Knowledge Base instance filled with data only from install.yaml
+// It could be useful for retrieving host IP, before controller has the access to the kube-api.
 func GetKnowledgeBase() netconf.KnowledgeBase {
 	zlog, _ := zap.NewProduction()
 	return netconf.NewKnowledgeBase(MetalKnowledgeBase)
 }
 
+// GetUpdatedKnowledgeBase return Knowledge Base instance filled with data from the Firewall resource.
 func GetUpdatedKnowledgeBase(f firewallv1.Firewall) netconf.KnowledgeBase {
 	kb := GetKnowledgeBase()
 	networkMap := map[string]firewallv1.FirewallNetwork{}

@@ -31,7 +31,6 @@ var templates embed.FS
 
 //go:generate mockgen -destination=./mocks/mock_fqdncache.go -package=mocks . FQDNCache
 type FQDNCache interface {
-	UpdateDNSServerAddr(addr string)
 	GetSetsForRendering(fqdns []firewallv1.FQDNSelector) (result []firewallv1.IPSet)
 	GetSetsForFQDN(fqdn firewallv1.FQDNSelector, update bool) (result []firewallv1.IPSet)
 }

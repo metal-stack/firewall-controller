@@ -5,6 +5,8 @@ import (
 	"net"
 	"strconv"
 
+	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+
 	"github.com/go-logr/logr"
 	dnsgo "github.com/miekg/dns"
 
@@ -31,10 +33,15 @@ type DNSProxy struct {
 	handler DNSHandler
 }
 
-func NewDNSProxy(port *uint, log logr.Logger, cache *DNSCache) (*DNSProxy, error) {
+func NewDNSProxy(port *uint, log logr.Logger) (*DNSProxy, error) {
+	cache := newDNSCache(true, false, log.WithName("DNS cache"))
 	handler := NewDNSProxyHandler(log, cache)
 
-	host := getHost()
+	host, err := getHost()
+	if err != nil {
+		return nil, err
+	}
+
 	p := defaultDNSPort
 	if port != nil {
 		p = *port
@@ -94,15 +101,28 @@ func (p *DNSProxy) UpdateDNSServerAddr(addr string) error {
 	if err := p.handler.UpdateDNSServerAddr(addr); err != nil {
 		return fmt.Errorf("failed to update DNS server address: %w", err)
 	}
-	p.cache.UpdateDNSServerAddr(addr)
+	p.cache.updateDNSServerAddr(addr)
 
 	return nil
 }
 
-func getHost() string {
+func (p *DNSProxy) GetSetsForRendering(fqdns []firewallv1.FQDNSelector) (result []firewallv1.IPSet) {
+	return p.cache.getSetsForRendering(fqdns)
+}
+
+func (p *DNSProxy) GetSetsForFQDN(fqdn firewallv1.FQDNSelector, update bool) (result []firewallv1.IPSet) {
+	return p.cache.getSetsForFQDN(fqdn, update)
+}
+
+func getHost() (string, error) {
 	kb := network.GetKnowledgeBase()
-	n := kb.GetDefaultRouteNetwork()
-	return n.Ips[0]
+	defaultNetwork := kb.GetDefaultRouteNetwork()
+
+	if defaultNetwork == nil || len(defaultNetwork.Ips) < 1 {
+		return "", fmt.Errorf("failed to retrieve host IP for DNS Proxy")
+	}
+
+	return defaultNetwork.Ips[0], nil
 }
 
 // bindToPort attempts to bind to port for both UDP and TCP
