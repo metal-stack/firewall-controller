@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/metal-stack/firewall-controller/pkg/network"
+
 	"github.com/go-logr/logr"
 	"github.com/hashicorp/go-multierror"
 	"github.com/vishvananda/netlink"
@@ -39,7 +41,7 @@ type FQDNCache interface {
 type Firewall struct {
 	log logr.Logger
 
-	spec                       firewallv1.FirewallSpec
+	firewall                   firewallv1.Firewall
 	clusterwideNetworkPolicies *firewallv1.ClusterwideNetworkPolicyList
 	services                   *corev1.ServiceList
 
@@ -47,6 +49,7 @@ type Firewall struct {
 	networkMap        networkMap
 	cache             FQDNCache
 
+	enableDNS              bool
 	dryRun                 bool
 	logAcceptedConnections bool
 }
@@ -62,46 +65,46 @@ type forwardingRules struct {
 
 // NewDefaultFirewall creates a new default nftables firewall.
 func NewDefaultFirewall() *Firewall {
-	defaultSpec := firewallv1.FirewallSpec{}
-	return NewFirewall(&firewallv1.ClusterwideNetworkPolicyList{}, &corev1.ServiceList{}, defaultSpec, nil, logr.Discard())
+	return NewFirewall(firewallv1.Firewall{}, &firewallv1.ClusterwideNetworkPolicyList{}, &corev1.ServiceList{}, nil, logr.Discard())
 }
 
 // NewFirewall creates a new nftables firewall object based on k8s entities
 func NewFirewall(
-	nps *firewallv1.ClusterwideNetworkPolicyList,
+	firewall firewallv1.Firewall,
+	cwnps *firewallv1.ClusterwideNetworkPolicyList,
 	svcs *corev1.ServiceList,
-	spec firewallv1.FirewallSpec,
 	cache FQDNCache,
 	log logr.Logger,
 ) *Firewall {
 	networkMap := networkMap{}
 	var primaryPrivateNet *firewallv1.FirewallNetwork
-	for i, n := range spec.FirewallNetworks {
+	for i, n := range firewall.Spec.FirewallNetworks {
 		if n.Networktype == nil {
 			continue
 		}
 		if *n.Networktype == mn.PrivatePrimaryShared || *n.Networktype == mn.PrivatePrimaryUnshared {
-			primaryPrivateNet = &spec.FirewallNetworks[i]
+			primaryPrivateNet = &firewall.Spec.FirewallNetworks[i]
 		}
 		networkMap[*n.Networkid] = n
 	}
 
 	return &Firewall{
-		spec:                       spec,
-		clusterwideNetworkPolicies: nps,
+		firewall:                   firewall,
+		clusterwideNetworkPolicies: cwnps,
 		services:                   svcs,
 		primaryPrivateNet:          primaryPrivateNet,
 		networkMap:                 networkMap,
-		dryRun:                     spec.DryRun,
-		logAcceptedConnections:     spec.LogAcceptedConnections,
+		dryRun:                     firewall.Spec.DryRun,
+		logAcceptedConnections:     firewall.Spec.LogAcceptedConnections,
 		cache:                      cache,
+		enableDNS:                  len(cwnps.GetFQDNs()) > 0,
 		log:                        log,
 	}
 }
 
 func (f *Firewall) ipv4RuleFile() string {
-	if f.spec.Ipv4RuleFile != "" {
-		return f.spec.Ipv4RuleFile
+	if f.firewall.Spec.Ipv4RuleFile != "" {
+		return f.firewall.Spec.Ipv4RuleFile
 	}
 	return defaultIpv4RuleFile
 }
@@ -162,8 +165,9 @@ func (f *Firewall) Reconcile() (updated bool, err error) {
 	return true, nil
 }
 
-func (f *Firewall) ReconcileNetconfTables(kb netconf.KnowledgeBase, enableDNS bool) {
-	configurator := netconf.NewConfigurator(netconf.Firewall, kb, enableDNS)
+func (f *Firewall) ReconcileNetconfTables() {
+	kb := network.GetUpdatedKnowledgeBase(f.firewall)
+	configurator := netconf.NewConfigurator(netconf.Firewall, kb, f.enableDNS)
 	configurator.ConfigureNftables()
 }
 
@@ -209,7 +213,7 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 		}
 
 		wantedIPs := sets.NewString()
-		for _, i := range f.spec.EgressRules {
+		for _, i := range f.firewall.Spec.EgressRules {
 			if i.NetworkID == *n.Networkid {
 				wantedIPs.Insert(i.IPs...)
 				break

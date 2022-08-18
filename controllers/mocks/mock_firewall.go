@@ -61,3 +61,15 @@ func (mr *MockFirewallInterfaceMockRecorder) Reconcile() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reconcile", reflect.TypeOf((*MockFirewallInterface)(nil).Reconcile))
 }
+
+// ReconcileNetconfTables mocks base method.
+func (m *MockFirewallInterface) ReconcileNetconfTables() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "ReconcileNetconfTables")
+}
+
+// ReconcileNetconfTables indicates an expected call of ReconcileNetconfTables.
+func (mr *MockFirewallInterfaceMockRecorder) ReconcileNetconfTables() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReconcileNetconfTables", reflect.TypeOf((*MockFirewallInterface)(nil).ReconcileNetconfTables))
+}

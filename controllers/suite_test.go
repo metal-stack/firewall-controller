@@ -149,9 +149,9 @@ func newCWNP(name string, egress []firewallv1.EgressRule) *firewallv1.Clusterwid
 
 func createTestFirewallFunc(fw FirewallInterface) CreateFirewall {
 	return func(
+		firewall firewallv1.Firewall,
 		cwnps *firewallv1.ClusterwideNetworkPolicyList,
 		svcs *corev1.ServiceList,
-		spec firewallv1.FirewallSpec,
 		cache nftables.FQDNCache,
 		log logr.Logger,
 	) FirewallInterface {

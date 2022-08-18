@@ -23,9 +23,9 @@ import (
 )
 
 type CreateFirewall = func(
+	firewall firewallv1.Firewall,
 	cwnps *firewallv1.ClusterwideNetworkPolicyList,
 	svcs *corev1.ServiceList,
-	spec firewallv1.FirewallSpec,
 	cache nftables.FQDNCache,
 	log logr.Logger,
 ) FirewallInterface
@@ -33,15 +33,16 @@ type CreateFirewall = func(
 //go:generate mockgen -destination=./mocks/mock_firewall.go -package=mocks . FirewallInterface
 type FirewallInterface interface {
 	Reconcile() (bool, error)
+	ReconcileNetconfTables()
 	Flush() error
 }
 
 func NewFirewall(
+	firewall firewallv1.Firewall,
 	cwnps *firewallv1.ClusterwideNetworkPolicyList,
 	svcs *corev1.ServiceList,
-	spec firewallv1.FirewallSpec,
 	cache nftables.FQDNCache,
 	log logr.Logger,
 ) FirewallInterface {
-	return nftables.NewFirewall(cwnps, svcs, spec, cache, log)
+	return nftables.NewFirewall(firewall, cwnps, svcs, cache, log)
 }

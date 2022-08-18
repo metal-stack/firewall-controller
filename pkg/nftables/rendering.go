@@ -50,7 +50,7 @@ func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 	}
 	return &firewallRenderingData{
 		PrivateVrfID:     uint(*f.primaryPrivateNet.Vrf),
-		InternalPrefixes: strings.Join(f.spec.InternalPrefixes, ", "),
+		InternalPrefixes: strings.Join(f.firewall.Spec.InternalPrefixes, ", "),
 		ForwardingRules: forwardingRules{
 			Ingress: ingress,
 			Egress:  egress,

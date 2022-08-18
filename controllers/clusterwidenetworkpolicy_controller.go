@@ -19,8 +19,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/metal-stack/firewall-controller/pkg/network"
-
 	"github.com/metal-stack/firewall-controller/pkg/dns"
 
 	"github.com/go-logr/logr"
@@ -36,7 +34,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
-	"github.com/metal-stack/firewall-controller/pkg/nftables"
 )
 
 // ClusterwideNetworkPolicyReconciler reconciles a ClusterwideNetworkPolicy object
@@ -90,15 +87,14 @@ func (r *ClusterwideNetworkPolicyReconciler) reconcileRules(ctx context.Context,
 		return done, fmt.Errorf("failed to parse Interval field: %w", err)
 	}
 
-	if err := r.manageDNSProxy(f, cwnps); err != nil {
-		return done, err
-	}
-
 	var services corev1.ServiceList
 	if err := r.List(ctx, &services); err != nil {
 		return done, err
 	}
-	nftablesFirewall := r.createFirewall(&cwnps, &services, f.Spec, r.dnsProxy, log)
+	nftablesFirewall := r.createFirewall(f, &cwnps, &services, r.dnsProxy, log)
+	if err := r.manageDNSProxy(f, cwnps, nftablesFirewall); err != nil {
+		return done, err
+	}
 	updated, err := nftablesFirewall.Reconcile()
 	if err != nil {
 		return done, err
@@ -118,16 +114,17 @@ func (r *ClusterwideNetworkPolicyReconciler) reconcileRules(ctx context.Context,
 
 // manageDNSProxy start DNS proxy if toFQDN rules are present
 // if rules were deleted it will stop running DNS proxy
-func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(f firewallv1.Firewall, cwnps firewallv1.ClusterwideNetworkPolicyList) (err error) {
+func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
+	f firewallv1.Firewall, cwnps firewallv1.ClusterwideNetworkPolicyList, nftablesFirewall FirewallInterface,
+) (err error) {
 	// Skipping is needed for testing
 	if r.skipDNS {
 		return nil
 	}
 
 	enableDNS := len(cwnps.GetFQDNs()) > 0
-	kb := network.GetUpdatedKnowledgeBase(f)
-	nftablesFirewall := nftables.NewDefaultFirewall()
-	nftablesFirewall.ReconcileNetconfTables(kb, enableDNS)
+
+	nftablesFirewall.ReconcileNetconfTables()
 
 	if enableDNS && r.dnsProxy == nil {
 		if r.dnsProxy, err = dns.NewDNSProxy(f.Spec.DNSPort, ctrl.Log.WithName("DNS proxy")); err != nil {
