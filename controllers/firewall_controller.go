@@ -426,7 +426,7 @@ func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv1.Fire
 	idsStats := firewallv1.IDSStatsByDevice{}
 	if r.EnableIDS { // checks the CLI-flag
 		s := suricata.New()
-		ss, err := s.InterfaceStats()
+		ss, err := s.InterfaceStats(ctx)
 		if err != nil {
 			return err
 		}

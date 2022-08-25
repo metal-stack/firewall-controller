@@ -24,7 +24,7 @@ import (
 	"context"
 	"errors"
 	"io"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"time"
@@ -287,7 +287,7 @@ func renderCRDs(options *InstallOptions) ([]runtime.Object, error) {
 	var (
 		err   error
 		info  os.FileInfo
-		files []os.FileInfo
+		files []fs.DirEntry
 	)
 
 	type GVKN struct {
@@ -308,9 +308,9 @@ func renderCRDs(options *InstallOptions) ([]runtime.Object, error) {
 		}
 
 		if !info.IsDir() {
-			filePath, files = filepath.Dir(path), []os.FileInfo{info}
+			filePath, files = filepath.Dir(path), []fs.DirEntry{fs.FileInfoToDirEntry(info)}
 		} else {
-			if files, err = ioutil.ReadDir(path); err != nil {
+			if files, err = os.ReadDir(path); err != nil {
 				return nil, err
 			}
 		}
@@ -376,7 +376,7 @@ func readCRD(name string, b []byte) ([]*unstructured.Unstructured, error) {
 }
 
 // readCRDs reads the CRDs from files and Unmarshals them into structs
-func readCRDs(basePath string, files []os.FileInfo) ([]*unstructured.Unstructured, error) {
+func readCRDs(basePath string, files []os.DirEntry) ([]*unstructured.Unstructured, error) {
 	var crds []*unstructured.Unstructured
 
 	// White list the file extensions that may contain CRDs
