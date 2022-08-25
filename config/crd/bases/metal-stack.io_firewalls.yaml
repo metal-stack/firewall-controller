@@ -45,10 +45,6 @@ spec:
           spec:
             description: FirewallSpec defines the desired state of Firewall
             properties:
-              logAcceptedConnections:
-                description: LogAcceptedConnections if set to true, also log accepted connections
-                  in the droptailer log
-                type: boolean
               controllerURL:
                 description: ControllerURL points to the downloadable binary artifact
                   of the firewall controller
@@ -131,6 +127,10 @@ spec:
                 description: TrafficControl defines where to store the generated ipv4
                   firewall rules on disk
                 type: string
+              logAcceptedConnections:
+                description: LogAcceptedConnections if set to true, also log accepted
+                  connections in the droptailer log
+                type: boolean
               rateLimits:
                 description: RateLimits allows configuration of rate limit rules for
                   interfaces.
