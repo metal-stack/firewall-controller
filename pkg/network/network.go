@@ -23,7 +23,7 @@ const (
 var templates embed.FS
 
 // ReconcileNetwork reconciles the network settings for a firewall
-// in the current stage it only changes the FRR-Configuration when network prefixes or FRR template changes
+// in the current stage it only changes the FRR-Configuration when network prefixes, destination prefixes and FRR template changes
 func ReconcileNetwork(f firewallv1.Firewall, log logr.Logger) (bool, error) {
 	kb := netconf.NewKnowledgeBase(MetalKnowledgeBase)
 
@@ -39,6 +39,7 @@ func ReconcileNetwork(f firewallv1.Firewall, log logr.Logger) (bool, error) {
 	for _, n := range kb.Networks {
 		newNet := n
 		newNet.Prefixes = networkMap[*n.Networkid].Prefixes
+		newNet.Destinationprefixes = networkMap[*n.Networkid].Destinationprefixes
 		newNetworks = append(newNetworks, newNet)
 	}
 	kb.Networks = newNetworks
