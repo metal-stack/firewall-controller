@@ -3,6 +3,7 @@ package nftables
 import (
 	"embed"
 	"fmt"
+	"github.com/metal-stack/firewall-controller/pkg/dns"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -33,7 +34,7 @@ var templates embed.FS
 
 //go:generate mockgen -destination=./mocks/mock_fqdncache.go -package=mocks . FQDNCache
 type FQDNCache interface {
-	GetSetsForRendering(fqdns []firewallv1.FQDNSelector) (result []firewallv1.IPSet)
+	GetSetsForRendering(fqdns []firewallv1.FQDNSelector) (result []dns.RenderIPSet)
 	GetSetsForFQDN(fqdn firewallv1.FQDNSelector, update bool) (result []firewallv1.IPSet)
 }
 

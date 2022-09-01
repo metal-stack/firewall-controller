@@ -8,7 +8,7 @@ import (
 	"strings"
 	"text/template"
 
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	"github.com/metal-stack/firewall-controller/pkg/dns"
 )
 
 // firewallRenderingData holds the data available in the nftables template
@@ -16,7 +16,7 @@ type firewallRenderingData struct {
 	ForwardingRules  forwardingRules
 	RateLimitRules   nftablesRules
 	SnatRules        nftablesRules
-	Sets             []firewallv1.IPSet
+	Sets             []dns.RenderIPSet
 	InternalPrefixes string
 	PrivateVrfID     uint
 }
@@ -44,7 +44,7 @@ func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 		return &firewallRenderingData{}, err
 	}
 
-	var sets []firewallv1.IPSet
+	var sets []dns.RenderIPSet
 	if f.cache != nil {
 		sets = f.cache.GetSetsForRendering(f.clusterwideNetworkPolicies.GetFQDNs())
 	}

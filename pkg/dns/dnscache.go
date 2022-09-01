@@ -21,13 +21,22 @@ import (
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 )
 
+type IPVersion string
+
 const (
 	tableName = "firewall"
 
 	// Versions specifically for nftables rendering purposes
-	IPv4 firewallv1.IPVersion = "ipv4_addr"
-	IPv6 firewallv1.IPVersion = "ipv6_addr"
+	IPv4 IPVersion = "ipv4_addr"
+	IPv6 IPVersion = "ipv6_addr"
 )
+
+// RenderIPSet stores set info for rendering
+type RenderIPSet struct {
+	SetName string    `json:"setName,omitempty"`
+	IPs     []string  `json:"ips,omitempty"`
+	Version IPVersion `json:"version,omitempty"`
+}
 
 type ipEntry struct {
 	ips            []string
@@ -141,7 +150,7 @@ func (c *DNSCache) getSetsForFQDN(fqdn firewallv1.FQDNSelector, update bool) (re
 	return
 }
 
-func (c *DNSCache) getSetsForRendering(fqdns []firewallv1.FQDNSelector) (result []firewallv1.IPSet) {
+func (c *DNSCache) getSetsForRendering(fqdns []firewallv1.FQDNSelector) (result []RenderIPSet) {
 	for n, e := range c.fqdnToEntry {
 		var matched bool
 		for _, fqdn := range fqdns {
@@ -159,10 +168,10 @@ func (c *DNSCache) getSetsForRendering(fqdns []firewallv1.FQDNSelector) (result 
 		}
 		if matched {
 			if e.ipv4 != nil {
-				result = append(result, createIPSetFromIPEntry(n, IPv4, e.ipv4))
+				result = append(result, createRenderIPSetFromIPEntry(IPv4, e.ipv4))
 			}
 			if e.ipv6 != nil {
-				result = append(result, createIPSetFromIPEntry(n, IPv6, e.ipv6))
+				result = append(result, createRenderIPSetFromIPEntry(IPv6, e.ipv6))
 			}
 		}
 	}
@@ -428,5 +437,13 @@ func createIPSetFromIPEntry(fqdn string, version firewallv1.IPVersion, entry *ip
 		IPs:            entry.ips,
 		ExpirationTime: metav1.Time{Time: entry.expirationTime},
 		Version:        version,
+	}
+}
+
+func createRenderIPSetFromIPEntry(version IPVersion, entry *ipEntry) RenderIPSet {
+	return RenderIPSet{
+		SetName: entry.setName,
+		IPs:     entry.ips,
+		Version: version,
 	}
 }

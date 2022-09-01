@@ -149,7 +149,9 @@ func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
 // IMPORTANT!
 // We shouldn't implement reconcilation loop by assigning RequeueAfter in result like it's done in Firewall controller.
 // Here's case when it would go bad:
-//  DNS Proxy is ON and Firewall machine is rebooted.
+//
+//	DNS Proxy is ON and Firewall machine is rebooted.
+//
 // There will be at least 2 problems:
 //  1. When it's rebooted, metal-networker will generate basic nftables config and apply it.
 //     In basic config there's now DNAT rules required for DNS Proxy.

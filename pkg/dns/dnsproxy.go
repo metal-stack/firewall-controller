@@ -106,7 +106,7 @@ func (p *DNSProxy) UpdateDNSServerAddr(addr string) error {
 	return nil
 }
 
-func (p *DNSProxy) GetSetsForRendering(fqdns []firewallv1.FQDNSelector) (result []firewallv1.IPSet) {
+func (p *DNSProxy) GetSetsForRendering(fqdns []firewallv1.FQDNSelector) (result []RenderIPSet) {
 	return p.cache.getSetsForRendering(fqdns)
 }
 

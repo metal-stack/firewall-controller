@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/pkg/dns"
 )
 
@@ -70,7 +69,7 @@ func TestFirewallRenderingData_renderString(t *testing.T) {
 				RateLimitRules:   []string{"meta iifname \"eth0\" limit rate over 10 mbytes/second counter name drop_ratelimit drop"},
 				SnatRules:        []string{},
 				PrivateVrfID:     uint(42),
-				Sets: []firewallv1.IPSet{
+				Sets: []dns.RenderIPSet{
 					{
 						SetName: "test",
 						IPs:     []string{"10.0.0.1", "10.0.0.2"},
