@@ -1,6 +1,7 @@
 package dns
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"strconv"
@@ -67,7 +68,7 @@ func NewDNSProxy(port *uint, log logr.Logger) (*DNSProxy, error) {
 }
 
 // Run starts TCP/UDP servers
-func (p *DNSProxy) Run() {
+func (p *DNSProxy) Run(ctx context.Context) {
 	go func() {
 		p.log.Info("starting UDP server")
 		if err := p.udpServer.ActivateAndServe(); err != nil {
@@ -84,10 +85,10 @@ func (p *DNSProxy) Run() {
 
 	<-p.stopCh
 
-	if err := p.udpServer.Shutdown(); err != nil {
+	if err := p.udpServer.ShutdownContext(ctx); err != nil {
 		p.log.Error(err, "failed to shut down UDP server")
 	}
-	if err := p.tcpServer.Shutdown(); err != nil {
+	if err := p.tcpServer.ShutdownContext(ctx); err != nil {
 		p.log.Error(err, "failed to shut down TCP server")
 	}
 }
