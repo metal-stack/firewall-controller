@@ -25,20 +25,20 @@ func New() Suricata {
 	return Suricata{socket: defaultSocket}
 }
 
-func (s *Suricata) InterfaceStats() (*InterfaceStats, error) {
+func (s *Suricata) InterfaceStats(ctx context.Context) (*InterfaceStats, error) {
 	suricata, err := client.CreateSocket(s.socket)
 	if err != nil {
 		return nil, err
 	}
 	defer suricata.Close()
 
-	ifaces, err := suricata.IFaceListCommand(context.Background())
+	ifaces, err := suricata.IFaceListCommand(ctx)
 	if err != nil {
 		return nil, err
 	}
 	result := InterfaceStats{}
 	for _, iface := range ifaces.Ifaces {
-		stat, err := suricata.IFaceStatCommand(context.Background(), client.IFaceStatRequest{IFace: iface})
+		stat, err := suricata.IFaceStatCommand(ctx, client.IFaceStatRequest{IFace: iface})
 		if err != nil {
 			return nil, err
 		}
