@@ -338,8 +338,8 @@ github.com/konsorten/go-windows-terminal-sequences v1.0.2/go.mod h1:T0+1ngSBFLxv
 github.com/konsorten/go-windows-terminal-sequences v1.0.3/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=
 github.com/kr/logfmt v0.0.0-20140226030751-b84e30acd515/go.mod h1:+0opPa2QZZtGFBFZlji/RkVcI2GknAs/DXo4wKdlNEc=
 github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORNo=
-github.com/kr/pretty v0.2.0 h1:s5hAObm+yFO5uHYt5dYjxi2rXrsnmRpJx4OYvIWUaQs=
 github.com/kr/pretty v0.2.0/go.mod h1:ipq/a2n7PKx3OHsz4KJII5eveXtPO4qwEXGdVfWzfnI=
+github.com/kr/pretty v0.3.0 h1:WgNl7dwNpEZ6jJ9k1snq4pZsg7DOEN8hP9Xw0Tsjwk0=
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
 github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=
@@ -364,12 +364,12 @@ github.com/mdlayher/socket v0.2.3 h1:XZA2X2TjdOwNoNPVPclRCURoX/hokBY8nkTmRZFEheM
 github.com/mdlayher/socket v0.2.3/go.mod h1:bz12/FozYNH/VbvC3q7TRIK/Y6dH1kCKsXaUeXi/FmY=
 github.com/metal-stack/metal-go v0.21.2 h1:dcuxosX+W94CZa4cWcmEKg3iwYv342fz6C7PY0U9iVA=
 github.com/metal-stack/metal-go v0.21.2/go.mod h1:EttkuzD25TrMHwhR2cbaHdY58xg54gfd6pgXjchqBS0=
-github.com/metal-stack/metal-hammer v0.10.5-0.20221003074822-e7a701137304 h1:7lUso/jGvpEFadyIEQ5IHTOLCgGc+B9XQVQPTlOjhjA=
-github.com/metal-stack/metal-hammer v0.10.5-0.20221003074822-e7a701137304/go.mod h1:81kdWP1HRYB8Kz8BaVhPP9if09o/L0lIHq0tuQzmAOM=
+github.com/metal-stack/metal-hammer v0.11.0 h1:2lMCiuPqwYtYkYTUSB9+AARfpfgt8p6jk3w90hTvlZI=
+github.com/metal-stack/metal-hammer v0.11.0/go.mod h1:81kdWP1HRYB8Kz8BaVhPP9if09o/L0lIHq0tuQzmAOM=
 github.com/metal-stack/metal-lib v0.11.2 h1:HqPMbHS7zMBRAcoGhbsUZRjDPvOtgI6qNshzd0bSmJQ=
 github.com/metal-stack/metal-lib v0.11.2/go.mod h1:Ge1ypz6aOf2ab98kr8GYMXD8eZ7VfKFUfUE3p/8Sm3g=
-github.com/metal-stack/metal-networker v0.20.3-0.20221005140025-2081fc865d81 h1:K6YTyiZi2F5T9dfCDz9wuGpnUqpntMEd3vzVedY7g6M=
-github.com/metal-stack/metal-networker v0.20.3-0.20221005140025-2081fc865d81/go.mod h1:ZrEqGzn+6KFKByrz1XYHV8+iqHfV7tchwaBZrUOXHC8=
+github.com/metal-stack/metal-networker v0.20.3-0.20221007121749-bd539400e4ca h1:3cQr8UpAyFXFYtDRO8nz6RP/FkNfh0kSuoIJnc6uXso=
+github.com/metal-stack/metal-networker v0.20.3-0.20221007121749-bd539400e4ca/go.mod h1:dAGndvdnm4XpHgfy9sg3+J+TkotWt9Om4qT0qjCABBU=
 github.com/metal-stack/v v1.0.3 h1:Sh2oBlnxrCUD+mVpzfC8HiqL045YWkxs0gpTvkjppqs=
 github.com/metal-stack/v v1.0.3/go.mod h1:YTahEu7/ishwpYKnp/VaW/7nf8+PInogkfGwLcGPdXg=
 github.com/mitchellh/go-homedir v1.1.0/go.mod h1:SfyaCUpYCn1Vlf4IUYiD9fPX4A5wJrkLzIz1N1q0pr0=
@@ -434,6 +434,8 @@ github.com/rogpeppe/fastuuid v1.2.0/go.mod h1:jVj6XXZzXRy/MSR5jhDC/2q6DgLz+nrA6L
 github.com/rogpeppe/go-internal v1.1.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/rogpeppe/go-internal v1.2.2/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
+github.com/rogpeppe/go-internal v1.9.0 h1:73kH8U+JUqXU8lRuOHeVHaa/SZPifC7BkcraZVejAe8=
+github.com/rogpeppe/go-internal v1.9.0/go.mod h1:WtVeX8xhTBvf0smdhujwtBcq4Qrzq/fJaraNFVN+nFs=
 github.com/russross/blackfriday v1.5.2/go.mod h1:JO/DiYxRf+HjHt06OyowR9PTA263kcR/rfWxYHBV53g=
 github.com/sirupsen/logrus v1.2.0/go.mod h1:LxeOpSwHxABJmUn/MG1IvRgCAasNZTLOkJPxbbu5VWo=
 github.com/sirupsen/logrus v1.4.0/go.mod h1:LxeOpSwHxABJmUn/MG1IvRgCAasNZTLOkJPxbbu5VWo=
@@ -488,8 +490,8 @@ github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1
 go.mongodb.org/mongo-driver v1.7.3/go.mod h1:NqaYOwnXWr5Pm7AOpO5QFxKJ503nbMse/R79oO62zWg=
 go.mongodb.org/mongo-driver v1.7.5/go.mod h1:VXEWRZ6URJIkUq2SCAyapmhH0ZLRBP+FT4xhp5Zvxng=
 go.mongodb.org/mongo-driver v1.10.0/go.mod h1:wsihk0Kdgv8Kqu1Anit4sfK+22vSFbUrAVEYRhCXrA8=
-go.mongodb.org/mongo-driver v1.10.2 h1:4Wk3cnqOrQCn0P92L3/mmurMxzdvWWs5J9jinAVKD+k=
-go.mongodb.org/mongo-driver v1.10.2/go.mod h1:z4XpeoU6w+9Vht+jAFyLgVrD+jGSQQe0+CBWFHNiHt8=
+go.mongodb.org/mongo-driver v1.10.3 h1:XDQEvmh6z1EUsXuIkXE9TaVeqHw6SwS1uf93jFs0HBA=
+go.mongodb.org/mongo-driver v1.10.3/go.mod h1:z4XpeoU6w+9Vht+jAFyLgVrD+jGSQQe0+CBWFHNiHt8=
 go.opencensus.io v0.21.0/go.mod h1:mSImk1erAIZhrmZN+AvHh14ztQfjbGwt4TtuofqLduU=
 go.opencensus.io v0.22.0/go.mod h1:+kGneAE2xo2IficOXnaByMWTGM9T73dGwxeWcUqIpI8=
 go.opencensus.io v0.22.2/go.mod h1:yxeiOL68Rb0Xd1ddK5vPZ/oVn4vY4Ynel7k9FzqtOIw=
