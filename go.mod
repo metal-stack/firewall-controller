@@ -12,7 +12,7 @@ require (
 	github.com/ks2211/go-suricata v0.0.0-20200823200910-986ce1470707
 	github.com/metal-stack/metal-go v0.21.4
 	github.com/metal-stack/metal-lib v0.11.2
-	github.com/metal-stack/metal-networker v0.8.4-0.20220810191854-f7838fbf7f59
+	github.com/metal-stack/metal-networker v0.30.4-0.20221116122926-62f59fc3f354
 	github.com/metal-stack/v v1.0.3
 	github.com/miekg/dns v1.1.48
 	github.com/onsi/ginkgo v1.16.5
@@ -33,7 +33,6 @@ require (
 require (
 	cloud.google.com/go/compute v1.7.0 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
-	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
@@ -67,6 +66,7 @@ require (
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/mdlayher/netlink v1.7.0 // indirect
 	github.com/mdlayher/socket v0.4.0 // indirect
+	github.com/metal-stack/metal-hammer v0.11.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
@@ -78,6 +78,7 @@ require (
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
+	github.com/rogpeppe/go-internal v1.9.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/vishvananda/netns v0.0.1 // indirect
 	go.mongodb.org/mongo-driver v1.11.0 // indirect

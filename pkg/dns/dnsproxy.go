@@ -3,6 +3,7 @@ package dns
 import (
 	"context"
 	"fmt"
+	"github.com/metal-stack/metal-networker/pkg/netconf"
 	"net"
 	"strconv"
 
@@ -116,9 +117,12 @@ func (p *DNSProxy) GetSetsForFQDN(fqdn firewallv1.FQDNSelector, update bool) (re
 }
 
 func getHost() (string, error) {
-	kb := network.GetKnowledgeBase()
-	defaultNetwork := kb.GetDefaultRouteNetwork()
+	c, err := netconf.New(network.GetLogger(), network.MetalConfigBase)
+	if err != nil || c == nil {
+		return "", fmt.Errorf("failed to init networker config: %w", err)
+	}
 
+	defaultNetwork := c.GetDefaultRouteNetwork()
 	if defaultNetwork == nil || len(defaultNetwork.Ips) < 1 {
 		return "", fmt.Errorf("failed to retrieve host IP for DNS Proxy")
 	}

@@ -33,7 +33,7 @@ type CreateFirewall = func(
 //go:generate mockgen -destination=./mocks/mock_firewall.go -package=mocks . FirewallInterface
 type FirewallInterface interface {
 	Reconcile() (bool, error)
-	ReconcileNetconfTables()
+	ReconcileNetconfTables() error
 	Flush() error
 }
 

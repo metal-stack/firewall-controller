@@ -166,10 +166,20 @@ func (f *Firewall) Reconcile() (updated bool, err error) {
 	return true, nil
 }
 
-func (f *Firewall) ReconcileNetconfTables() {
-	kb := network.GetUpdatedKnowledgeBase(f.firewall)
-	configurator := netconf.NewConfigurator(netconf.Firewall, kb, f.enableDNS)
+func (f *Firewall) ReconcileNetconfTables() error {
+	c, err := netconf.New(network.GetLogger(), network.MetalConfigBase)
+	if err != nil || c == nil {
+		return fmt.Errorf("failed to init networker config: %w", err)
+	}
+	c.Networks = network.GetNewNetworks(f.firewall, c.Networks)
+
+	configurator, err := netconf.NewConfigurator(netconf.Firewall, *c, f.enableDNS)
+	if err != nil {
+		return fmt.Errorf("failed to init networker configurator: %w", err)
+	}
 	configurator.ConfigureNftables()
+
+	return nil
 }
 
 func (f *Firewall) renderFile(file string) error {

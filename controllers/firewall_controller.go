@@ -126,8 +126,7 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	var errors *multierror.Error
 	log.Info("reconciling network settings")
-	kb := network.GetUpdatedKnowledgeBase(f)
-	changed, err := network.ReconcileNetwork(kb)
+	changed, err := network.ReconcileNetwork(f)
 	if changed && err == nil {
 		r.recorder.Event(&f, corev1.EventTypeNormal, "Network settings", "reconcilation succeeded (frr.conf)")
 	} else if changed && err != nil {
