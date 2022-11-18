@@ -103,7 +103,7 @@ func (n nfCollector) CollectRuleStats() firewallv1.RuleStatsByAction {
 	}
 	chains, _ := c.ListChains()
 	for _, chain := range chains {
-		rules, _ := c.GetRule(chain.Table, chain)
+		rules, _ := c.GetRules(chain.Table, chain)
 		for _, r := range rules {
 			ri := extractRuleInfo(r)
 			if ri == nil {

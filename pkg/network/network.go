@@ -10,13 +10,14 @@ import (
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/metal-go/api/models"
 	"github.com/metal-stack/metal-networker/pkg/netconf"
+	"go.uber.org/zap"
 
 	"embed"
 )
 
 const (
-	MetalKnowledgeBase = "/etc/metal/install.yaml"
-	FrrConfig          = "/etc/frr/frr.conf"
+	metalNetworkerConfig = "/etc/metal/install.yaml"
+	frrConfig            = "/etc/frr/frr.conf"
 )
 
 //go:embed *.tpl
@@ -25,7 +26,13 @@ var templates embed.FS
 // ReconcileNetwork reconciles the network settings for a firewall
 // in the current stage it only changes the FRR-Configuration when network prefixes or FRR template changes
 func ReconcileNetwork(f firewallv1.Firewall, log logr.Logger) (bool, error) {
-	kb := netconf.NewKnowledgeBase(MetalKnowledgeBase)
+	// FIXME use zapr ?
+	zlog, _ := zap.NewProduction()
+
+	kb, err := netconf.New(zlog.Sugar(), metalNetworkerConfig)
+	if err != nil {
+		return false, err
+	}
 
 	networkMap := map[string]firewallv1.FirewallNetwork{}
 	for _, n := range f.Spec.FirewallNetworks {
@@ -35,7 +42,7 @@ func ReconcileNetwork(f firewallv1.Firewall, log logr.Logger) (bool, error) {
 		networkMap[*n.Networkid] = n
 	}
 
-	newNetworks := []models.V1MachineNetwork{}
+	newNetworks := []*models.V1MachineNetwork{}
 	for _, n := range kb.Networks {
 		newNet := n
 		newNet.Prefixes = networkMap[*n.Networkid].Prefixes
@@ -43,7 +50,7 @@ func ReconcileNetwork(f firewallv1.Firewall, log logr.Logger) (bool, error) {
 	}
 	kb.Networks = newNetworks
 
-	tmpFile, err := tmpFile(FrrConfig)
+	tmpFile, err := tmpFile(frrConfig)
 	if err != nil {
 		return false, fmt.Errorf("error during network reconcilation %v: %w", tmpFile, err)
 	}
@@ -51,13 +58,13 @@ func ReconcileNetwork(f firewallv1.Firewall, log logr.Logger) (bool, error) {
 		os.Remove(tmpFile)
 	}()
 
-	a := netconf.NewFrrConfigApplier(netconf.Firewall, kb, tmpFile)
+	a := netconf.NewFrrConfigApplier(netconf.Firewall, *kb, tmpFile)
 	tpl, err := readTpl(netconf.TplFirewallFRR)
 	if err != nil {
 		return false, fmt.Errorf("error during network reconcilation: %v: %w", tmpFile, err)
 	}
 
-	changed, err := a.Apply(*tpl, tmpFile, FrrConfig, true)
+	changed, err := a.Apply(*tpl, tmpFile, frrConfig, true)
 	if err != nil {
 		return changed, fmt.Errorf("error during network reconcilation: %v: %w", tmpFile, err)
 	}
