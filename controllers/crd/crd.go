@@ -24,7 +24,9 @@ import (
 	"context"
 	"errors"
 	"io"
-	"io/ioutil"
+
+	// FIXME remove this whole mechanism
+	"io/ioutil" // nolint:staticcheck
 	"os"
 	"path/filepath"
 	"time"
@@ -310,7 +312,8 @@ func renderCRDs(options *InstallOptions) ([]runtime.Object, error) {
 		if !info.IsDir() {
 			filePath, files = filepath.Dir(path), []os.FileInfo{info}
 		} else {
-			if files, err = ioutil.ReadDir(path); err != nil {
+			// FIXME the whole func is weird
+			if files, err = ioutil.ReadDir(path); err != nil { // nolint:staticcheck
 				return nil, err
 			}
 		}
