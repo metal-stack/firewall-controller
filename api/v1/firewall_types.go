@@ -52,6 +52,11 @@ type FirewallList struct {
 
 // FirewallSpec defines the desired state of Firewall
 type FirewallSpec struct {
+	Size        string `json:"size"`
+	Image       string `json:"image"`
+	PartitionID string `json:"partitionID"`
+	ProjectID   string `json:"projectID"`
+
 	// Data contains the data over which the signature is calculated.
 	Data `json:",inline"`
 
