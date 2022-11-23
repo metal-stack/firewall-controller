@@ -76,6 +76,14 @@ type FirewallDeployment struct {
 	Status FirewallDeploymentStatus `json:"status,omitempty"`
 }
 
+// FirewallDeploymentList contains a list of Firewall
+// +kubebuilder:object:root=true
+type FirewallDeploymentList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []FirewallDeployment `json:"items"`
+}
+
 type FirewallDeploymentSpec struct {
 	Size        string   `json:"size"`
 	Image       string   `json:"image"`
