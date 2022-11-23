@@ -96,6 +96,7 @@ type FirewallStatus struct {
 	FirewallStats     FirewallStats `json:"stats"`
 	ControllerVersion string        `json:"controllerVersion,omitempty"`
 	Updated           metav1.Time   `json:"lastRun,omitempty"`
+	MachineID         string        `json:"machineID"`
 }
 
 // FirewallStats contains firewall statistics

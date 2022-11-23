@@ -175,6 +175,8 @@ spec:
               lastRun:
                 format: date-time
                 type: string
+              machineID:
+                type: string
               message:
                 type: string
               stats:
@@ -253,6 +255,7 @@ spec:
                 - rules
                 type: object
             required:
+            - machineID
             - stats
             type: object
         type: object
