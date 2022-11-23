@@ -65,6 +65,9 @@ type FirewallSpec struct {
 	LogAcceptedConnections bool `json:"logAcceptedConnections,omitempty"`
 }
 
+// +kubebuilder:object:root=true
+// +kubebuilder:resource:shortName=fwdeploy
+// +kubebuilder:subresource:status
 type FirewallDeployment struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
