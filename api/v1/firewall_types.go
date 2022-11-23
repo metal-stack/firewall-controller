@@ -52,11 +52,6 @@ type FirewallList struct {
 
 // FirewallSpec defines the desired state of Firewall
 type FirewallSpec struct {
-	Size        string `json:"size"`
-	Image       string `json:"image"`
-	PartitionID string `json:"partitionID"`
-	ProjectID   string `json:"projectID"`
-
 	// Data contains the data over which the signature is calculated.
 	Data `json:",inline"`
 
@@ -68,6 +63,26 @@ type FirewallSpec struct {
 	ControllerURL string `json:"controllerURL,omitempty"`
 	// LogAcceptedConnections if set to true, also log accepted connections in the droptailer log
 	LogAcceptedConnections bool `json:"logAcceptedConnections,omitempty"`
+}
+
+type FirewallDeployment struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   FirewallDeploymentSpec   `json:"spec,omitempty"`
+	Status FirewallDeploymentStatus `json:"status,omitempty"`
+}
+
+type FirewallDeploymentSpec struct {
+	Size        string   `json:"size"`
+	Image       string   `json:"image"`
+	PartitionID string   `json:"partitionID"`
+	ProjectID   string   `json:"projectID"`
+	Template    Firewall `json:"template"`
+}
+
+type FirewallDeploymentStatus struct {
+	Reconciled bool `json:"reconciled"`
 }
 
 // Data contains the fields over which the signature is calculated.
