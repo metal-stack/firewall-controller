@@ -90,6 +90,35 @@ type FirewallSpec struct {
 	Data `json:",inline"`
 }
 
+// FirewallSetList contains a set of FirewallSets
+// +kubebuilder:object:root=true
+type FirewallSetList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []FirewallSet `json:"items"`
+}
+
+// +kubebuilder:object:root=true
+// +kubebuilder:resource:shortName=fwset
+// +kubebuilder:subresource:status
+type FirewallSet struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   FirewallSetSpec   `json:"spec,omitempty"`
+	Status FirewallSetStatus `json:"status,omitempty"`
+}
+
+type FirewallSetSpec struct {
+	Replicas int      `json:"replicas"`
+	Template Firewall `json:"template"`
+}
+
+type FirewallSetStatus struct {
+	Reconciled  bool     `json:"reconciled"`
+	FirewallIDs []string `json:"firewallIDs"`
+}
+
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:shortName=fwdeploy
 // +kubebuilder:subresource:status
@@ -101,7 +130,7 @@ type FirewallDeployment struct {
 	Status FirewallDeploymentStatus `json:"status,omitempty"`
 }
 
-// FirewallDeploymentList contains a list of Firewall
+// FirewallDeploymentList contains a list of FirewallDeployments
 // +kubebuilder:object:root=true
 type FirewallDeploymentList struct {
 	metav1.TypeMeta `json:",inline"`
@@ -120,6 +149,7 @@ const (
 
 type FirewallDeploymentSpec struct {
 	Strategy FirewallUpdateStrategy `json:"strategy"`
+	Replicas int                    `json:"replicas"`
 	Template Firewall               `json:"template"`
 }
 

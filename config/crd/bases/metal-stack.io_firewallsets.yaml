@@ -6,16 +6,16 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.7.0
   creationTimestamp: null
-  name: firewalldeployments.metal-stack.io
+  name: firewallsets.metal-stack.io
 spec:
   group: metal-stack.io
   names:
-    kind: FirewallDeployment
-    listKind: FirewallDeploymentList
-    plural: firewalldeployments
+    kind: FirewallSet
+    listKind: FirewallSetList
+    plural: firewallsets
     shortNames:
-    - fwdeploy
-    singular: firewalldeployment
+    - fwset
+    singular: firewallset
   scope: Namespaced
   versions:
   - name: v1
@@ -38,8 +38,6 @@ spec:
             properties:
               replicas:
                 type: integer
-              strategy:
-                type: string
               template:
                 description: Firewall is the Schema for the firewalls API
                 properties:
@@ -387,7 +385,6 @@ spec:
                 type: object
             required:
             - replicas
-            - strategy
             - template
             type: object
           status:

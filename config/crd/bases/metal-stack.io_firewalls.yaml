@@ -150,6 +150,8 @@ spec:
                 description: LogAcceptedConnections if set to true, also log accepted
                   connections in the droptailer log
                 type: boolean
+              name:
+                type: string
               networks:
                 items:
                   type: string
@@ -203,14 +205,18 @@ spec:
                 items:
                   type: string
                 type: array
+              userdata:
+                type: string
             required:
             - image
+            - name
             - networks
             - partitionID
             - projectID
             - signature
             - size
             - sshpublickeys
+            - userdata
             type: object
           status:
             description: FirewallStatus defines the observed state of Firewall
@@ -262,6 +268,20 @@ spec:
                 type: string
               machineID:
                 type: string
+              machineStatus:
+                properties:
+                  event:
+                    type: string
+                  message:
+                    type: string
+                  time:
+                    format: date-time
+                    type: string
+                required:
+                - event
+                - message
+                - time
+                type: object
               message:
                 type: string
               stats:
@@ -341,6 +361,7 @@ spec:
                 type: object
             required:
             - machineID
+            - machineStatus
             - stats
             type: object
         type: object
