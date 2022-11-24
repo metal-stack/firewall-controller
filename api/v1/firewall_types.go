@@ -85,15 +85,18 @@ type FirewallDeploymentList struct {
 }
 
 type FirewallDeploymentSpec struct {
-	Size        string   `json:"size"`
-	Image       string   `json:"image"`
-	PartitionID string   `json:"partitionID"`
-	ProjectID   string   `json:"projectID"`
-	Template    Firewall `json:"template"`
+	Size          string   `json:"size"`
+	Image         string   `json:"image"`
+	PartitionID   string   `json:"partitionID"`
+	ProjectID     string   `json:"projectID"`
+	Networks      []string `json:"networks"`
+	SSHPublicKeys []string `json:"sshpublickeys"`
+	Template      Firewall `json:"template"`
 }
 
 type FirewallDeploymentStatus struct {
 	Reconciled bool `json:"reconciled"`
+	FirewallIDs []string `json:"firewallIDs"`
 }
 
 // Data contains the fields over which the signature is calculated.

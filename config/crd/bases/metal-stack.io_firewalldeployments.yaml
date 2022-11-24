@@ -37,12 +37,20 @@ spec:
             properties:
               image:
                 type: string
+              networks:
+                items:
+                  type: string
+                type: array
               partitionID:
                 type: string
               projectID:
                 type: string
               size:
                 type: string
+              sshpublickeys:
+                items:
+                  type: string
+                type: array
               template:
                 description: Firewall is the Schema for the firewalls API
                 properties:
@@ -273,9 +281,11 @@ spec:
                 type: object
             required:
             - image
+            - networks
             - partitionID
             - projectID
             - size
+            - sshpublickeys
             - template
             type: object
           status:
