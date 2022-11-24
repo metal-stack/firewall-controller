@@ -1,9 +1,10 @@
+
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.9.0
+    controller-gen.kubebuilder.io/version: v0.7.0
   creationTimestamp: null
   name: firewalls.metal-stack.io
 spec:
@@ -56,20 +57,34 @@ spec:
                 description: DryRun if set to true, firewall rules are not applied
                 type: boolean
               egressRules:
-                description: EgressRules
-                items:
-                  description: EgressRuleSNAT holds a Source-NAT rule
-                  properties:
-                    ips:
-                      items:
+                allOf:
+                - items:
+                    description: EgressRuleSNAT holds a Source-NAT rule
+                    properties:
+                      ips:
+                        items:
+                          type: string
+                        type: array
+                      networkid:
                         type: string
-                      type: array
-                    networkid:
-                      type: string
-                  required:
-                  - ips
-                  - networkid
-                  type: object
+                    required:
+                    - ips
+                    - networkid
+                    type: object
+                - items:
+                    description: EgressRuleSNAT holds a Source-NAT rule
+                    properties:
+                      ips:
+                        items:
+                          type: string
+                        type: array
+                      networkid:
+                        type: string
+                    required:
+                    - ips
+                    - networkid
+                    type: object
+                description: EgressRules
                 type: array
               firewallNetworks:
                 description: FirewallNetworks holds the networks known at the metal-api
@@ -111,13 +126,18 @@ spec:
                   - vrf
                   type: object
                 type: array
+              image:
+                type: string
               internalprefixes:
+                allOf:
+                - items:
+                    type: string
+                - items:
+                    type: string
                 description: 'InternalPrefixes specify prefixes which are considered
                   local to the partition or all regions. Traffic to/from these prefixes
                   is accounted as internal traffic TODO: align to camel-case - rename
                   to internalPrefixes'
-                items:
-                  type: string
                 type: array
               interval:
                 description: Interval on which rule reconciliation should happen
@@ -130,36 +150,113 @@ spec:
                 description: LogAcceptedConnections if set to true, also log accepted
                   connections in the droptailer log
                 type: boolean
+              networks:
+                items:
+                  type: string
+                type: array
+              partitionID:
+                type: string
+              projectID:
+                type: string
               rateLimits:
+                allOf:
+                - items:
+                    description: RateLimit contains the rate limit rule for a network.
+                    properties:
+                      networkid:
+                        description: NetworkID specifies the network which should
+                          be rate limited
+                        type: string
+                      rate:
+                        description: Rate is the input rate in MiB/s
+                        format: int32
+                        type: integer
+                    required:
+                    - networkid
+                    - rate
+                    type: object
+                - items:
+                    description: RateLimit contains the rate limit rule for a network.
+                    properties:
+                      networkid:
+                        description: NetworkID specifies the network which should
+                          be rate limited
+                        type: string
+                      rate:
+                        description: Rate is the input rate in MiB/s
+                        format: int32
+                        type: integer
+                    required:
+                    - networkid
+                    - rate
+                    type: object
                 description: RateLimits allows configuration of rate limit rules for
                   interfaces.
-                items:
-                  description: RateLimit contains the rate limit rule for a network.
-                  properties:
-                    networkid:
-                      description: NetworkID specifies the network which should be
-                        rate limited
-                      type: string
-                    rate:
-                      description: Rate is the input rate in MiB/s
-                      format: int32
-                      type: integer
-                  required:
-                  - networkid
-                  - rate
-                  type: object
                 type: array
               signature:
-                description: Signature of firewall attributes generated by GEPM.
+                description: 'DEPRECATION Deprecated: Signature of firewall attributes
+                  generated by GEPM.'
                 type: string
+              size:
+                type: string
+              sshpublickeys:
+                items:
+                  type: string
+                type: array
             required:
+            - image
+            - networks
+            - partitionID
+            - projectID
             - signature
+            - size
+            - sshpublickeys
             type: object
           status:
             description: FirewallStatus defines the observed state of Firewall
             properties:
               controllerVersion:
                 type: string
+              firewallNetworks:
+                description: FirewallNetworks holds the networks known at the metal-api
+                  for this firewall machine
+                items:
+                  properties:
+                    asn:
+                      format: int64
+                      type: integer
+                    destinationprefixes:
+                      items:
+                        type: string
+                      type: array
+                    ips:
+                      items:
+                        type: string
+                      type: array
+                    nat:
+                      type: boolean
+                    networkid:
+                      type: string
+                    networktype:
+                      type: string
+                    prefixes:
+                      items:
+                        type: string
+                      type: array
+                    vrf:
+                      format: int64
+                      type: integer
+                  required:
+                  - asn
+                  - destinationprefixes
+                  - ips
+                  - nat
+                  - networkid
+                  - networktype
+                  - prefixes
+                  - vrf
+                  type: object
+                type: array
               lastRun:
                 format: date-time
                 type: string
@@ -251,3 +348,9 @@ spec:
     storage: true
     subresources:
       status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
