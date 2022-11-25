@@ -167,7 +167,7 @@ func (f *Firewall) Reconcile() (updated bool, err error) {
 }
 
 func (f *Firewall) ReconcileNetconfTables() error {
-	c, err := netconf.New(network.GetLogger(), network.MetalConfigBase)
+	c, err := netconf.New(network.GetLogger(), network.MetalNetworkerConfig)
 	if err != nil || c == nil {
 		return fmt.Errorf("failed to init networker config: %w", err)
 	}

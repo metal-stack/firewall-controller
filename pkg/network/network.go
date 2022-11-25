@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	metalNetworkerConfig = "/etc/metal/install.yaml"
+	MetalNetworkerConfig = "/etc/metal/install.yaml"
 	frrConfig            = "/etc/frr/frr.conf"
 )
 
@@ -71,7 +71,7 @@ func ReconcileNetwork(f firewallv1.Firewall) (changed bool, err error) {
 		os.Remove(tmpFile)
 	}()
 
-	c, err := netconf.New(GetLogger(), metalNetworkerConfig)
+	c, err := netconf.New(GetLogger(), MetalNetworkerConfig)
 	if err != nil || c == nil {
 		return false, fmt.Errorf("failed to init networker config: %w", err)
 	}
