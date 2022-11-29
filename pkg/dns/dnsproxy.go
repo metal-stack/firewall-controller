@@ -109,15 +109,19 @@ func (p *DNSProxy) UpdateDNSServerAddr(addr string) error {
 }
 
 func (p *DNSProxy) GetSetsForRendering(fqdns []firewallv1.FQDNSelector) (result []RenderIPSet) {
-	if p.cache == nil {
-		p.log.Info("DNS Proxy initialized without a cache")
-		return
-	}
 	return p.cache.getSetsForRendering(fqdns)
 }
 
 func (p *DNSProxy) GetSetsForFQDN(fqdn firewallv1.FQDNSelector, fqdnSets []firewallv1.IPSet) (result []firewallv1.IPSet) {
 	return p.cache.getSetsForFQDN(fqdn, fqdnSets)
+}
+
+func (p *DNSProxy) IsInitialized() bool {
+	if p == nil {
+		return false
+	}
+
+	return true
 }
 
 func getHost() (string, error) {
