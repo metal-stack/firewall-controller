@@ -123,20 +123,19 @@ func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
 	}
 
 	enableDNS := len(cwnps.GetFQDNs()) > 0
-	if enableDNS {
-		log.Info("CWNPS with FQDN rules are found")
-	}
 
 	if err := nftablesFirewall.ReconcileNetconfTables(); err != nil {
 		return fmt.Errorf("failed to reconcile nftables for DNS proxy: %w", err)
 	}
 
 	if enableDNS && r.dnsProxy == nil {
+		log.Info("DNS Proxy is initialized")
 		if r.dnsProxy, err = dns.NewDNSProxy(f.Spec.DNSPort, ctrl.Log.WithName("DNS proxy")); err != nil {
 			return fmt.Errorf("failed to init DNS proxy: %w", err)
 		}
 		go r.dnsProxy.Run(ctx)
 	} else if !enableDNS && r.dnsProxy != nil {
+		log.Info("DNS Proxy is stopped")
 		r.dnsProxy.Stop()
 		r.dnsProxy = nil
 	}
