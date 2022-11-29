@@ -151,16 +151,16 @@ func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
 }
 
 // IMPORTANT!
-// We shouldn't implement reconcilation loop by assigning RequeueAfter in result like it's done in Firewall controller.
-// Here's case when it would go bad:
+// We shouldn't implement reconciliation loop by assigning RequeueAfter in result like it's done in Firewall controller.
+// Here's the case when it would go bad:
 //
 //	DNS Proxy is ON and Firewall machine is rebooted.
 //
 // There will be at least 2 problems:
 //  1. When it's rebooted, metal-networker will generate basic nftables config and apply it.
 //     In basic config there's now DNAT rules required for DNS Proxy.
-//  2. DNS Proxy is started by CWNP controller and it will not be started until some CWNP resource is created/updated/deleted.
-func (r *ClusterwideNetworkPolicyReconciler) getReconcilationTicker(scheduleChan chan<- event.GenericEvent) manager.RunnableFunc {
+//  2. DNS Proxy is started by CWNP controller, and it will not be started until some CWNP resource is created/updated/deleted.
+func (r *ClusterwideNetworkPolicyReconciler) getReconciliationTicker(scheduleChan chan<- event.GenericEvent) manager.RunnableFunc {
 	return func(ctx context.Context) error {
 		e := event.GenericEvent{}
 		ticker := time.NewTicker(r.interval)
@@ -180,7 +180,7 @@ func (r *ClusterwideNetworkPolicyReconciler) getReconcilationTicker(scheduleChan
 // SetupWithManager configures this controller to run in schedule
 func (r *ClusterwideNetworkPolicyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	scheduleChan := make(chan event.GenericEvent)
-	if err := mgr.Add(r.getReconcilationTicker(scheduleChan)); err != nil {
+	if err := mgr.Add(r.getReconciliationTicker(scheduleChan)); err != nil {
 		return fmt.Errorf("failed to add runnable to manager: %w", err)
 	}
 
