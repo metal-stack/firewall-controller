@@ -92,7 +92,7 @@ func (r *ClusterwideNetworkPolicyReconciler) reconcileRules(ctx context.Context,
 		return done, err
 	}
 	nftablesFirewall := r.createFirewall(f, &cwnps, &services, r.dnsProxy, log)
-	if err := r.manageDNSProxy(ctx, f, cwnps, nftablesFirewall); err != nil {
+	if err := r.manageDNSProxy(ctx, log, f, cwnps, nftablesFirewall); err != nil {
 		return done, err
 	}
 	updated, err := nftablesFirewall.Reconcile()
@@ -115,7 +115,7 @@ func (r *ClusterwideNetworkPolicyReconciler) reconcileRules(ctx context.Context,
 // manageDNSProxy start DNS proxy if toFQDN rules are present
 // if rules were deleted it will stop running DNS proxy
 func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
-	ctx context.Context, f firewallv1.Firewall, cwnps firewallv1.ClusterwideNetworkPolicyList, nftablesFirewall FirewallInterface,
+	ctx context.Context, log logr.Logger, f firewallv1.Firewall, cwnps firewallv1.ClusterwideNetworkPolicyList, nftablesFirewall FirewallInterface,
 ) (err error) {
 	// Skipping is needed for testing
 	if r.skipDNS {
@@ -123,6 +123,9 @@ func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
 	}
 
 	enableDNS := len(cwnps.GetFQDNs()) > 0
+	if enableDNS {
+		log.Info("CWNPS with FQDN rules are found")
+	}
 
 	if err := nftablesFirewall.ReconcileNetconfTables(); err != nil {
 		return fmt.Errorf("failed to reconcile nftables for DNS proxy: %w", err)

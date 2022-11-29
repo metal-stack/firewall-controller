@@ -109,6 +109,10 @@ func (p *DNSProxy) UpdateDNSServerAddr(addr string) error {
 }
 
 func (p *DNSProxy) GetSetsForRendering(fqdns []firewallv1.FQDNSelector) (result []RenderIPSet) {
+	if p.cache == nil {
+		p.log.Info("DNS Proxy initialized without a cache")
+		return
+	}
 	return p.cache.getSetsForRendering(fqdns)
 }
 

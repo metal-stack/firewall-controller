@@ -46,6 +46,7 @@ func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 
 	var sets []dns.RenderIPSet
 	if f.cache != nil {
+		f.log.Info("Get sets for rendering")
 		sets = f.cache.GetSetsForRendering(f.clusterwideNetworkPolicies.GetFQDNs())
 	}
 	return &firewallRenderingData{
