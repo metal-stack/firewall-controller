@@ -112,8 +112,8 @@ func (p *DNSProxy) GetSetsForRendering(fqdns []firewallv1.FQDNSelector) (result 
 	return p.cache.getSetsForRendering(fqdns)
 }
 
-func (p *DNSProxy) GetSetsForFQDN(fqdn firewallv1.FQDNSelector, update bool) (result []firewallv1.IPSet) {
-	return p.cache.getSetsForFQDN(fqdn, update)
+func (p *DNSProxy) GetSetsForFQDN(fqdn firewallv1.FQDNSelector, fqdnSets []firewallv1.IPSet) (result []firewallv1.IPSet) {
+	return p.cache.getSetsForFQDN(fqdn, fqdnSets)
 }
 
 func getHost() (string, error) {

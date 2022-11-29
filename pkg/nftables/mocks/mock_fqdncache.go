@@ -36,7 +36,7 @@ func (m *MockFQDNCache) EXPECT() *MockFQDNCacheMockRecorder {
 }
 
 // GetSetsForFQDN mocks base method.
-func (m *MockFQDNCache) GetSetsForFQDN(arg0 v1.FQDNSelector, arg1 bool) []v1.IPSet {
+func (m *MockFQDNCache) GetSetsForFQDN(arg0 v1.FQDNSelector, arg1 []v1.IPSet) []v1.IPSet {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSetsForFQDN", arg0, arg1)
 	ret0, _ := ret[0].([]v1.IPSet)

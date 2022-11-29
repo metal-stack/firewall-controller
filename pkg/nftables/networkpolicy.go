@@ -65,7 +65,7 @@ func clusterwideNetworkPolicyEgressRules(
 	np firewallv1.ClusterwideNetworkPolicy,
 	logAcceptedConnections bool,
 ) (rules nftablesRules, updated firewallv1.ClusterwideNetworkPolicy) {
-	for i, e := range np.Spec.Egress {
+	for _, e := range np.Spec.Egress {
 		tcpPorts, udpPorts := calculatePorts(e.Ports)
 		ruleBases := []ruleBase{}
 		if len(e.To) > 0 {
@@ -82,8 +82,8 @@ func clusterwideNetworkPolicyEgressRules(
 			ruleBases = append(ruleBases, ruleBase{base: rb})
 		} else if len(e.ToFQDNs) > 0 && cache != nil {
 			// Generate allow rules based on DNS selectors
-			rbs, u := clusterwideNetworkPolicyEgressToFQDNRules(cache, e)
-			np.Spec.Egress[i] = u
+			rbs, u := clusterwideNetworkPolicyEgressToFQDNRules(cache, np.Status.FQDNState, e)
+			np.Status.FQDNState = u
 			ruleBases = append(ruleBases, rbs...)
 		}
 
@@ -112,20 +112,28 @@ func clusterwideNetworkPolicyEgressToRules(e firewallv1.EgressRule) (allow, exce
 
 func clusterwideNetworkPolicyEgressToFQDNRules(
 	cache FQDNCache,
+	fqdnState firewallv1.FQDNState,
 	e firewallv1.EgressRule,
-) (rules []ruleBase, updated firewallv1.EgressRule) {
-	for i, fqdn := range e.ToFQDNs {
-		fqdn.Sets = cache.GetSetsForFQDN(fqdn, true)
-		e.ToFQDNs[i] = fqdn
+) (rules []ruleBase, updatedState firewallv1.FQDNState) {
+	if fqdnState == nil {
+		fqdnState = firewallv1.FQDNState{}
+	}
 
-		for _, set := range fqdn.Sets {
+	for _, fqdn := range e.ToFQDNs {
+		fqdnName := fqdn.MatchName
+		if fqdnName == "" {
+			fqdnName = fqdn.MatchPattern
+		}
+
+		fqdnState[fqdnName] = cache.GetSetsForFQDN(fqdn, fqdnState[fqdnName])
+		for _, set := range fqdnState[fqdnName] {
 			rb := []string{"ip saddr == @cluster_prefixes"}
 			rb = append(rb, fmt.Sprintf(string(set.Version)+" daddr @%s", set.SetName))
 			rules = append(rules, ruleBase{comment: fmt.Sprintf(", fqdn: %s", fqdn.GetName()), base: rb})
 		}
 	}
 
-	return rules, e
+	return rules, fqdnState
 }
 
 func calculatePorts(ports []networkingv1.NetworkPolicyPort) (tcpPorts, udpPorts []string) {

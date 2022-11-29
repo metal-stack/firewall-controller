@@ -124,10 +124,8 @@ func newDNSCache(ipv4Enabled, ipv6Enabled bool, log logr.Logger) *DNSCache {
 }
 
 // getSetsForFQDN returns sets for FQDN selector
-func (c *DNSCache) getSetsForFQDN(fqdn firewallv1.FQDNSelector, update bool) (result []firewallv1.IPSet) {
-	if update {
-		c.restoreSets(fqdn)
-	}
+func (c *DNSCache) getSetsForFQDN(fqdn firewallv1.FQDNSelector, fqdnSets []firewallv1.IPSet) (result []firewallv1.IPSet) {
+	c.restoreSets(fqdnSets)
 
 	sets := map[string]firewallv1.IPSet{}
 	if fqdn.MatchName != "" {
@@ -184,8 +182,8 @@ func (c *DNSCache) updateDNSServerAddr(addr string) {
 }
 
 // restoreSets add missing sets from FQDNSelector.Sets
-func (c *DNSCache) restoreSets(fqdn firewallv1.FQDNSelector) {
-	for _, s := range fqdn.Sets {
+func (c *DNSCache) restoreSets(fqdnSets []firewallv1.IPSet) {
+	for _, s := range fqdnSets {
 		// Add cache entries from fqdn.Sets if missing
 		c.Lock()
 		if _, ok := c.setNames[s.SetName]; !ok {

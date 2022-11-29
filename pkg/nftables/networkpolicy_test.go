@@ -222,11 +222,11 @@ func TestClusterwideNetworkPolicyEgressRules(t *testing.T) {
 			record: func(cache *mocks.MockFQDNCache) {
 				cache.
 					EXPECT().
-					GetSetsForFQDN(gomock.Any(), true).
+					GetSetsForFQDN(gomock.Any(), gomock.Any()).
 					Return([]firewallv1.IPSet{{SetName: "test", Version: firewallv1.IPv4}})
 				cache.
 					EXPECT().
-					GetSetsForFQDN(gomock.Any(), true).
+					GetSetsForFQDN(gomock.Any(), gomock.Any()).
 					Return([]firewallv1.IPSet{{SetName: "test2", Version: firewallv1.IPv6}})
 			},
 			want: want{

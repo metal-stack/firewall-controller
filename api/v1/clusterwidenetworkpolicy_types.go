@@ -47,7 +47,8 @@ type ClusterwideNetworkPolicy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec PolicySpec `json:"spec,omitempty"`
+	Spec   PolicySpec   `json:"spec,omitempty"`
+	Status PolicyStatus `json:"status,omitempty"`
 }
 
 // ClusterwideNetworkPolicyList contains a list of ClusterwideNetworkPolicy
@@ -61,7 +62,7 @@ type ClusterwideNetworkPolicyList struct {
 // PolicySpec defines the rules to create for ingress and egress
 type PolicySpec struct {
 	// Description is a free form string, it can be used by the creator of
-	// the rule to store human readable explanation of the purpose of this
+	// the rule to store human-readable explanation of the purpose of this
 	// rule. Rules cannot be identified by comment.
 	//
 	// +optional
@@ -78,6 +79,16 @@ type PolicySpec struct {
 	// Clusters are isolated by default.
 	// +optional
 	Egress []EgressRule `json:"egress,omitempty"`
+}
+
+type FQDNState map[string][]IPSet
+
+// PolicyStatus defines the observed state for CWNP resource
+type PolicyStatus struct {
+	// FQDNState stores mapping from FQDN rules to nftables sets used for a firewall rule.
+	// Key is either MatchName or MatchPattern
+	// +optional
+	FQDNState FQDNState `json:"fqdn_state,omitempty"`
 }
 
 // IngressRule describes a particular set of traffic that is allowed to the cluster.
@@ -138,12 +149,6 @@ type FQDNSelector struct {
 	// "*" matches 0 or more valid characters.
 	// +kubebuilder:validation:Pattern=`^([-a-zA-Z0-9_*]+[.]?)+$`
 	MatchPattern string `json:"matchPattern,omitempty"`
-
-	// Sets store nftables sets used for a firewall rule.
-	// Stored in Spec so that reconciler would receive always up-to-date data.
-	// Client caches Status, so additional actions would be required to guarantee that up-to-date data is used.
-	// +optional
-	Sets []IPSet `json:"sets,omitempty"`
 }
 
 // IPSet stores set name association to IP addresses

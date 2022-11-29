@@ -14,6 +14,7 @@ func Test_GetSetsForFQDN(t *testing.T) {
 		fqdnToEntry  map[string]cacheEntry
 		expectedSets []string
 		fqdnSelector firewallv1.FQDNSelector
+		cachedSets   []firewallv1.IPSet
 	}{
 		{
 			name: "get result for matchName",
@@ -66,14 +67,13 @@ func Test_GetSetsForFQDN(t *testing.T) {
 			},
 		},
 		{
-			name:        "restore sets",
-			fqdnToEntry: map[string]cacheEntry{},
-			fqdnSelector: firewallv1.FQDNSelector{
-				Sets: []firewallv1.IPSet{{
-					FQDN:    "test-fqdn",
-					SetName: "test-set",
-				}},
-			},
+			name:         "restore sets",
+			fqdnToEntry:  map[string]cacheEntry{},
+			fqdnSelector: firewallv1.FQDNSelector{},
+			cachedSets: []firewallv1.IPSet{{
+				FQDN:    "test-fqdn",
+				SetName: "test-set",
+			}},
 		},
 	}
 
@@ -87,7 +87,7 @@ func Test_GetSetsForFQDN(t *testing.T) {
 				ipv4Enabled: true,
 				ipv6Enabled: true,
 			}
-			result := cache.getSetsForFQDN(tc.fqdnSelector, tc.fqdnSelector.Sets != nil)
+			result := cache.getSetsForFQDN(tc.fqdnSelector, tc.cachedSets)
 
 			set := make(map[string]bool, len(tc.expectedSets))
 			for _, s := range tc.expectedSets {
@@ -106,7 +106,7 @@ func Test_GetSetsForFQDN(t *testing.T) {
 			}
 
 			// Check if cache was updated
-			for _, s := range tc.fqdnSelector.Sets {
+			for _, s := range tc.cachedSets {
 				if _, ok := cache.setNames[s.SetName]; !ok {
 					t.Errorf("set name %s wasn't added to cache", s.SetName)
 				}

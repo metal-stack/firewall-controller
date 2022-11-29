@@ -103,8 +103,8 @@ func (r *ClusterwideNetworkPolicyReconciler) reconcileRules(ctx context.Context,
 	if updated {
 		for _, i := range cwnps.Items {
 			o := i
-			if err := r.Update(ctx, &o); err != nil {
-				return done, err
+			if err := r.Status().Update(ctx, &o); err != nil {
+				return done, fmt.Errorf("failed to updated CWNP status: %w", err)
 			}
 		}
 	}
