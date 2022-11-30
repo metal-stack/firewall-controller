@@ -117,11 +117,7 @@ func (p *DNSProxy) GetSetsForFQDN(fqdn firewallv1.FQDNSelector, fqdnSets []firew
 }
 
 func (p *DNSProxy) IsInitialized() bool {
-	if p == nil {
-		return false
-	}
-
-	return true
+	return p != nil
 }
 
 func getHost() (string, error) {

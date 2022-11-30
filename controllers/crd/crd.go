@@ -30,10 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
-	ctrl "sigs.k8s.io/controller-runtime"
 )
-
-var log = ctrl.Log.WithName("crd")
 
 // InstallOptions are the options for installing CRDs
 type InstallOptions struct {
