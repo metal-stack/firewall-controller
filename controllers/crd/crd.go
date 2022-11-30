@@ -44,6 +44,7 @@ type InstallOptions struct {
 // WaitForCRDs waits for the resources to appear in discovery
 func WaitForCRDs(config *rest.Config, options InstallOptions, resourceNames ...string) error {
 	waitingFor := map[schema.GroupVersion]*sets.String{}
+	waitingFor[firewallv1.GroupVersion] = &sets.String{}
 	for _, name := range resourceNames {
 		plural := flect.Pluralize(strings.ToLower(name))
 		waitingFor[firewallv1.GroupVersion].Insert(plural)
