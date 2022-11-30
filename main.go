@@ -17,10 +17,8 @@ limitations under the License.
 package main
 
 import (
-	"embed"
 	"flag"
 	"fmt"
-	"io/fs"
 	"os"
 	"time"
 
@@ -38,9 +36,6 @@ import (
 	"github.com/metal-stack/firewall-controller/controllers/crd"
 	// +kubebuilder:scaffold:imports
 )
-
-//go:embed config/crd/bases/*.yaml
-var crds embed.FS
 
 var (
 	scheme   = runtime.NewScheme()
@@ -109,20 +104,10 @@ func main() {
 		panic("not all started")
 	}
 
-	crdMap, err := readCRDsFromVFS()
-	if err != nil {
-		setupLog.Error(err, "unable to read crds from virtual filesystem")
-		os.Exit(1)
-	}
-	crds, err := crd.InstallCRDs(restConfig, crd.InstallOptions{
-		CRDContents: crdMap,
-	})
-	if err != nil {
-		setupLog.Error(err, "unable to create crds of firewall-controller")
-		os.Exit(1)
-	}
-
-	err = crd.WaitForCRDs(restConfig, crds, crd.InstallOptions{MaxTime: 500 * time.Millisecond, PollInterval: 100 * time.Millisecond})
+	err = crd.WaitForCRDs(restConfig, crd.InstallOptions{
+		MaxTime:      500 * time.Millisecond,
+		PollInterval: 100 * time.Millisecond,
+	}, "firewall", "clusterwidenetworkpolicy")
 	if err != nil {
 		setupLog.Error(err, "unable to wait for created crds of firewall-controller")
 		os.Exit(1)
@@ -182,26 +167,4 @@ func main() {
 	// +kubebuilder:scaffold:builder
 
 	<-ctx.Done()
-}
-
-func readCRDsFromVFS() (map[string][]byte, error) {
-	crdMap := make(map[string][]byte)
-	err := fs.WalkDir(crds, ".", func(path string, info os.DirEntry, err error) error {
-		setupLog.Info("walk", "path", path)
-		if info.IsDir() {
-			return nil
-		}
-		b, readerr := fs.ReadFile(crds, path)
-		if readerr != nil {
-			return fmt.Errorf("unable to readfile:%w", readerr)
-		}
-		crdMap[path] = b
-		setupLog.Info("crd", "path", path)
-		return nil
-	})
-	if err != nil {
-		setupLog.Error(err, "unable to read crs from virtual fs")
-		return nil, err
-	}
-	return crdMap, nil
 }
