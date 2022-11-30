@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.9.0
+    controller-gen.kubebuilder.io/version: v0.10.0
   creationTimestamp: null
   name: clusterwidenetworkpolicies.metal-stack.io
 spec:
@@ -40,7 +40,7 @@ spec:
             properties:
               description:
                 description: Description is a free form string, it can be used by
-                  the creator of the rule to store human readable explanation of the
+                  the creator of the rule to store human-readable explanation of the
                   purpose of this rule. Rules cannot be identified by comment.
                 type: string
               egress:
@@ -97,7 +97,8 @@ spec:
                         this rule matches all destinations (traffic not restricted
                         by destination). If this field is present and contains at
                         least one item, this rule allows traffic only if the traffic
-                        matches at least one item in the to list.
+                        matches at least one item in the to list. To rules can't contain
+                        ToFQDNs rules.
                       items:
                         description: IPBlock describes a particular CIDR (Ex. "192.168.1.1/24","2001:db9::/64")
                           that is allowed to the pods matched by a NetworkPolicySpec's
@@ -118,6 +119,27 @@ spec:
                             type: array
                         required:
                         - cidr
+                        type: object
+                      type: array
+                    toFQDNs:
+                      description: List of FQDNs (fully qualified domain names) for
+                        outgoing traffic of a cluster for this rule. Items in this
+                        list are combined using a logical OR operation. This field
+                        is used as whitelist for DNS names. If none specified, no
+                        rule will be applied. ToFQDNs rules can't contain To rules.
+                      items:
+                        description: FQDNSelector describes rules for matching DNS
+                          names.
+                        properties:
+                          matchName:
+                            description: MatchName matches FQDN.
+                            pattern: ^([-a-zA-Z0-9_]+[.]?)+$
+                            type: string
+                          matchPattern:
+                            description: MatchPattern allows using "*" to match DNS
+                              names. "*" matches 0 or more valid characters.
+                            pattern: ^([-a-zA-Z0-9_*]+[.]?)+$
+                            type: string
                         type: object
                       type: array
                   type: object
@@ -203,6 +225,33 @@ spec:
                       type: array
                   type: object
                 type: array
+            type: object
+          status:
+            description: PolicyStatus defines the observed state for CWNP resource
+            properties:
+              fqdn_state:
+                additionalProperties:
+                  items:
+                    description: IPSet stores set name association to IP addresses
+                    properties:
+                      expirationTime:
+                        format: date-time
+                        type: string
+                      fqdn:
+                        type: string
+                      ips:
+                        items:
+                          type: string
+                        type: array
+                      setName:
+                        type: string
+                      version:
+                        type: string
+                    type: object
+                  type: array
+                description: FQDNState stores mapping from FQDN rules to nftables
+                  sets used for a firewall rule. Key is either MatchName or MatchPattern
+                type: object
             type: object
         type: object
     served: true

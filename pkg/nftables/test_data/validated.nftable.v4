@@ -1,4 +1,4 @@
-table ip firewall {
+table inet firewall {
 	# internal prefixes, which are not leaving the partition or the partition interconnect
 	set internal_prefixes {
 		type ipv4_addr

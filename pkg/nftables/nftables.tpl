@@ -1,4 +1,4 @@
-table ip firewall {
+table inet firewall {
 	# internal prefixes, which are not leaving the partition or the partition interconnect
 	set internal_prefixes {
 		type ipv4_addr
@@ -17,6 +17,15 @@ table ip firewall {
 		auto-merge
 		elements = { 10.0.0.0/8 }
 	}
+	{{- range .Sets }}
+
+	set {{ .SetName }} {
+		type {{ .Version }}
+		{{ if gt (len .IPs) 0 }}
+		elements = { {{ StringsJoin .IPs ", " }} }
+		{{ end }}
+	}
+	{{- end }}
 
 	# counters
 	counter internal_in { }

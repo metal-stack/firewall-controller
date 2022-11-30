@@ -2,38 +2,42 @@ package network
 
 import (
 	"fmt"
+	"go.uber.org/zap"
 	"os"
 	"path/filepath"
 	"text/template"
 
-	"github.com/go-logr/logr"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/metal-go/api/models"
 	"github.com/metal-stack/metal-networker/pkg/netconf"
-	"go.uber.org/zap"
 
 	"embed"
 )
 
 const (
-	metalNetworkerConfig = "/etc/metal/install.yaml"
+	MetalNetworkerConfig = "/etc/metal/install.yaml"
 	frrConfig            = "/etc/frr/frr.conf"
 )
 
 //go:embed *.tpl
 var templates embed.FS
+var logger *zap.SugaredLogger
 
-// ReconcileNetwork reconciles the network settings for a firewall
-// in the current stage it only changes the FRR-Configuration when network prefixes or FRR template changes
-func ReconcileNetwork(f firewallv1.Firewall, log logr.Logger) (bool, error) {
-	// FIXME use zapr ?
-	zlog, _ := zap.NewProduction()
-
-	kb, err := netconf.New(zlog.Sugar(), metalNetworkerConfig)
+func init() {
+	l, err := zap.NewProduction()
 	if err != nil {
-		return false, err
+		panic(err)
 	}
 
+	logger = l.Sugar()
+}
+
+func GetLogger() *zap.SugaredLogger {
+	return logger
+}
+
+// GetNewNetworks returns updated network models
+func GetNewNetworks(f firewallv1.Firewall, oldNetworks []*models.V1MachineNetwork) []*models.V1MachineNetwork {
 	networkMap := map[string]firewallv1.FirewallNetwork{}
 	for _, n := range f.Spec.FirewallNetworks {
 		if n.Networktype == nil {
@@ -43,13 +47,22 @@ func ReconcileNetwork(f firewallv1.Firewall, log logr.Logger) (bool, error) {
 	}
 
 	newNetworks := []*models.V1MachineNetwork{}
-	for _, n := range kb.Networks {
+	for _, n := range oldNetworks {
+		if n == nil {
+			continue
+		}
+
 		newNet := n
 		newNet.Prefixes = networkMap[*n.Networkid].Prefixes
 		newNetworks = append(newNetworks, newNet)
 	}
-	kb.Networks = newNetworks
 
+	return newNetworks
+}
+
+// ReconcileNetwork reconciles the network settings for a firewall
+// Changes both the FRR-Configuration and Nftable rules when network prefixes or FRR template changes
+func ReconcileNetwork(f firewallv1.Firewall) (changed bool, err error) {
 	tmpFile, err := tmpFile(frrConfig)
 	if err != nil {
 		return false, fmt.Errorf("error during network reconcilation %v: %w", tmpFile, err)
@@ -58,13 +71,19 @@ func ReconcileNetwork(f firewallv1.Firewall, log logr.Logger) (bool, error) {
 		os.Remove(tmpFile)
 	}()
 
-	a := netconf.NewFrrConfigApplier(netconf.Firewall, *kb, tmpFile)
+	c, err := netconf.New(GetLogger(), MetalNetworkerConfig)
+	if err != nil || c == nil {
+		return false, fmt.Errorf("failed to init networker config: %w", err)
+	}
+	c.Networks = GetNewNetworks(f, c.Networks)
+
+	a := netconf.NewFrrConfigApplier(netconf.Firewall, *c, tmpFile)
 	tpl, err := readTpl(netconf.TplFirewallFRR)
 	if err != nil {
 		return false, fmt.Errorf("error during network reconcilation: %v: %w", tmpFile, err)
 	}
 
-	changed, err := a.Apply(*tpl, tmpFile, frrConfig, true)
+	changed, err = a.Apply(*tpl, tmpFile, frrConfig, true)
 	if err != nil {
 		return changed, fmt.Errorf("error during network reconcilation: %v: %w", tmpFile, err)
 	}

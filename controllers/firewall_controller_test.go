@@ -56,7 +56,7 @@ func TestConvert(t *testing.T) {
 			&firewallv1.ClusterwideNetworkPolicy{
 				ObjectMeta: v1.ObjectMeta{
 					Name:      "test-np",
-					Namespace: firewallNamespace,
+					Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
 				},
 				Spec: firewallv1.PolicySpec{
 					Egress: []firewallv1.EgressRule{

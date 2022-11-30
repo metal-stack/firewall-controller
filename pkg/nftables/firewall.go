@@ -3,18 +3,23 @@ package nftables
 import (
 	"embed"
 	"fmt"
+	"github.com/metal-stack/firewall-controller/pkg/dns"
 	"os"
 	"os/exec"
 	"path/filepath"
 
+	"github.com/metal-stack/firewall-controller/pkg/network"
+
 	"github.com/go-logr/logr"
 	"github.com/hashicorp/go-multierror"
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
-
-	mn "github.com/metal-stack/metal-lib/pkg/net"
 	"github.com/vishvananda/netlink"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
+
+	mn "github.com/metal-stack/metal-lib/pkg/net"
+	"github.com/metal-stack/metal-networker/pkg/netconf"
+
+	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 )
 
 const (
@@ -27,17 +32,26 @@ const (
 //go:embed *.tpl
 var templates embed.FS
 
+//go:generate mockgen -destination=./mocks/mock_fqdncache.go -package=mocks . FQDNCache
+type FQDNCache interface {
+	GetSetsForRendering(fqdns []firewallv1.FQDNSelector) (result []dns.RenderIPSet)
+	GetSetsForFQDN(fqdn firewallv1.FQDNSelector, fqdnSets []firewallv1.IPSet) (result []firewallv1.IPSet)
+	IsInitialized() bool
+}
+
 // Firewall assembles nftable rules based on k8s entities
 type Firewall struct {
 	log logr.Logger
 
-	spec                       firewallv1.FirewallSpec
+	firewall                   firewallv1.Firewall
 	clusterwideNetworkPolicies *firewallv1.ClusterwideNetworkPolicyList
 	services                   *corev1.ServiceList
 
 	primaryPrivateNet *firewallv1.FirewallNetwork
 	networkMap        networkMap
+	cache             FQDNCache
 
+	enableDNS              bool
 	dryRun                 bool
 	logAcceptedConnections bool
 }
@@ -53,39 +67,46 @@ type forwardingRules struct {
 
 // NewDefaultFirewall creates a new default nftables firewall.
 func NewDefaultFirewall() *Firewall {
-	defaultSpec := firewallv1.FirewallSpec{}
-	return NewFirewall(&firewallv1.ClusterwideNetworkPolicyList{}, &corev1.ServiceList{}, defaultSpec, logr.Discard())
+	return NewFirewall(firewallv1.Firewall{}, &firewallv1.ClusterwideNetworkPolicyList{}, &corev1.ServiceList{}, nil, logr.Discard())
 }
 
 // NewFirewall creates a new nftables firewall object based on k8s entities
-func NewFirewall(nps *firewallv1.ClusterwideNetworkPolicyList, svcs *corev1.ServiceList, spec firewallv1.FirewallSpec, log logr.Logger) *Firewall {
+func NewFirewall(
+	firewall firewallv1.Firewall,
+	cwnps *firewallv1.ClusterwideNetworkPolicyList,
+	svcs *corev1.ServiceList,
+	cache FQDNCache,
+	log logr.Logger,
+) *Firewall {
 	networkMap := networkMap{}
 	var primaryPrivateNet *firewallv1.FirewallNetwork
-	for i, n := range spec.FirewallNetworks {
+	for i, n := range firewall.Spec.FirewallNetworks {
 		if n.Networktype == nil {
 			continue
 		}
 		if *n.Networktype == mn.PrivatePrimaryShared || *n.Networktype == mn.PrivatePrimaryUnshared {
-			primaryPrivateNet = &spec.FirewallNetworks[i]
+			primaryPrivateNet = &firewall.Spec.FirewallNetworks[i]
 		}
 		networkMap[*n.Networkid] = n
 	}
 
 	return &Firewall{
-		spec:                       spec,
-		clusterwideNetworkPolicies: nps,
+		firewall:                   firewall,
+		clusterwideNetworkPolicies: cwnps,
 		services:                   svcs,
 		primaryPrivateNet:          primaryPrivateNet,
 		networkMap:                 networkMap,
-		dryRun:                     spec.DryRun,
-		logAcceptedConnections:     spec.LogAcceptedConnections,
+		dryRun:                     firewall.Spec.DryRun,
+		logAcceptedConnections:     firewall.Spec.LogAcceptedConnections,
+		cache:                      cache,
+		enableDNS:                  len(cwnps.GetFQDNs()) > 0,
 		log:                        log,
 	}
 }
 
 func (f *Firewall) ipv4RuleFile() string {
-	if f.spec.Ipv4RuleFile != "" {
-		return f.spec.Ipv4RuleFile
+	if f.firewall.Spec.Ipv4RuleFile != "" {
+		return f.firewall.Spec.Ipv4RuleFile
 	}
 	return defaultIpv4RuleFile
 }
@@ -106,42 +127,59 @@ func (f *Firewall) Flush() error {
 }
 
 // Reconcile drives the nftables firewall against the desired state by comparison with the current rule file.
-func (f *Firewall) Reconcile() error {
+func (f *Firewall) Reconcile() (updated bool, err error) {
 	tmpFile, err := os.CreateTemp(filepath.Dir(f.ipv4RuleFile()), "."+filepath.Base(f.ipv4RuleFile()))
 	if err != nil {
-		return err
+		return
 	}
 	defer os.Remove(tmpFile.Name())
 
 	err = f.reconcileIfaceAddresses()
 	if err != nil {
-		return err
+		return
 	}
 
 	desired := tmpFile.Name()
 	err = f.renderFile(desired)
 	if err != nil {
-		return err
+		return
 	}
 
 	if equal(f.ipv4RuleFile(), desired) {
 		f.log.Info("no changes in nftables detected", "existing rules", f.ipv4RuleFile(), "new rules", desired)
-		return nil
+		return
 	}
 
 	err = os.Rename(desired, f.ipv4RuleFile())
 	if err != nil {
-		return err
+		return
 	}
 	f.log.Info("changes in nftables detected, reloading nft", "existing rules", f.ipv4RuleFile(), "new rules", desired)
 
 	if f.dryRun {
-		return nil
+		return
 	}
 	err = f.reload()
 	if err != nil {
-		return err
+		return
 	}
+
+	return true, nil
+}
+
+func (f *Firewall) ReconcileNetconfTables() error {
+	c, err := netconf.New(network.GetLogger(), network.MetalNetworkerConfig)
+	if err != nil || c == nil {
+		return fmt.Errorf("failed to init networker config: %w", err)
+	}
+	c.Networks = network.GetNewNetworks(f.firewall, c.Networks)
+
+	configurator, err := netconf.NewConfigurator(netconf.Firewall, *c, f.enableDNS)
+	if err != nil {
+		return fmt.Errorf("failed to init networker configurator: %w", err)
+	}
+	configurator.ConfigureNftables()
+
 	return nil
 }
 
@@ -187,7 +225,7 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 		}
 
 		wantedIPs := sets.NewString()
-		for _, i := range f.spec.EgressRules {
+		for _, i := range f.firewall.Spec.EgressRules {
 			if i.NetworkID == *n.Networkid {
 				wantedIPs.Insert(i.IPs...)
 				break

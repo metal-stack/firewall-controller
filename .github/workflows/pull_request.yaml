@@ -12,12 +12,12 @@ jobs:
   integration:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
-    - name: Set up Go 1.18
-      uses: actions/setup-go@v2
+    - name: Set up Go 1.19
+      uses: actions/setup-go@v3
       with:
-        go-version: '1.18.x'
+        go-version: '1.19.x'
 
     - name: run integration tests
       run: |
@@ -25,22 +25,23 @@ jobs:
         sudo modprobe dummy
         sudo ip link add vrf42 type dummy
         sudo ip link add vlan42 type dummy
-        sudo "PATH=$PATH" --preserve-env make test-all clean
+        export KUBEBUILDER_ASSETS=/usr/local/bin
+        sudo "PATH=$PATH;KUBEBUILDER_ASSETS=/usr/local/bin" --preserve-env make test-all clean
 
   build:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - uses: google-github-actions/setup-gcloud@v0
       with:
         service_account_email: ${{ secrets.GCP_SA_EMAIL }}
         service_account_key: ${{ secrets.GCP_SA_KEY }}
 
-    - name: Set up Go 1.18
-      uses: actions/setup-go@v2
+    - name: Set up Go 1.19
+      uses: actions/setup-go@v3
       with:
-        go-version: '1.18.x'
+        go-version: '1.19.x'
 
     - name: Make tag
       run: echo "TAG_NAME=$(echo $GITHUB_REF | awk -F / '{print $3}')-${GITHUB_HEAD_REF##*/}" >> $GITHUB_ENV
@@ -62,8 +63,9 @@ jobs:
         make fetch-template
 
     - name: Lint
-      uses: golangci/golangci-lint-action@v2
+      uses: golangci/golangci-lint-action@v3
       with:
+        skip-go-installation: true
         args: -p bugs -p unused --timeout=3m
 
     - name: Build

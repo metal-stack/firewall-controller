@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/metal-stack/firewall-controller/pkg/dns"
 )
 
 func TestFirewallRenderingData_renderString(t *testing.T) {
@@ -53,6 +55,32 @@ func TestFirewallRenderingData_renderString(t *testing.T) {
 				RateLimitRules:   []string{},
 				SnatRules:        []string{},
 				PrivateVrfID:     uint(42),
+			},
+			wantErr: false,
+		},
+		{
+			name: "sets",
+			data: &firewallRenderingData{
+				ForwardingRules: forwardingRules{
+					Egress:  []string{"egress rule"},
+					Ingress: []string{"ingress rule"},
+				},
+				InternalPrefixes: "1.2.3.4",
+				RateLimitRules:   []string{"meta iifname \"eth0\" limit rate over 10 mbytes/second counter name drop_ratelimit drop"},
+				SnatRules:        []string{},
+				PrivateVrfID:     uint(42),
+				Sets: []dns.RenderIPSet{
+					{
+						SetName: "test",
+						IPs:     []string{"10.0.0.1", "10.0.0.2"},
+						Version: dns.IPv4,
+					},
+					{
+						SetName: "test2",
+						IPs:     []string{"2001:db8:85a3::8a2e:370:7334", "2001:db8:85a3::8a2e:370:7335"},
+						Version: dns.IPv6,
+					},
+				},
 			},
 			wantErr: false,
 		},

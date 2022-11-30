@@ -26,7 +26,7 @@ func snatRules(f *Firewall) (nftablesRules, error) {
 	}
 
 	rules := nftablesRules{}
-	for _, s := range f.spec.EgressRules {
+	for _, s := range f.firewall.Spec.EgressRules {
 		n, there := f.networkMap[s.NetworkID]
 		if !there {
 			return nil, fmt.Errorf("network not found")

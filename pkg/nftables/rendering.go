@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 	"text/template"
+
+	"github.com/metal-stack/firewall-controller/pkg/dns"
 )
 
 // firewallRenderingData holds the data available in the nftables template
@@ -14,20 +16,23 @@ type firewallRenderingData struct {
 	ForwardingRules  forwardingRules
 	RateLimitRules   nftablesRules
 	SnatRules        nftablesRules
+	Sets             []dns.RenderIPSet
 	InternalPrefixes string
 	PrivateVrfID     uint
 }
 
 func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 	ingress, egress := nftablesRules{}, nftablesRules{}
-	for _, np := range f.clusterwideNetworkPolicies.Items {
+	for ind, np := range f.clusterwideNetworkPolicies.Items {
 		err := np.Spec.Validate()
 		if err != nil {
 			continue
 		}
-		i, e := clusterwideNetworkPolicyRules(np, f.logAcceptedConnections)
+
+		i, e, u := clusterwideNetworkPolicyRules(f.cache, np, f.logAcceptedConnections)
 		ingress = append(ingress, i...)
 		egress = append(egress, e...)
+		f.clusterwideNetworkPolicies.Items[ind] = u
 	}
 
 	for _, svc := range f.services.Items {
@@ -39,15 +44,20 @@ func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 		return &firewallRenderingData{}, err
 	}
 
+	var sets []dns.RenderIPSet
+	if f.cache.IsInitialized() {
+		sets = f.cache.GetSetsForRendering(f.clusterwideNetworkPolicies.GetFQDNs())
+	}
 	return &firewallRenderingData{
 		PrivateVrfID:     uint(*f.primaryPrivateNet.Vrf),
-		InternalPrefixes: strings.Join(f.spec.InternalPrefixes, ", "),
+		InternalPrefixes: strings.Join(f.firewall.Spec.InternalPrefixes, ", "),
 		ForwardingRules: forwardingRules{
 			Ingress: ingress,
 			Egress:  egress,
 		},
 		RateLimitRules: rateLimitRules(f),
 		SnatRules:      snatRules,
+		Sets:           sets,
 	}, nil
 }
 
@@ -71,7 +81,11 @@ func (d *firewallRenderingData) renderString() (string, error) {
 		return "", err
 	}
 
-	tpl := template.Must(template.New("v4").Parse(tplString))
+	tpl := template.Must(
+		template.New("v4").
+			Funcs(template.FuncMap{"StringsJoin": strings.Join}).
+			Parse(tplString),
+	)
 
 	err = tpl.Execute(&b, d)
 	if err != nil {

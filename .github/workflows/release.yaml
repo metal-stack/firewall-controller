@@ -12,11 +12,11 @@ jobs:
   integration:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Go 1.18
-      uses: actions/setup-go@v2
+    - uses: actions/checkout@v3
+    - name: Set up Go 1.19
+      uses: actions/setup-go@v3
       with:
-        go-version: '1.18.x'
+        go-version: '1.19.x'
 
     - name: run integration tests
       run: |
@@ -24,23 +24,24 @@ jobs:
         sudo modprobe dummy
         sudo ip link add vrf42 type dummy
         sudo ip link add vlan42 type dummy
+        export KUBEBUILDER_ASSETS=/usr/local/bin
         sudo "PATH=$PATH" --preserve-env=GOROOT make test-all clean
 
   build:
     needs: integration
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - uses: google-github-actions/setup-gcloud@v0
       with:
         service_account_email: ${{ secrets.GCP_SA_EMAIL }}
         service_account_key: ${{ secrets.GCP_SA_KEY }}
 
-    - name: Set up Go 1.18
-      uses: actions/setup-go@v2
+    - name: Set up Go 1.19
+      uses: actions/setup-go@v3
       with:
-        go-version: '1.18.x'
+        go-version: '1.19.x'
 
     - name: Get release
       id: get_release
@@ -60,7 +61,7 @@ jobs:
         make fetch-template
 
     - name: Lint
-      uses: golangci/golangci-lint-action@v2
+      uses: golangci/golangci-lint-action@v3
       with:
         args: -p bugs -p unused --timeout=3m
 
@@ -71,6 +72,7 @@ jobs:
     - name: Build and Push Docker Image
       run: |
         export GITHUB_TAG_NAME=${GITHUB_REF##*/}
+        export KUBEBUILDER_ASSETS=/usr/local/bin
         make docker-build
         make docker-push
         make firewall-controller

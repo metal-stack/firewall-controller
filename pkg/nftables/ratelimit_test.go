@@ -5,8 +5,9 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	mn "github.com/metal-stack/metal-lib/pkg/net"
+
+	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 )
 
 func TestRateLimitRules(t *testing.T) {
@@ -77,7 +78,7 @@ func TestRateLimitRules(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			f := NewFirewall(nil, nil, tt.input, logr.Discard())
+			f := NewFirewall(firewallv1.Firewall{Spec: tt.input}, &firewallv1.ClusterwideNetworkPolicyList{}, nil, nil, logr.Discard())
 			got := rateLimitRules(f)
 			if !cmp.Equal(got, tt.want) {
 				t.Errorf("rateLimitRules() diff: %v", cmp.Diff(got, tt.want))

@@ -9,7 +9,7 @@ import (
 // rateLimitRules generates the nftables rules for rate limiting networks based on the firewall spec
 func rateLimitRules(f *Firewall) nftablesRules {
 	rules := nftablesRules{}
-	for _, l := range f.spec.RateLimits {
+	for _, l := range f.firewall.Spec.RateLimits {
 		n, ok := f.networkMap[l.NetworkID]
 		if !ok {
 			continue

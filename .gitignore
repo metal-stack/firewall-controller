@@ -31,3 +31,4 @@ nftables.v4
 *~
 
 pkg/network/frr.firewall.tpl
+firewall-controller

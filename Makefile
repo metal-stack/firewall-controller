@@ -11,6 +11,12 @@ DOCKER_IMG ?= ghcr.io/metal-stack/firewall-controller:${DOCKER_TAG}
 # version should be not that far away from the compile dependency in go.mod
 METAL_NETWORKER_VERSION := v0.8.3
 
+# Kubebuilder installation environment variables
+KUBEBUILDER_DOWNLOAD_URL := https://github.com/kubernetes-sigs/kubebuilder/releases/download
+KUBEBUILDER_VER := 3.3.0
+KUBEBUILDER_ASSETS ?= /usr/local/kubebuilder/bin
+K8S_VERSION := 1.22.1
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -22,19 +28,19 @@ all: firewall-controller
 
 # Run tests
 test: generate fmt vet manifests
-	go test ./... -short -coverprofile cover.out
+	KUBEBUILDER_ASSETS=${KUBEBUILDER_ASSETS} go test ./... -short -coverprofile cover.out
 
-test-all: generate fmt vet manifests
-	go test ./... -v -coverprofile cover.out
+test-all: generate fmt vet manifests kubebuilder
+	KUBEBUILDER_ASSETS=${KUBEBUILDER_ASSETS} go test ./... -v -coverprofile cover.out
 
 test-integration: generate fmt vet manifests
-	go test ./... -v Integration
+	KUBEBUILDER_ASSETS=${KUBEBUILDER_ASSETS} go test ./... -v Integration
 
 clean:
 	rm -rf bin/* pkg/network/frr.firewall.tpl
 
 # Build firewall-controller binary
-firewall-controller: generate fmt vet test
+firewall-controller: generate fmt vet
 	CGO_ENABLED=0 go build \
 		-tags netgo \
 		-trimpath \
@@ -80,6 +86,10 @@ fmt:
 vet:
 	go vet ./...
 
+# Run golangci-lint
+lint:
+	docker run --rm -v $(PWD):/app -w /app golangci/golangci-lint:v1.44.2 golangci-lint run -v
+
 # Generate code
 generate: controller-gen manifests
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
@@ -92,6 +102,14 @@ docker-build:
 docker-push:
 	docker push ${DOCKER_IMG}
 
+kubebuilder:
+	set -ex \
+ 		&& mkdir -p /tmp/kubebuilder ${KUBEBUILDER_ASSETS} \
+ 		&& curl -L ${KUBEBUILDER_DOWNLOAD_URL}/v${KUBEBUILDER_VER}/kubebuilder_linux_amd64 -o ${KUBEBUILDER_ASSETS}/kubebuilder \
+ 		&& chmod +x ${KUBEBUILDER_ASSETS}/kubebuilder \
+ 		&& curl -sSLo /tmp/kubebuilder/envtest-bins.tar.gz "https://go.kubebuilder.io/test-tools/${K8S_VERSION}/linux/amd64" \
+ 		&& tar -C ${KUBEBUILDER_ASSETS} --strip-components=2 -zvxf /tmp/kubebuilder/envtest-bins.tar.gz
+
 # find or download controller-gen
 # download controller-gen if necessary
 .PHONY: controller-gen
@@ -102,7 +120,7 @@ ifeq (, $(shell which controller-gen))
 	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
 	cd $$CONTROLLER_GEN_TMP_DIR ;\
 	go mod init tmp ;\
-	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.7.0 ;\
+	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.10.0 ;\
 	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
 	}
 CONTROLLER_GEN=$(GOBIN)/controller-gen

@@ -83,6 +83,10 @@ type Data struct {
 	EgressRules []EgressRuleSNAT `json:"egressRules,omitempty"`
 	// FirewallNetworks holds the networks known at the metal-api for this firewall machine
 	FirewallNetworks []FirewallNetwork `json:"firewallNetworks,omitempty"`
+	// DNSServerAddress specifies DNS server address used by DNS proxy
+	DNSServerAddress string `json:"dnsServerAddress,omitempty"`
+	// DNSPort specifies port to which DNS proxy should be bound
+	DNSPort *uint `json:"dnsPort,omitempty"`
 }
 
 // FirewallStatus defines the observed state of Firewall
