@@ -113,7 +113,7 @@ spec:
       port: 80
 ```
 
-By default, DNS info is collected from Google DNS (with address 8.8.8.8:53). The preferred DNS server can be changed by specifying the `dnsServerAddress field` in `Firewall` resource:
+By default, DNS info is collected from Google DNS (with address 8.8.8.8:53). The preferred DNS server can be changed by specifying the `dnsServerAddress` field in `Firewall` resource:
 ```yaml
 apiVersion: metal-stack.io/v1
 kind: Firewall
