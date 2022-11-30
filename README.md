@@ -73,6 +73,59 @@ spec:
       endPort: 8088 
 ```
 
+### DNS policies configuration
+
+`ClusterwideNetworkPolicy` resource allows you to define DNS based Egress policies as well. They allow you to filter Egress traffic based either on DNS name or by matching names to the provided pattern.
+
+To filter by specific domain name you need to provide `matchName` field:
+```yaml
+apiVersion: metal-stack.io/v1
+kind: ClusterwideNetworkPolicy
+metadata:
+  namespace: firewall
+  name: clusterwidenetworkpolicy-fqdn
+spec:
+  egress:
+  - toFQDNs:
+    - matchName: example.com
+    ports:
+    - protocol: UDP
+      port: 80
+    - protocol: TCP
+      port: 80
+```
+
+If you want to filter FQDNs that are matching certain pattern, you can use `matchPattern` field, which supports `*` wildcard. Following example allows traffic to port 80 of all resources in the `.example` top-level domain:
+```yaml
+apiVersion: metal-stack.io/v1
+kind: ClusterwideNetworkPolicy
+metadata:
+  namespace: firewall
+  name: clusterwidenetworkpolicy-fqdn-pattern
+spec:
+  egress:
+  - toFQDNs:
+    - matchPattern: *.example
+    ports:
+    - protocol: UDP
+      port: 80
+    - protocol: TCP
+      port: 80
+```
+
+By default, DNS info is collected from Google DNS (with address 8.8.8.8:53). The preferred DNS server can be changed by specifying the `dnsServerAddress` field in `Firewall` resource:
+```yaml
+apiVersion: metal-stack.io/v1
+kind: Firewall
+metadata:
+  namespace: firewall
+  name: firewall
+spec:
+  ...
+  dnsServerAddress: 8.8.4.4:53
+  ...
+```
+
 ## Status
 
 Once the firewall-controller is running, it will report several statistics to the Firewall CRD Status:
