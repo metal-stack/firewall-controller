@@ -7,6 +7,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	mn "github.com/metal-stack/metal-lib/pkg/net"
 
+	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 )
 
@@ -21,14 +22,31 @@ func TestRateLimitRules(t *testing.T) {
 	external := mn.External
 	tests := []struct {
 		name  string
-		input firewallv1.FirewallSpec
+		input firewallv2.Firewall
 		want  nftablesRules
 	}{
 		{
 			name: "rate limit for multiple networks",
-			input: firewallv1.FirewallSpec{
-				Data: firewallv1.Data{
-					FirewallNetworks: []firewallv1.FirewallNetwork{
+			input: firewallv2.Firewall{
+				Spec: firewallv2.FirewallSpec{
+					RateLimits: []firewallv2.RateLimit{
+						{
+							NetworkID: "private",
+							Rate:      uint32(100),
+						}, {
+							NetworkID: "internet",
+							Rate:      uint32(10),
+						}, {
+							NetworkID: "mpls",
+							Rate:      uint32(20),
+						}, {
+							NetworkID: "underlay",
+							Rate:      uint32(200),
+						},
+					},
+				},
+				Status: firewallv2.FirewallStatus{
+					FirewallNetworks: []firewallv2.FirewallNetwork{
 						{
 							Networkid:   &private,
 							Prefixes:    []string{"10.0.1.0/24"},
@@ -51,21 +69,6 @@ func TestRateLimitRules(t *testing.T) {
 							Networktype: &external,
 						},
 					},
-					RateLimits: []firewallv1.RateLimit{
-						{
-							NetworkID: "private",
-							Rate:      uint32(100),
-						}, {
-							NetworkID: "internet",
-							Rate:      uint32(10),
-						}, {
-							NetworkID: "mpls",
-							Rate:      uint32(20),
-						}, {
-							NetworkID: "underlay",
-							Rate:      uint32(200),
-						},
-					},
 				},
 			},
 			want: nftablesRules{
@@ -78,7 +81,7 @@ func TestRateLimitRules(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			f := NewFirewall(firewallv1.Firewall{Spec: tt.input}, &firewallv1.ClusterwideNetworkPolicyList{}, nil, nil, logr.Discard())
+			f := NewFirewall(firewallv2.Firewall{Status: tt.input.Status}, &firewallv1.ClusterwideNetworkPolicyList{}, nil, nil, logr.Discard())
 			got := rateLimitRules(f)
 			if !cmp.Equal(got, tt.want) {
 				t.Errorf("rateLimitRules() diff: %v", cmp.Diff(got, tt.want))

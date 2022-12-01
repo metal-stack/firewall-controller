@@ -4,7 +4,7 @@ import (
 	"os/exec"
 	"testing"
 
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 )
 
 // TestFirewallValidateRulesIntegration is a integration test an is skipped during normal unit testing
@@ -19,7 +19,7 @@ func TestFirewallValidateRulesIntegration(t *testing.T) {
 	type fields struct {
 		Ingress          []string
 		Egress           []string
-		RateLimits       []firewallv1.RateLimit
+		RateLimits       []firewallv2.RateLimit
 		Ipv4RuleFile     string
 		DryRun           bool
 		InternalPrefixes string

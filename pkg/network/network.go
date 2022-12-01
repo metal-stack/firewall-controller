@@ -2,12 +2,13 @@ package network
 
 import (
 	"fmt"
-	"go.uber.org/zap"
 	"os"
 	"path/filepath"
 	"text/template"
 
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	"go.uber.org/zap"
+
+	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	"github.com/metal-stack/metal-go/api/models"
 	"github.com/metal-stack/metal-networker/pkg/netconf"
 
@@ -37,9 +38,9 @@ func GetLogger() *zap.SugaredLogger {
 }
 
 // GetNewNetworks returns updated network models
-func GetNewNetworks(f firewallv1.Firewall, oldNetworks []*models.V1MachineNetwork) []*models.V1MachineNetwork {
-	networkMap := map[string]firewallv1.FirewallNetwork{}
-	for _, n := range f.Spec.FirewallNetworks {
+func GetNewNetworks(f firewallv2.Firewall, oldNetworks []*models.V1MachineNetwork) []*models.V1MachineNetwork {
+	networkMap := map[string]firewallv2.FirewallNetwork{}
+	for _, n := range f.Status.FirewallNetworks {
 		if n.Networktype == nil {
 			continue
 		}
@@ -62,7 +63,7 @@ func GetNewNetworks(f firewallv1.Firewall, oldNetworks []*models.V1MachineNetwor
 
 // ReconcileNetwork reconciles the network settings for a firewall
 // Changes both the FRR-Configuration and Nftable rules when network prefixes or FRR template changes
-func ReconcileNetwork(f firewallv1.Firewall) (changed bool, err error) {
+func ReconcileNetwork(f firewallv2.Firewall) (changed bool, err error) {
 	tmpFile, err := tmpFile(frrConfig)
 	if err != nil {
 		return false, fmt.Errorf("error during network reconcilation %v: %w", tmpFile, err)

@@ -18,12 +18,13 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 
+	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/pkg/nftables"
 )
 
 type CreateFirewall = func(
-	firewall firewallv1.Firewall,
+	firewall firewallv2.Firewall,
 	cwnps *firewallv1.ClusterwideNetworkPolicyList,
 	svcs *corev1.ServiceList,
 	cache nftables.FQDNCache,
@@ -38,7 +39,7 @@ type FirewallInterface interface {
 }
 
 func NewFirewall(
-	firewall firewallv1.Firewall,
+	firewall firewallv2.Firewall,
 	cwnps *firewallv1.ClusterwideNetworkPolicyList,
 	svcs *corev1.ServiceList,
 	cache nftables.FQDNCache,

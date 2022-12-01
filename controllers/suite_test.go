@@ -35,6 +35,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/pkg/nftables"
 	// +kubebuilder:scaffold:imports
@@ -105,11 +106,9 @@ func newCWNPReconciler(
 	}
 }
 
-func newFirewall() *firewallv1.Firewall {
-	spec := firewallv1.FirewallSpec{
-		Data: firewallv1.Data{
-			Interval: "1h",
-		},
+func newFirewall() *firewallv2.Firewall {
+	spec := firewallv2.FirewallSpec{
+		Interval: "1h",
 	}
 	typeMeta := metav1.TypeMeta{
 		Kind:       "Firewall",
@@ -120,7 +119,7 @@ func newFirewall() *firewallv1.Firewall {
 		Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
 	}
 
-	return &firewallv1.Firewall{
+	return &firewallv2.Firewall{
 		TypeMeta:   typeMeta,
 		ObjectMeta: objMeta,
 		Spec:       spec,
@@ -149,7 +148,7 @@ func newCWNP(name string, egress []firewallv1.EgressRule) *firewallv1.Clusterwid
 
 func createTestFirewallFunc(fw FirewallInterface) CreateFirewall {
 	return func(
-		firewall firewallv1.Firewall,
+		firewall firewallv2.Firewall,
 		cwnps *firewallv1.ClusterwideNetworkPolicyList,
 		svcs *corev1.ServiceList,
 		cache nftables.FQDNCache,

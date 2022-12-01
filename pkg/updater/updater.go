@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	"github.com/metal-stack/v"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
@@ -23,7 +23,7 @@ const (
 )
 
 // UpdateToSpecVersion updates the firewall-controller binary to the version specified in the firewall spec.
-func UpdateToSpecVersion(f firewallv1.Firewall, log logr.Logger, recorder record.EventRecorder) error {
+func UpdateToSpecVersion(f firewallv2.Firewall, log logr.Logger, recorder record.EventRecorder) error {
 	if f.Spec.ControllerVersion == "" {
 		return nil
 	}

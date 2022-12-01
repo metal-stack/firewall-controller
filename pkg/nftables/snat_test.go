@@ -8,6 +8,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	mn "github.com/metal-stack/metal-lib/pkg/net"
 
+	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 )
 
@@ -23,16 +24,27 @@ func TestSnatRules(t *testing.T) {
 	underlayNet := mn.Underlay
 	tests := []struct {
 		name    string
-		input   firewallv1.FirewallSpec
+		input   firewallv2.Firewall
 		want    nftablesRules
 		wantErr bool
 		err     error
 	}{
 		{
 			name: "snat for multiple networks",
-			input: firewallv1.FirewallSpec{
-				Data: firewallv1.Data{
-					FirewallNetworks: []firewallv1.FirewallNetwork{
+			input: firewallv2.Firewall{
+				Spec: firewallv2.FirewallSpec{
+					EgressRules: []firewallv2.EgressRuleSNAT{
+						{
+							NetworkID: "internet",
+							IPs:       []string{"185.0.0.2", "185.0.0.3"},
+						}, {
+							NetworkID: "mpls",
+							IPs:       []string{"100.0.0.2"},
+						},
+					},
+				},
+				Status: firewallv2.FirewallStatus{
+					FirewallNetworks: []firewallv2.FirewallNetwork{
 						{
 							Networkid:   &private,
 							Prefixes:    []string{"10.0.1.0/24"},
@@ -54,15 +66,6 @@ func TestSnatRules(t *testing.T) {
 							Networktype: &external,
 						},
 					},
-					EgressRules: []firewallv1.EgressRuleSNAT{
-						{
-							NetworkID: "internet",
-							IPs:       []string{"185.0.0.2", "185.0.0.3"},
-						}, {
-							NetworkID: "mpls",
-							IPs:       []string{"100.0.0.2"},
-						},
-					},
 				},
 			},
 			want: nftablesRules{
@@ -72,9 +75,12 @@ func TestSnatRules(t *testing.T) {
 		},
 		{
 			name: "empty snat rules",
-			input: firewallv1.FirewallSpec{
-				Data: firewallv1.Data{
-					FirewallNetworks: []firewallv1.FirewallNetwork{
+			input: firewallv2.Firewall{
+				Spec: firewallv2.FirewallSpec{
+					EgressRules: []firewallv2.EgressRuleSNAT{},
+				},
+				Status: firewallv2.FirewallStatus{
+					FirewallNetworks: []firewallv2.FirewallNetwork{
 						{
 							Networkid:   &private,
 							Prefixes:    []string{"10.0.1.0/24"},
@@ -83,16 +89,15 @@ func TestSnatRules(t *testing.T) {
 							Vrf:         &vrf1,
 						},
 					},
-					EgressRules: []firewallv1.EgressRuleSNAT{},
 				},
 			},
 			want: nftablesRules{},
 		},
 		{
 			name: "no primary network",
-			input: firewallv1.FirewallSpec{
-				Data: firewallv1.Data{
-					FirewallNetworks: []firewallv1.FirewallNetwork{
+			input: firewallv2.Firewall{
+				Status: firewallv2.FirewallStatus{
+					FirewallNetworks: []firewallv2.FirewallNetwork{
 						{
 							Networkid:   &underlay,
 							Prefixes:    []string{"10.0.1.0/24"},
@@ -109,7 +114,7 @@ func TestSnatRules(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			f := NewFirewall(firewallv1.Firewall{Spec: tt.input}, &firewallv1.ClusterwideNetworkPolicyList{}, nil, nil, logr.Discard())
+			f := NewFirewall(firewallv2.Firewall{Spec: tt.input.Spec}, &firewallv1.ClusterwideNetworkPolicyList{}, nil, nil, logr.Discard())
 			got, err := snatRules(f)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("snatRules() error = %v, wantErr %v", err, tt.err)

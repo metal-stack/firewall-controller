@@ -3,10 +3,11 @@ package nftables
 import (
 	"embed"
 	"fmt"
-	"github.com/metal-stack/firewall-controller/pkg/dns"
 	"os"
 	"os/exec"
 	"path/filepath"
+
+	"github.com/metal-stack/firewall-controller/pkg/dns"
 
 	"github.com/metal-stack/firewall-controller/pkg/network"
 
@@ -19,6 +20,7 @@ import (
 	mn "github.com/metal-stack/metal-lib/pkg/net"
 	"github.com/metal-stack/metal-networker/pkg/netconf"
 
+	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 )
 
@@ -43,11 +45,11 @@ type FQDNCache interface {
 type Firewall struct {
 	log logr.Logger
 
-	firewall                   firewallv1.Firewall
+	firewall                   firewallv2.Firewall
 	clusterwideNetworkPolicies *firewallv1.ClusterwideNetworkPolicyList
 	services                   *corev1.ServiceList
 
-	primaryPrivateNet *firewallv1.FirewallNetwork
+	primaryPrivateNet *firewallv2.FirewallNetwork
 	networkMap        networkMap
 	cache             FQDNCache
 
@@ -56,7 +58,7 @@ type Firewall struct {
 	logAcceptedConnections bool
 }
 
-type networkMap map[string]firewallv1.FirewallNetwork
+type networkMap map[string]firewallv2.FirewallNetwork
 
 type nftablesRules []string
 
@@ -67,25 +69,25 @@ type forwardingRules struct {
 
 // NewDefaultFirewall creates a new default nftables firewall.
 func NewDefaultFirewall() *Firewall {
-	return NewFirewall(firewallv1.Firewall{}, &firewallv1.ClusterwideNetworkPolicyList{}, &corev1.ServiceList{}, nil, logr.Discard())
+	return NewFirewall(firewallv2.Firewall{}, &firewallv1.ClusterwideNetworkPolicyList{}, &corev1.ServiceList{}, nil, logr.Discard())
 }
 
 // NewFirewall creates a new nftables firewall object based on k8s entities
 func NewFirewall(
-	firewall firewallv1.Firewall,
+	firewall firewallv2.Firewall,
 	cwnps *firewallv1.ClusterwideNetworkPolicyList,
 	svcs *corev1.ServiceList,
 	cache FQDNCache,
 	log logr.Logger,
 ) *Firewall {
 	networkMap := networkMap{}
-	var primaryPrivateNet *firewallv1.FirewallNetwork
-	for i, n := range firewall.Spec.FirewallNetworks {
+	var primaryPrivateNet *firewallv2.FirewallNetwork
+	for i, n := range firewall.Status.FirewallNetworks {
 		if n.Networktype == nil {
 			continue
 		}
 		if *n.Networktype == mn.PrivatePrimaryShared || *n.Networktype == mn.PrivatePrimaryUnshared {
-			primaryPrivateNet = &firewall.Spec.FirewallNetworks[i]
+			primaryPrivateNet = &firewall.Status.FirewallNetworks[i]
 		}
 		networkMap[*n.Networkid] = n
 	}

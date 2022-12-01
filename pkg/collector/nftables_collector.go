@@ -11,7 +11,7 @@ import (
 
 	"github.com/google/nftables/expr"
 
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 )
 
 type (
@@ -43,11 +43,11 @@ func NewNFTablesCollector(logger *logr.Logger) nfCollector {
 }
 
 // Collect nftables counters with netlink
-func (n nfCollector) CollectDeviceStats() (firewallv1.DeviceStatsByDevice, error) {
-	deviceStatsByDevice := firewallv1.DeviceStatsByDevice{}
+func (n nfCollector) CollectDeviceStats() (firewallv2.DeviceStatsByDevice, error) {
+	deviceStatsByDevice := firewallv2.DeviceStatsByDevice{}
 
 	for device, directions := range countersToCollect {
-		deviceStat := firewallv1.DeviceStat{}
+		deviceStat := firewallv2.DeviceStat{}
 		for _, direction := range directions {
 			countername := device + "_" + direction
 			counter, err := getCounter(countername, tableName)
@@ -73,7 +73,7 @@ func (n nfCollector) CollectDeviceStats() (firewallv1.DeviceStatsByDevice, error
 // getCounter queries nftables via netlink and read the a named counter in the given table
 // this is equivalent to the cli call
 // nft list counter ip tablename countername
-func getCounter(countername, tablename string) (*firewallv1.Counter, error) {
+func getCounter(countername, tablename string) (*firewallv2.Counter, error) {
 	c := nftables.Conn{}
 	table := &nftables.Table{
 		Family: nftables.TableFamilyINet,
@@ -92,15 +92,15 @@ func getCounter(countername, tablename string) (*firewallv1.Counter, error) {
 	if !ok {
 		return nil, fmt.Errorf("unable to read bytes from counter")
 	}
-	return &firewallv1.Counter{Bytes: counter.Bytes, Packets: counter.Packets}, nil
+	return &firewallv2.Counter{Bytes: counter.Bytes, Packets: counter.Packets}, nil
 }
 
-func (n nfCollector) CollectRuleStats() firewallv1.RuleStatsByAction {
+func (n nfCollector) CollectRuleStats() firewallv2.RuleStatsByAction {
 	c := nftables.Conn{}
-	statsByAction := firewallv1.RuleStatsByAction{
-		"accept": firewallv1.RuleStats{},
-		"drop":   firewallv1.RuleStats{},
-		"other":  firewallv1.RuleStats{},
+	statsByAction := firewallv2.RuleStatsByAction{
+		"accept": firewallv2.RuleStats{},
+		"drop":   firewallv2.RuleStats{},
+		"other":  firewallv2.RuleStats{},
 	}
 	chains, _ := c.ListChains()
 	for _, chain := range chains {
@@ -114,8 +114,8 @@ func (n nfCollector) CollectRuleStats() firewallv1.RuleStatsByAction {
 			stats := statsByAction[ri.action]
 			stat, ok := stats[ri.comment]
 			if !ok {
-				stat = firewallv1.RuleStat{
-					Counter: firewallv1.Counter{},
+				stat = firewallv2.RuleStat{
+					Counter: firewallv2.Counter{},
 				}
 			}
 
@@ -130,7 +130,7 @@ func (n nfCollector) CollectRuleStats() firewallv1.RuleStatsByAction {
 
 type ruleInfo struct {
 	comment string
-	counter firewallv1.Counter
+	counter firewallv2.Counter
 	action  string
 }
 
@@ -164,7 +164,7 @@ func extractRuleInfo(r *nftables.Rule) *ruleInfo {
 
 	return &ruleInfo{
 		comment: comment,
-		counter: firewallv1.Counter{
+		counter: firewallv2.Counter{
 			Bytes:   counter.Bytes,
 			Packets: counter.Packets,
 		},
