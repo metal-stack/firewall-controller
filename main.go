@@ -189,14 +189,13 @@ func main() {
 
 	// Firewall Reconciler
 	if err = (&controllers.FirewallReconciler{
-		SeedClient:           mgr.GetClient(),
-		ShootClient:          shootClient,
-		Log:                  ctrl.Log.WithName("controllers").WithName("Firewall"),
-		Scheme:               mgr.GetScheme(),
-		EnableIDS:            enableIDS,
-		EnableSignatureCheck: enableSignatureCheck,
-		Namespace:            firewallNamespace,
-		FirewallName:         firewallName,
+		SeedClient:   mgr.GetClient(),
+		ShootClient:  shootClient,
+		Log:          ctrl.Log.WithName("controllers").WithName("Firewall"),
+		Scheme:       mgr.GetScheme(),
+		EnableIDS:    enableIDS,
+		Namespace:    firewallNamespace,
+		FirewallName: firewallName,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Firewall")
 		os.Exit(1)
