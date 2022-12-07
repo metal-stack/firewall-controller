@@ -22,15 +22,19 @@ import (
 	"os"
 	"time"
 
-	"github.com/metal-stack/metal-lib/pkg/sign"
+	"github.com/go-logr/zapr"
 	"github.com/metal-stack/v"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/controllers"
 	"github.com/metal-stack/firewall-controller/controllers/crd"
@@ -46,6 +50,7 @@ func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
 	_ = firewallv1.AddToScheme(scheme)
+	_ = firewallv2.AddToScheme(scheme)
 
 	_ = apiextensions.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
@@ -53,13 +58,17 @@ func init() {
 
 func main() {
 	var (
+		logLevel             string
 		isVersion            bool
 		metricsAddr          string
 		enableLeaderElection bool
 		enableIDS            bool
 		enableSignatureCheck bool
 		hostsFile            string
+		shootKubeconfig      string
+		seedKubeconfig       string
 	)
+	flag.StringVar(&logLevel, "log-level", "info", "the log level of the controller")
 	flag.BoolVar(&isVersion, "v", false, "Show firewall-controller version")
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
@@ -68,6 +77,9 @@ func main() {
 	flag.BoolVar(&enableIDS, "enable-IDS", true, "Set this to false to exclude IDS.")
 	flag.StringVar(&hostsFile, "hosts-file", "/etc/hosts", "The hosts file to manipulate for the droptailer.")
 	flag.BoolVar(&enableSignatureCheck, "enable-signature-check", true, "Set this to false to ignore signature checking.")
+	flag.StringVar(&shootKubeconfig, "shoot-kubeconfig", "/etc/firewall-controller/shoot.kubeconfig", "the path to the kubeconfig to talk to the shoot")
+	flag.StringVar(&seedKubeconfig, "seed-kubeconfig", "/etc/firewall-controller/seed.kubeconfig", "the path to the kubeconfig to talk to the seed")
+
 	flag.Parse()
 
 	if isVersion {
@@ -75,10 +87,35 @@ func main() {
 		return
 	}
 
-	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	l, err := newZapLogger(logLevel)
+	if err != nil {
+		setupLog.Error(err, "unable to parse log level")
+		os.Exit(1)
+	}
 
-	restConfig := ctrl.GetConfigOrDie()
-	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
+	ctrl.SetLogger(zapr.NewLogger(l.Desugar()))
+
+	seedConfig, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		&clientcmd.ClientConfigLoadingRules{ExplicitPath: seedKubeconfig},
+		&clientcmd.ConfigOverrides{},
+	).ClientConfig()
+	if err != nil {
+		l.Fatalw("unable create seed rest config", "error", err)
+	}
+
+	shootConfig, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		&clientcmd.ClientConfigLoadingRules{ExplicitPath: shootKubeconfig},
+		&clientcmd.ConfigOverrides{},
+	).ClientConfig()
+	if err != nil {
+		l.Fatalw("unable create shoot rest config", "error", err)
+	}
+	shootClient, err := client.New(shootConfig, client.Options{Scheme: scheme})
+	if err != nil {
+		l.Fatalw("unable create shoot client", "error", err)
+	}
+
+	mgr, err := ctrl.NewManager(seedConfig, ctrl.Options{
 		Scheme:             scheme,
 		MetricsBindAddress: metricsAddr,
 		Port:               9443,
@@ -104,7 +141,7 @@ func main() {
 		panic("not all started")
 	}
 
-	err = crd.WaitForCRDs(restConfig, crd.InstallOptions{
+	err = crd.WaitForCRDs(seedConfig, crd.InstallOptions{ // FIXME: can we remove this?
 		MaxTime:      500 * time.Millisecond,
 		PollInterval: 100 * time.Millisecond,
 	}, "firewall", "clusterwidenetworkpolicy")
@@ -115,7 +152,7 @@ func main() {
 
 	// Droptailer Reconciler
 	if err = (&controllers.DroptailerReconciler{
-		Client:    mgr.GetClient(),
+		Client:    shootClient,
 		Log:       ctrl.Log.WithName("controllers").WithName("Droptailer"),
 		Scheme:    mgr.GetScheme(),
 		HostsFile: hostsFile,
@@ -131,7 +168,7 @@ func main() {
 	}
 
 	if err = (&controllers.ClusterwideNetworkPolicyValidationReconciler{
-		Client: mgr.GetClient(),
+		Client: shootClient,
 		Log:    ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicyValidation"),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
@@ -140,26 +177,13 @@ func main() {
 	}
 
 	// Firewall Reconciler
-	caData := mgr.GetConfig().CAData
-	caCert, err := sign.DecodeCertificate(caData)
-	if err != nil {
-		setupLog.Error(err, "unable to decode ca certificate")
-		os.Exit(1)
-	}
-
-	caPubKey, err := sign.ExtractPubKey(caCert)
-	if err != nil {
-		setupLog.Error(err, "unable to extract rsa pub key from ca certificate")
-		os.Exit(1)
-	}
-
 	if err = (&controllers.FirewallReconciler{
-		Client:               mgr.GetClient(),
+		SeedClient:           mgr.GetClient(),
+		ShootClient:          shootClient,
 		Log:                  ctrl.Log.WithName("controllers").WithName("Firewall"),
 		Scheme:               mgr.GetScheme(),
 		EnableIDS:            enableIDS,
 		EnableSignatureCheck: enableSignatureCheck,
-		CAPubKey:             caPubKey,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Firewall")
 		os.Exit(1)
@@ -167,4 +191,23 @@ func main() {
 	// +kubebuilder:scaffold:builder
 
 	<-ctx.Done()
+}
+
+func newZapLogger(levelString string) (*zap.SugaredLogger, error) {
+	level, err := zap.ParseAtomicLevel(levelString)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse log level: %w", err)
+	}
+
+	cfg := zap.NewProductionConfig()
+	cfg.Level = level
+	cfg.EncoderConfig.TimeKey = "timestamp"
+	cfg.EncoderConfig.EncodeTime = zapcore.RFC3339TimeEncoder
+
+	l, err := cfg.Build()
+	if err != nil {
+		return nil, fmt.Errorf("can't initialize zap logger: %w", err)
+	}
+
+	return l.Sugar(), nil
 }

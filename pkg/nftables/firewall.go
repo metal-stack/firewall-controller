@@ -83,13 +83,13 @@ func NewFirewall(
 	networkMap := networkMap{}
 	var primaryPrivateNet *firewallv2.FirewallNetwork
 	for i, n := range firewall.Status.FirewallNetworks {
-		if n.Networktype == nil {
+		if n.NetworkType == nil {
 			continue
 		}
-		if *n.Networktype == mn.PrivatePrimaryShared || *n.Networktype == mn.PrivatePrimaryUnshared {
+		if *n.NetworkType == mn.PrivatePrimaryShared || *n.NetworkType == mn.PrivatePrimaryUnshared {
 			primaryPrivateNet = &firewall.Status.FirewallNetworks[i]
 		}
-		networkMap[*n.Networkid] = n
+		networkMap[*n.NetworkID] = n
 	}
 
 	return &Firewall{
@@ -218,17 +218,17 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 	var errors *multierror.Error
 
 	for _, n := range f.networkMap {
-		if n.Networktype == nil {
+		if n.NetworkType == nil {
 			continue
 		}
 
-		if *n.Networktype != mn.External {
+		if *n.NetworkType != mn.External {
 			continue
 		}
 
 		wantedIPs := sets.NewString()
 		for _, i := range f.firewall.Spec.EgressRules {
-			if i.NetworkID == *n.Networkid {
+			if i.NetworkID == *n.NetworkID {
 				wantedIPs.Insert(i.IPs...)
 				break
 			}
@@ -250,13 +250,13 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 		toRemove := actualIPs.Difference(wantedIPs)
 
 		// do not remove IPs that were initially used during machine allocation!
-		toRemove.Delete(n.Ips...)
+		toRemove.Delete(n.IPs...)
 
 		if f.dryRun {
-			f.log.Info("skipping reconciling ips for", "network", n.Networkid, "adding", toAdd, "removing", toRemove)
+			f.log.Info("skipping reconciling ips for", "network", n.NetworkID, "adding", toAdd, "removing", toRemove)
 			continue
 		}
-		f.log.Info("reconciling ips for", "network", n.Networkid, "adding", toAdd, "removing", toRemove)
+		f.log.Info("reconciling ips for", "network", n.NetworkID, "adding", toAdd, "removing", toRemove)
 
 		for add := range toAdd {
 			addr, _ := netlink.ParseAddr(fmt.Sprintf("%s/32", add))

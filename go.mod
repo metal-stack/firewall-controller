@@ -11,7 +11,7 @@ require (
 	github.com/google/nftables v0.0.0-20221107190433-130caa4c31c9
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ks2211/go-suricata v0.0.0-20200823200910-986ce1470707
-	github.com/metal-stack/firewall-controller-manager v0.0.0-20221130224341-42604b688795
+	github.com/metal-stack/firewall-controller-manager v0.0.0-20221207125721-f4538241388b
 	github.com/metal-stack/metal-go v0.21.4
 	github.com/metal-stack/metal-lib v0.11.2
 	github.com/metal-stack/metal-networker v0.31.0

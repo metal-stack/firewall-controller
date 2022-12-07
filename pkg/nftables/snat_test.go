@@ -46,24 +46,24 @@ func TestSnatRules(t *testing.T) {
 				Status: firewallv2.FirewallStatus{
 					FirewallNetworks: []firewallv2.FirewallNetwork{
 						{
-							Networkid:   &private,
+							NetworkID:   &private,
 							Prefixes:    []string{"10.0.1.0/24"},
-							Ips:         []string{"10.0.1.1"},
-							Networktype: &privatePrimary,
+							IPs:         []string{"10.0.1.1"},
+							NetworkType: &privatePrimary,
 						},
 						{
-							Networkid:   &internet,
+							NetworkID:   &internet,
 							Prefixes:    []string{"185.0.0.0/24"},
-							Ips:         []string{"185.0.0.1"},
+							IPs:         []string{"185.0.0.1"},
 							Vrf:         &vrf1,
-							Networktype: &external,
+							NetworkType: &external,
 						},
 						{
-							Networkid:   &mpls,
+							NetworkID:   &mpls,
 							Prefixes:    []string{"100.0.0.0/24"},
-							Ips:         []string{"100.0.0.1"},
+							IPs:         []string{"100.0.0.1"},
 							Vrf:         &vrf2,
-							Networktype: &external,
+							NetworkType: &external,
 						},
 					},
 				},
@@ -82,10 +82,10 @@ func TestSnatRules(t *testing.T) {
 				Status: firewallv2.FirewallStatus{
 					FirewallNetworks: []firewallv2.FirewallNetwork{
 						{
-							Networkid:   &private,
+							NetworkID:   &private,
 							Prefixes:    []string{"10.0.1.0/24"},
-							Ips:         []string{"10.0.1.1"},
-							Networktype: &privatePrimary,
+							IPs:         []string{"10.0.1.1"},
+							NetworkType: &privatePrimary,
 							Vrf:         &vrf1,
 						},
 					},
@@ -99,10 +99,10 @@ func TestSnatRules(t *testing.T) {
 				Status: firewallv2.FirewallStatus{
 					FirewallNetworks: []firewallv2.FirewallNetwork{
 						{
-							Networkid:   &underlay,
+							NetworkID:   &underlay,
 							Prefixes:    []string{"10.0.1.0/24"},
-							Ips:         []string{"10.0.1.1"},
-							Networktype: &underlayNet,
+							IPs:         []string{"10.0.1.1"},
+							NetworkType: &underlayNet,
 						},
 					},
 				},

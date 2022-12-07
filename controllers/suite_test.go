@@ -70,6 +70,7 @@ var _ = BeforeSuite(func(done Done) {
 	Expect(cfg).ToNot(BeNil())
 
 	Expect(firewallv1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
+	Expect(firewallv2.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 	Expect(corev1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 
 	// +kubebuilder:scaffold:scheme
@@ -90,6 +91,7 @@ var _ = AfterSuite(func() {
 func setupScheme() *apimachineryruntime.Scheme {
 	scheme := runtime.NewScheme()
 	_ = firewallv1.AddToScheme(scheme)
+	_ = firewallv2.AddToScheme(scheme)
 	_ = corev1.AddToScheme(scheme)
 	return scheme
 }

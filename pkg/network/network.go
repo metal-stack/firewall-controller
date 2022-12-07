@@ -41,10 +41,10 @@ func GetLogger() *zap.SugaredLogger {
 func GetNewNetworks(f firewallv2.Firewall, oldNetworks []*models.V1MachineNetwork) []*models.V1MachineNetwork {
 	networkMap := map[string]firewallv2.FirewallNetwork{}
 	for _, n := range f.Status.FirewallNetworks {
-		if n.Networktype == nil {
+		if n.NetworkType == nil {
 			continue
 		}
-		networkMap[*n.Networkid] = n
+		networkMap[*n.NetworkID] = n
 	}
 
 	newNetworks := []*models.V1MachineNetwork{}

@@ -36,6 +36,10 @@ test-all: generate fmt vet manifests kubebuilder
 test-integration: generate fmt vet manifests
 	KUBEBUILDER_ASSETS=${KUBEBUILDER_ASSETS} go test ./... -v Integration
 
+test-envtest:
+	@if ! which $(SETUP_ENVTEST) > /dev/null; then echo "setup-envtest needs to be installed. you can use setup-envtest target to achieve this."; exit 1; fi
+	KUBEBUILDER_ASSETS="$(shell $(SETUP_ENVTEST) use --arch=amd64 --bin-dir $(PWD)/bin -p path)" go test ./... -v -coverprofile cover.out
+
 clean:
 	rm -rf bin/* pkg/network/frr.firewall.tpl
 
@@ -76,6 +80,7 @@ manifests: controller-gen fetch-template
 
 # Fetch firewall template
 fetch-template:
+	# FIXME: If this is embedded into the networker, why not just use from embedded source?
 	wget https://raw.githubusercontent.com/metal-stack/metal-networker/${METAL_NETWORKER_VERSION}/pkg/netconf/tpl/frr.firewall.tpl -O ./pkg/network/frr.firewall.tpl
 
 # Run go fmt against code
@@ -126,4 +131,20 @@ ifeq (, $(shell which controller-gen))
 CONTROLLER_GEN=$(GOBIN)/controller-gen
 else
 CONTROLLER_GEN=$(shell which controller-gen)
+endif
+
+.PHONY: setup-envtest
+setup-envtest:
+ifeq (, $(shell which setup-envtest))
+	@{ \
+	set -e ;\
+	TMP_DIR=$$(mktemp -d) ;\
+	cd $$TMP_DIR ;\
+	go mod init tmp ;\
+	go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest ;\
+	rm -rf $$TMP_DIR ;\
+	}
+SETUP_ENVTEST=$(GOBIN)/setup-envtest
+else
+SETUP_ENVTEST=$(shell which setup-envtest)
 endif

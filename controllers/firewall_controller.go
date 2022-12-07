@@ -16,7 +16,6 @@ package controllers
 
 import (
 	"context"
-	"crypto/rsa"
 	"fmt"
 	"reflect"
 	"time"
@@ -53,13 +52,17 @@ import (
 
 // FirewallReconciler reconciles a Firewall object
 type FirewallReconciler struct {
-	client.Client
+	SeedClient  client.Client
+	ShootClient client.Client
+
 	recorder             record.EventRecorder
 	Log                  logr.Logger
 	Scheme               *runtime.Scheme
 	EnableIDS            bool
 	EnableSignatureCheck bool
-	CAPubKey             *rsa.PublicKey
+
+	FirewallName string
+	Namespace    string
 }
 
 const (
@@ -89,11 +92,15 @@ var (
 // +kubebuilder:rbac:groups=metal-stack.io,resources=firewalls,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=metal-stack.io,resources=firewalls/status,verbs=get;update;patch
 func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	if req.Namespace != r.Namespace || req.Name != r.FirewallName {
+		return ctrl.Result{}, nil
+	}
+
 	log := r.Log.WithValues("firewall", req.NamespacedName)
 	requeue := firewallRequeue
 
 	var f firewallv2.Firewall
-	if err := r.Get(ctx, req.NamespacedName, &f); err != nil {
+	if err := r.SeedClient.Get(ctx, req.NamespacedName, &f); err != nil {
 		if errors.IsNotFound(err) {
 			defaultFw := nftables.NewDefaultFirewall()
 			log.Info("flushing k8s firewall rules")
@@ -105,12 +112,6 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		}
 
 		return done, client.IgnoreNotFound(err)
-	}
-
-	if err := r.validateFirewall(f); err != nil {
-		r.recorder.Event(&f, corev1.EventTypeWarning, "Unapplicable", err.Error())
-		// don't requeue invalid firewall objects
-		return done, err
 	}
 
 	log.Info("reconciling firewall-controller")
@@ -155,35 +156,6 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	r.recorder.Event(&f, corev1.EventTypeNormal, "Reconciled", "nftables rules and statistics successfully")
 	log.Info("reconciled firewall")
 	return requeue, nil
-}
-
-// validateFirewall validates a firewall object:
-// - it must be a singularity in a fixed namespace
-// - and for the triggered reconcilation request
-// - the signature is valid (when signature checking is enabled)
-func (r *FirewallReconciler) validateFirewall(f firewallv2.Firewall) error {
-	if f.Namespace != firewallv1.ClusterwideNetworkPolicyNamespace {
-		return fmt.Errorf("firewall must be defined in namespace %s otherwise it won't take effect", firewallv1.ClusterwideNetworkPolicyNamespace)
-	}
-
-	if f.Name != firewallName {
-		return fmt.Errorf("firewall object is a singularity - it must have the name %s", firewallName)
-	}
-
-	if !r.EnableSignatureCheck {
-		return nil
-	}
-
-	ok, err := f.Spec.Data.Verify(r.CAPubKey, f.Spec.Signature)
-	if err != nil {
-		return fmt.Errorf("firewall spec could not be verified with signature: %w", err)
-	}
-
-	if !ok {
-		return fmt.Errorf("firewall object was tampered; could not verify the values given in the firewall spec")
-	}
-
-	return nil
 }
 
 // converts a network-policy object that was used before in a cluster-wide manner to the new CRD
@@ -267,7 +239,7 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 	}
 
 	var currentSvc corev1.Service
-	err := r.Get(ctx, nn, &currentSvc)
+	err := r.ShootClient.Get(ctx, nn, &currentSvc)
 
 	if err != nil && !errors.IsNotFound(err) {
 		return err
@@ -289,7 +261,7 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 	}
 
 	if errors.IsNotFound(err) {
-		err = r.Create(ctx, &svc)
+		err = r.ShootClient.Create(ctx, &svc)
 		if err != nil {
 			return err
 		}
@@ -298,7 +270,7 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 	if !reflect.DeepEqual(currentSvc.Spec, svc.Spec) || currentSvc.ObjectMeta.Labels == nil || !reflect.DeepEqual(currentSvc.ObjectMeta.Labels, svc.ObjectMeta.Labels) {
 		currentSvc.Spec = svc.Spec
 		currentSvc.ObjectMeta.Labels = svc.ObjectMeta.Labels
-		err = r.Update(ctx, &currentSvc)
+		err = r.ShootClient.Update(ctx, &currentSvc)
 		if err != nil {
 			return err
 		}
@@ -307,11 +279,11 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 	var privateNet *firewallv2.FirewallNetwork
 	for _, n := range f.Status.FirewallNetworks {
 		n := n
-		if n.Networktype == nil {
+		if n.NetworkType == nil {
 			continue
 		}
 
-		switch *n.Networktype {
+		switch *n.NetworkType {
 		case mn.PrivatePrimaryUnshared:
 			privateNet = &n
 		case mn.PrivatePrimaryShared:
@@ -323,7 +295,7 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 		return fmt.Errorf("firewall networks contain no private network")
 	}
 
-	if len(privateNet.Ips) < 1 {
+	if len(privateNet.IPs) < 1 {
 		return fmt.Errorf("private firewall network contains no ip")
 	}
 
@@ -333,7 +305,7 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 			{
 				Addresses: []corev1.EndpointAddress{
 					{
-						IP: privateNet.Ips[0],
+						IP: privateNet.IPs[0],
 					},
 				},
 				Ports: []corev1.EndpointPort{
@@ -348,13 +320,13 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 	}
 
 	var currentEndpoints corev1.Endpoints
-	err = r.Get(ctx, nn, &currentEndpoints)
+	err = r.ShootClient.Get(ctx, nn, &currentEndpoints)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
 
 	if errors.IsNotFound(err) {
-		err = r.Create(ctx, &endpoints)
+		err = r.ShootClient.Create(ctx, &endpoints)
 		if err != nil {
 			return err
 		}
@@ -363,7 +335,7 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 
 	if !reflect.DeepEqual(currentEndpoints.Subsets, endpoints.Subsets) {
 		currentEndpoints.Subsets = endpoints.Subsets
-		return r.Update(ctx, &currentEndpoints)
+		return r.ShootClient.Update(ctx, &currentEndpoints)
 	}
 
 	return nil
@@ -371,15 +343,25 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 
 // updateStatus updates the status field for this firewall
 func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv2.Firewall) error {
+	mon := &firewallv2.FirewallMonitor{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: r.FirewallName,
+		},
+	}
+	if err := r.ShootClient.Get(ctx, client.ObjectKeyFromObject(mon), mon); err != nil {
+		r.Log.Error(err, "no firewall monitor found, cannot update")
+		return err
+	}
+
 	if f.Spec.DryRun {
-		f.Status.ControllerStatus.FirewallStats = firewallv2.FirewallStats{
+		mon.ControllerStatus.FirewallStats = &firewallv2.FirewallStats{
 			RuleStats:   firewallv2.RuleStatsByAction{},
 			DeviceStats: firewallv2.DeviceStatsByDevice{},
 			IDSStats:    firewallv2.IDSStatsByDevice{},
 		}
 		f.Status.ControllerStatus.Updated.Time = time.Now()
-		if err := r.Status().Update(ctx, &f); err != nil {
-			return fmt.Errorf("unable to update firewall status, err: %w", err)
+		if err := r.ShootClient.Update(ctx, &f); err != nil {
+			return fmt.Errorf("unable to update firewall monitor status, err: %w", err)
 		}
 		return nil
 	}
@@ -387,14 +369,14 @@ func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv2.Fire
 	c := collector.NewNFTablesCollector(&r.Log)
 	ruleStats := c.CollectRuleStats()
 
-	f.Status.ControllerStatus.FirewallStats = firewallv2.FirewallStats{
+	mon.ControllerStatus.FirewallStats = &firewallv2.FirewallStats{
 		RuleStats: ruleStats,
 	}
 	deviceStats, err := c.CollectDeviceStats()
 	if err != nil {
 		return err
 	}
-	f.Status.ControllerStatus.FirewallStats.DeviceStats = deviceStats
+	mon.ControllerStatus.FirewallStats.DeviceStats = deviceStats
 
 	idsStats := firewallv2.IDSStatsByDevice{}
 	if r.EnableIDS { // checks the CLI-flag
@@ -411,13 +393,13 @@ func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv2.Fire
 			}
 		}
 	}
-	f.Status.ControllerStatus.FirewallStats.IDSStats = idsStats
+	mon.ControllerStatus.FirewallStats.IDSStats = idsStats
 
-	f.Status.ControllerStatus.ControllerVersion = v.Version
-	f.Status.ControllerStatus.Updated.Time = time.Now()
+	mon.ControllerStatus.ControllerVersion = v.Version
+	mon.ControllerStatus.Updated.Time = time.Now()
 
-	if err := r.Status().Update(ctx, &f); err != nil {
-		return fmt.Errorf("unable to update firewall status, err: %w", err)
+	if err := r.ShootClient.Update(ctx, &f); err != nil {
+		return fmt.Errorf("unable to update firewall monitor status, err: %w", err)
 	}
 	return nil
 }
