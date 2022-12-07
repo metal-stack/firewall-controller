@@ -55,11 +55,10 @@ type FirewallReconciler struct {
 	SeedClient  client.Client
 	ShootClient client.Client
 
-	recorder             record.EventRecorder
-	Log                  logr.Logger
-	Scheme               *runtime.Scheme
-	EnableIDS            bool
-	EnableSignatureCheck bool
+	recorder  record.EventRecorder
+	Log       logr.Logger
+	Scheme    *runtime.Scheme
+	EnableIDS bool
 
 	FirewallName string
 	Namespace    string
