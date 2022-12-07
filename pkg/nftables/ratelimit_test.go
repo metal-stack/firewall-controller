@@ -81,7 +81,7 @@ func TestRateLimitRules(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			f := NewFirewall(firewallv2.Firewall{Status: tt.input.Status}, &firewallv1.ClusterwideNetworkPolicyList{}, nil, nil, logr.Discard())
+			f := NewFirewall(firewallv2.Firewall{Spec: tt.input.Spec, Status: tt.input.Status}, &firewallv1.ClusterwideNetworkPolicyList{}, nil, nil, logr.Discard())
 			got := rateLimitRules(f)
 			if !cmp.Equal(got, tt.want) {
 				t.Errorf("rateLimitRules() diff: %v", cmp.Diff(got, tt.want))
