@@ -67,6 +67,8 @@ func main() {
 		hostsFile            string
 		shootKubeconfig      string
 		seedKubeconfig       string
+		firewallNamespace    string
+		firewallName         string
 	)
 	flag.StringVar(&logLevel, "log-level", "info", "the log level of the controller")
 	flag.BoolVar(&isVersion, "v", false, "Show firewall-controller version")
@@ -79,6 +81,8 @@ func main() {
 	flag.BoolVar(&enableSignatureCheck, "enable-signature-check", true, "Set this to false to ignore signature checking.")
 	flag.StringVar(&shootKubeconfig, "shoot-kubeconfig", "/etc/firewall-controller/shoot.kubeconfig", "the path to the kubeconfig to talk to the shoot")
 	flag.StringVar(&seedKubeconfig, "seed-kubeconfig", "/etc/firewall-controller/seed.kubeconfig", "the path to the kubeconfig to talk to the seed")
+	flag.StringVar(&firewallNamespace, "firewall-namespace", "", "the name of the namespace of the firewall resource in the seed cluster to reconcile")
+	flag.StringVar(&firewallName, "firewall-name", "", "the name of the firewall resource in the seed cluster to reconcile")
 
 	flag.Parse()
 
@@ -91,6 +95,13 @@ func main() {
 	if err != nil {
 		setupLog.Error(err, "unable to parse log level")
 		os.Exit(1)
+	}
+
+	if firewallName == "" {
+		l.Fatalw("-firewall-name flag is required")
+	}
+	if firewallNamespace == "" {
+		l.Fatalw("-firewall-namespace flag is required")
 	}
 
 	ctrl.SetLogger(zapr.NewLogger(l.Desugar()))
@@ -184,6 +195,8 @@ func main() {
 		Scheme:               mgr.GetScheme(),
 		EnableIDS:            enableIDS,
 		EnableSignatureCheck: enableSignatureCheck,
+		Namespace:            firewallNamespace,
+		FirewallName:         firewallName,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Firewall")
 		os.Exit(1)
