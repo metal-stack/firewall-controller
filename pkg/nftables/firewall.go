@@ -174,6 +174,7 @@ func (f *Firewall) ReconcileNetconfTables() error {
 	if err != nil || c == nil {
 		return fmt.Errorf("failed to init networker config: %w", err)
 	}
+
 	c.Networks = network.GetNewNetworks(f.firewall, c.Networks)
 
 	configurator, err := netconf.NewConfigurator(netconf.Firewall, *c, f.enableDNS)

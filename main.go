@@ -40,7 +40,6 @@ import (
 	"github.com/metal-stack/firewall-controller-manager/api/v2/helper"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/controllers"
-	"github.com/metal-stack/firewall-controller/controllers/crd"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -129,15 +128,6 @@ func main() {
 
 	if started := mgr.GetCache().WaitForCacheSync(ctx); !started {
 		panic("not all started")
-	}
-
-	err = crd.WaitForCRDs(seedConfig, crd.InstallOptions{ // FIXME: can we remove this?
-		MaxTime:      500 * time.Millisecond,
-		PollInterval: 100 * time.Millisecond,
-	}, "firewall", "clusterwidenetworkpolicy")
-	if err != nil {
-		setupLog.Error(err, "unable to wait for created crds of firewall-controller")
-		os.Exit(1)
 	}
 
 	shootClient, firewallNamespace, err := newShootClientWithCheck(ctx, setupLog, mgr.GetClient(), firewallName)
