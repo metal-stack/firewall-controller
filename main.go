@@ -17,24 +17,27 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
 	"github.com/metal-stack/v"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
+	"github.com/metal-stack/firewall-controller-manager/api/v2/helper"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/controllers"
 	"github.com/metal-stack/firewall-controller/controllers/crd"
@@ -65,9 +68,6 @@ func main() {
 		enableIDS            bool
 		enableSignatureCheck bool
 		hostsFile            string
-		shootKubeconfig      string
-		seedKubeconfig       string
-		firewallNamespace    string
 		firewallName         string
 	)
 	flag.StringVar(&logLevel, "log-level", "info", "the log level of the controller")
@@ -79,10 +79,7 @@ func main() {
 	flag.BoolVar(&enableIDS, "enable-IDS", true, "Set this to false to exclude IDS.")
 	flag.StringVar(&hostsFile, "hosts-file", "/etc/hosts", "The hosts file to manipulate for the droptailer.")
 	flag.BoolVar(&enableSignatureCheck, "enable-signature-check", true, "Set this to false to ignore signature checking.")
-	flag.StringVar(&shootKubeconfig, "shoot-kubeconfig", "/etc/firewall-controller/shoot.kubeconfig", "the path to the kubeconfig to talk to the shoot")
-	flag.StringVar(&seedKubeconfig, "seed-kubeconfig", "/etc/firewall-controller/seed.kubeconfig", "the path to the kubeconfig to talk to the seed")
-	flag.StringVar(&firewallNamespace, "firewall-namespace", "", "the name of the namespace of the firewall resource in the seed cluster to reconcile")
-	flag.StringVar(&firewallName, "firewall-name", "", "the name of the firewall resource in the seed cluster to reconcile")
+	flag.StringVar(&firewallName, "firewall-name", "", "the name of the firewall resource in the seed cluster to reconcile (defaults to hostname)")
 
 	flag.Parse()
 
@@ -98,34 +95,15 @@ func main() {
 	}
 
 	if firewallName == "" {
-		l.Fatalw("-firewall-name flag is required")
-	}
-	if firewallNamespace == "" {
-		l.Fatalw("-firewall-namespace flag is required")
+		firewallName, err = os.Hostname()
+		if err != nil {
+			l.Fatalw("unable to default firewall name flag to hostname")
+		}
 	}
 
 	ctrl.SetLogger(zapr.NewLogger(l.Desugar()))
 
-	seedConfig, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		&clientcmd.ClientConfigLoadingRules{ExplicitPath: seedKubeconfig},
-		&clientcmd.ConfigOverrides{},
-	).ClientConfig()
-	if err != nil {
-		l.Fatalw("unable create seed rest config", "error", err)
-	}
-
-	shootConfig, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		&clientcmd.ClientConfigLoadingRules{ExplicitPath: shootKubeconfig},
-		&clientcmd.ConfigOverrides{},
-	).ClientConfig()
-	if err != nil {
-		l.Fatalw("unable create shoot rest config", "error", err)
-	}
-	shootClient, err := client.New(shootConfig, client.Options{Scheme: scheme})
-	if err != nil {
-		l.Fatalw("unable create shoot client", "error", err)
-	}
-
+	seedConfig := ctrl.GetConfigOrDie()
 	mgr, err := ctrl.NewManager(seedConfig, ctrl.Options{
 		Scheme:             scheme,
 		MetricsBindAddress: metricsAddr,
@@ -139,6 +117,7 @@ func main() {
 	}
 
 	ctx := ctrl.SetupSignalHandler()
+
 	// FIXME better at the end and not in a go func
 	go func() {
 		setupLog.Info("starting firewall-controller", "version", v.V)
@@ -158,6 +137,12 @@ func main() {
 	}, "firewall", "clusterwidenetworkpolicy")
 	if err != nil {
 		setupLog.Error(err, "unable to wait for created crds of firewall-controller")
+		os.Exit(1)
+	}
+
+	shootClient, firewallNamespace, err := newShootClientWithCheck(ctx, setupLog, mgr.GetClient(), firewallName)
+	if err != nil {
+		setupLog.Error(err, "unable to construct shoot client")
 		os.Exit(1)
 	}
 
@@ -203,6 +188,82 @@ func main() {
 	// +kubebuilder:scaffold:builder
 
 	<-ctx.Done()
+}
+
+func newShootClientWithCheck(ctx context.Context, log logr.Logger, seed client.Client, firewallName string) (client.Client, string, error) {
+	fwList := &firewallv2.FirewallList{}
+	err := seed.List(ctx, fwList)
+	if err != nil {
+		return nil, "", fmt.Errorf("unable to list firewalls: %w", err)
+	}
+
+	var fws []firewallv2.Firewall
+	for _, fw := range fwList.Items {
+		if fw.Name == firewallName {
+			fws = append(fws, fw)
+		}
+	}
+	if len(fws) != 1 {
+		return nil, "", fmt.Errorf("found no single firewall resourcefor firewall: %s", firewallName)
+	}
+
+	var (
+		fw                = fws[0]
+		firewallNamespace = fw.Namespace
+		shootAccess       = fw.Status.ShootAccess
+	)
+
+	if shootAccess == nil {
+		return nil, "", fmt.Errorf("shoot access status field is empty")
+	}
+
+	shootConfig, err := helper.NewShootConfig(ctx, seed, shootAccess)
+	if err != nil {
+		return nil, "", fmt.Errorf("unable to get shoot config: %w", err)
+	}
+
+	shootClient, err := client.New(shootConfig, client.Options{Scheme: scheme})
+	if err != nil {
+		return nil, "", fmt.Errorf("unable to create shoot client: %w", err)
+	}
+
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				fw := &firewallv2.Firewall{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      firewallName,
+						Namespace: firewallNamespace,
+					},
+				}
+				err = seed.Get(ctx, client.ObjectKeyFromObject(fw), fw)
+				if err != nil {
+					log.Error(err, "unable to get firewall resource, retrying in five minutes")
+					continue
+				}
+
+				// TODO: implement ssh key rotation
+
+				if fw.Status.ShootAccess != nil && (fw.Status.ShootAccess.APIServerURL != shootAccess.APIServerURL ||
+					fw.Status.ShootAccess.GenericKubeconfigSecretName != shootAccess.GenericKubeconfigSecretName ||
+					fw.Status.ShootAccess.TokenSecretName != shootAccess.TokenSecretName) {
+					log.Info("shoot access has changed, restarting controller")
+					ctx.Done()
+					return
+				}
+
+				log.Info("shoot access has not changed, checking again in five minutes")
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return shootClient, firewallNamespace, nil
 }
 
 func newZapLogger(levelString string) (*zap.SugaredLogger, error) {
