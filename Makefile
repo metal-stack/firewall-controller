@@ -7,9 +7,7 @@ VERSION := $(or ${GITHUB_TAG_NAME},$(shell git describe --tags --exact-match 2> 
 # Image URL to use all building/pushing image targets
 DOCKER_TAG := $(or ${GITHUB_TAG_NAME}, latest)
 DOCKER_IMG ?= ghcr.io/metal-stack/firewall-controller:${DOCKER_TAG}
-# this version is used to include template from the metal-networker to the firewall-controller
-# version should be not that far away from the compile dependency in go.mod
-METAL_NETWORKER_VERSION := v0.8.3
+
 
 # Kubebuilder installation environment variables
 KUBEBUILDER_DOWNLOAD_URL := https://github.com/kubernetes-sigs/kubebuilder/releases/download
@@ -75,13 +73,8 @@ deploy: manifests
 	kustomize build config/default | kubectl apply -f -
 
 # Generate manifests e.g. CRD, RBAC etc.
-manifests: controller-gen fetch-template
+manifests: controller-gen
 	$(CONTROLLER_GEN) crd rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
-
-# Fetch firewall template
-fetch-template:
-	# FIXME: If this is embedded into the networker, why not just use from embedded source?
-	wget https://raw.githubusercontent.com/metal-stack/metal-networker/${METAL_NETWORKER_VERSION}/pkg/netconf/tpl/frr.firewall.tpl -O ./pkg/network/frr.firewall.tpl
 
 # Run go fmt against code
 fmt:

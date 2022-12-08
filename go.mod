@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/go-logr/logr v1.2.3
+	github.com/go-logr/zapr v1.2.3
 	github.com/gobuffalo/flect v0.3.0
 	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.5.9
@@ -14,7 +15,7 @@ require (
 	github.com/metal-stack/firewall-controller-manager v0.0.0-20221208075234-c691225c5153
 	github.com/metal-stack/metal-go v0.21.4
 	github.com/metal-stack/metal-lib v0.11.2
-	github.com/metal-stack/metal-networker v0.31.0
+	github.com/metal-stack/metal-networker v0.31.1-0.20221208095432-0842a30abb03
 	github.com/metal-stack/v v1.0.3
 	github.com/miekg/dns v1.1.50
 	github.com/onsi/ginkgo v1.16.5
@@ -31,8 +32,6 @@ require (
 	sigs.k8s.io/controller-runtime v0.13.1
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
-
-require github.com/go-logr/zapr v1.2.3
 
 require (
 	cloud.google.com/go/compute v1.12.1 // indirect

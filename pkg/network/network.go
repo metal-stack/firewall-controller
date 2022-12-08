@@ -4,15 +4,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"text/template"
 
 	"go.uber.org/zap"
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	"github.com/metal-stack/metal-go/api/models"
 	"github.com/metal-stack/metal-networker/pkg/netconf"
-
-	"embed"
 )
 
 const (
@@ -20,8 +17,6 @@ const (
 	frrConfig            = "/etc/frr/frr.conf"
 )
 
-//go:embed *.tpl
-var templates embed.FS
 var logger *zap.SugaredLogger
 
 func init() {
@@ -79,10 +74,7 @@ func ReconcileNetwork(f firewallv2.Firewall) (changed bool, err error) {
 	c.Networks = GetNewNetworks(f, c.Networks)
 
 	a := netconf.NewFrrConfigApplier(netconf.Firewall, *c, tmpFile)
-	tpl, err := readTpl(netconf.TplFirewallFRR)
-	if err != nil {
-		return false, fmt.Errorf("error during network reconcilation: %v: %w", tmpFile, err)
-	}
+	tpl := netconf.MustParseTpl(netconf.TplFirewallFRR)
 
 	changed, err = a.Apply(*tpl, tmpFile, frrConfig, true)
 	if err != nil {
@@ -104,18 +96,4 @@ func tmpFile(file string) (string, error) {
 	}
 
 	return f.Name(), nil
-}
-
-func readTpl(tplName string) (*template.Template, error) {
-	contents, err := templates.ReadFile(tplName)
-	if err != nil {
-		return nil, err
-	}
-
-	t, err := template.New(tplName).Parse(string(contents))
-	if err != nil {
-		return nil, fmt.Errorf("could not parse template %v from embed.FS: %w", tplName, err)
-	}
-
-	return t, nil
 }
