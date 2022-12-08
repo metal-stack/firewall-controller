@@ -58,10 +58,6 @@ jobs:
         password: ${{ secrets.DOCKER_REGISTRY_TOKEN }}
       if: steps.fork.outputs.is_fork_pr == 'false'
 
-    - name: Build
-      run: |
-        make fetch-template
-
     - name: Lint
       uses: golangci/golangci-lint-action@v3
       with:

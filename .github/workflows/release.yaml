@@ -56,10 +56,6 @@ jobs:
         username: ${{ secrets.DOCKER_REGISTRY_USER }}
         password: ${{ secrets.DOCKER_REGISTRY_TOKEN }}
 
-    - name: Build
-      run: |
-        make fetch-template
-
     - name: Lint
       uses: golangci/golangci-lint-action@v3
       with:
