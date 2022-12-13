@@ -1,5 +1,5 @@
 ---
-name: Docker Build Action
+name: Build Action
 on:
   pull_request:
     branches:
@@ -18,7 +18,7 @@ env:
 
 jobs:
   build:
-    name: Docker Build
+    name: Build
     runs-on: ubuntu-latest
 
     steps:
@@ -64,7 +64,7 @@ jobs:
       run: |
         make
 
-    - name: Build and push image
+    - name: Push Docker image
       uses: docker/build-push-action@v3
       with:
         context: .
