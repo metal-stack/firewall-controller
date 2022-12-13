@@ -1,19 +1,7 @@
-.ONESHELL:
 SHA := $(shell git rev-parse --short=8 HEAD)
 GITVERSION := $(shell git describe --long --all)
-BUILDDATE := $(shell GO111MODULE=off go run ${COMMONDIR}/time.go)
-VERSION := $(or ${GITHUB_TAG_NAME},$(shell git describe --tags --exact-match 2> /dev/null || git symbolic-ref -q --short HEAD || git rev-parse --short HEAD))
-
-# Image URL to use all building/pushing image targets
-DOCKER_TAG := $(or ${GITHUB_TAG_NAME}, latest)
-DOCKER_IMG ?= ghcr.io/metal-stack/firewall-controller:${DOCKER_TAG}
-
-
-# Kubebuilder installation environment variables
-KUBEBUILDER_DOWNLOAD_URL := https://github.com/kubernetes-sigs/kubebuilder/releases/download
-KUBEBUILDER_VER := 3.3.0
-KUBEBUILDER_ASSETS ?= /usr/local/kubebuilder/bin
-K8S_VERSION := 1.22.1
+BUILDDATE := $(shell date -Iseconds)
+VERSION := $(or ${VERSION},$(shell git describe --tags --exact-match 2> /dev/null || git symbolic-ref -q --short HEAD || git rev-parse --short HEAD))
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -24,22 +12,15 @@ endif
 
 all: firewall-controller
 
-# Run tests
 test: generate fmt vet manifests
-	KUBEBUILDER_ASSETS=${KUBEBUILDER_ASSETS} go test ./... -short -coverprofile cover.out
-
-test-all: generate fmt vet manifests kubebuilder
-	KUBEBUILDER_ASSETS=${KUBEBUILDER_ASSETS} go test ./... -v -coverprofile cover.out
-
-test-integration: generate fmt vet manifests
-	KUBEBUILDER_ASSETS=${KUBEBUILDER_ASSETS} go test ./... -v Integration
-
-test-envtest:
 	@if ! which $(SETUP_ENVTEST) > /dev/null; then echo "setup-envtest needs to be installed. you can use setup-envtest target to achieve this."; exit 1; fi
-	KUBEBUILDER_ASSETS="$(shell $(SETUP_ENVTEST) use --arch=amd64 --bin-dir $(PWD)/bin -p path)" go test ./... -v -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(SETUP_ENVTEST) use --arch=amd64 --bin-dir $(PWD)/bin -p path)" go test ./... -short -v -coverprofile cover.out
+
+test-all: generate fmt vet manifests
+	KUBEBUILDER_ASSETS="$(shell $(SETUP_ENVTEST) use --arch=amd64 --bin-dir $(PWD)/bin -p path)" go test ./... -coverprofile cover.out
 
 clean:
-	rm -rf bin/* pkg/network/frr.firewall.tpl
+	rm -rf bin/*
 
 # Build firewall-controller binary
 firewall-controller: generate fmt vet
@@ -84,21 +65,9 @@ fmt:
 vet:
 	go vet ./...
 
-# Run golangci-lint
-lint:
-	docker run --rm -v $(PWD):/app -w /app golangci/golangci-lint:v1.44.2 golangci-lint run -v
-
 # Generate code
 generate: controller-gen manifests
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
-
-# Build the docker image
-docker-build:
-	docker build . -t ${DOCKER_IMG}
-
-# Push the docker image
-docker-push:
-	docker push ${DOCKER_IMG}
 
 kubebuilder:
 	set -ex \
