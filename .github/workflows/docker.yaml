@@ -70,8 +70,8 @@ jobs:
     - name: Prepare upload
       run: |
         mkdir -p firewall-controller/${TARGET_BINARY_LOCATION}
-        sudo chown -R $(id -u):$(id -g) result
-        cp result/* firewall-controller/${TARGET_BINARY_LOCATION}/
+        sudo chown -R $(id -u):$(id -g) bin
+        cp bin/* firewall-controller/${TARGET_BINARY_LOCATION}/
 
     - name: Upload image tarballs to GCS
       run: gsutil -m cp -r -p firewall-controller gs://$GCS_BUCKET
@@ -81,7 +81,7 @@ jobs:
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         files: |
-          result/firewall-controller-*
+          bin/firewall-controller-*
       if: ${{ github.event_name == 'release' }}
 
   integration:
