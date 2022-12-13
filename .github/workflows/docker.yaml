@@ -60,6 +60,10 @@ jobs:
         [ "${GITHUB_EVENT_NAME}" == 'release' ] && echo "TARGET_BINARY_LOCATION=${GITHUB_REF##*/}" >> $GITHUB_ENV || true
         [ "${GITHUB_EVENT_NAME}" == 'push' ] && echo "TARGET_BINARY_LOCATION=latest" >> $GITHUB_ENV || true
 
+    - name: Build
+      run: |
+        make
+
     - name: Build and push image
       uses: docker/build-push-action@v3
       with:
