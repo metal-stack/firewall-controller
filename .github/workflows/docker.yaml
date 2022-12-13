@@ -101,5 +101,5 @@ jobs:
         sudo modprobe dummy
         sudo ip link add vrf42 type dummy
         sudo ip link add vlan42 type dummy
-        make setup-envtest
-        make test-all
+        sudo make setup-envtest
+        sudo make test-all
