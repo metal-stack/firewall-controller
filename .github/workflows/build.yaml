@@ -74,7 +74,6 @@ jobs:
     - name: Prepare upload
       run: |
         mkdir -p firewall-controller/${TARGET_BINARY_LOCATION}
-        sudo chown -R $(id -u):$(id -g) bin
         cp bin/* firewall-controller/${TARGET_BINARY_LOCATION}/
 
     - name: Upload image tarballs to GCS
