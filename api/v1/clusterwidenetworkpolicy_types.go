@@ -34,7 +34,7 @@ type IPVersion string
 const (
 	// ClusterwideNetworkPolicyNamespace defines the namespace CNWPs are expected.
 	ClusterwideNetworkPolicyNamespace           = "firewall"
-	allowedDNSCharsREGroup                      = "[-a-zA-Z0-9_]"
+	allowedDNSCharsREGroup                      = "[-a-zA-Z0-9_.]"
 	IPv4                              IPVersion = "ip"
 	IPv6                              IPVersion = "ip6"
 )
@@ -193,11 +193,11 @@ func (s FQDNSelector) GetRegex() string {
 	pattern := strings.TrimSpace(s.MatchPattern)
 	pattern = strings.ToLower(dnsgo.Fqdn(pattern))
 
-	// "*" -- match-all allowed chars
-	pattern = strings.ReplaceAll(pattern, "*", allowedDNSCharsREGroup+"*")
-
 	// "." becomes a literal .
 	pattern = strings.ReplaceAll(pattern, ".", "[.]")
+
+	// "*" -- match-all allowed chars
+	pattern = strings.ReplaceAll(pattern, "*", allowedDNSCharsREGroup+"*")
 
 	// Anchor the match to require the whole string to match this expression
 	return "^" + pattern + "$"
