@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
 	"github.com/metal-stack/v"
@@ -195,16 +196,22 @@ func main() {
 func seedClientCheck(ctx context.Context, log logr.Logger, config *rest.Config, c client.Client, firewallName string) error {
 	discoveryClient := discovery.NewDiscoveryClientForConfigOrDie(config)
 
-	resources, err := discoveryClient.ServerResourcesForGroupVersion(firewallv2.GroupVersion.String())
+	// resources, err := discoveryClient.ServerResourcesForGroupVersion(firewallv2.GroupVersion.String())
+	groups, resources, err := discoveryClient.ServerGroupsAndResources()
+
+	spew.Dump(groups)
+	spew.Dump(resources)
 	if err != nil {
 		return err
 	}
 
 	found := false
-	for _, r := range resources.APIResources {
-		if r.Kind == "Firewall" {
-			found = true
-			break
+	for _, r := range resources {
+		for _, item := range r.APIResources {
+			if item.Kind == "Firewall" {
+				found = true
+				break
+			}
 		}
 	}
 	if found {
