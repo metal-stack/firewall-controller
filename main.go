@@ -21,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -263,8 +264,13 @@ func seedClientCheck(ctx context.Context, log logr.Logger, config *rest.Config, 
 }
 
 func newShootClientWithCheck(ctx context.Context, log logr.Logger, seed client.Client, firewallName string) (client.Client, string, error) {
+	// TODO: maybe there is another way to get the seed namespace...
+	seedNamespace, _, _ := strings.Cut(firewallName, "-firewall-")
+
 	fwList := &firewallv2.FirewallList{}
-	err := seed.List(ctx, fwList)
+	err := seed.List(ctx, fwList, &client.ListOptions{
+		Namespace: seedNamespace,
+	})
 	if err != nil {
 		return nil, "", fmt.Errorf("unable to list firewalls: %w", err)
 	}
