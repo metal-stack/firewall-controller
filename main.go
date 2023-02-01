@@ -28,15 +28,20 @@ import (
 	"github.com/metal-stack/v"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	corev1 "k8s.io/api/core/v1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/discovery"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
+	v2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	"github.com/metal-stack/firewall-controller-manager/api/v2/helper"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/controllers"
@@ -130,6 +135,12 @@ func main() {
 		panic("not all started")
 	}
 
+	err = seedClientCheck(ctx, setupLog, seedConfig, mgr.GetClient(), firewallName)
+	if err != nil {
+		setupLog.Error(err, "not possible to connect to seed")
+		os.Exit(1)
+	}
+
 	shootClient, firewallNamespace, err := newShootClientWithCheck(ctx, setupLog, mgr.GetClient(), firewallName)
 	if err != nil {
 		setupLog.Error(err, "unable to construct shoot client")
@@ -180,6 +191,77 @@ func main() {
 	<-ctx.Done()
 }
 
+func seedClientCheck(ctx context.Context, log logr.Logger, config *rest.Config, c client.Client, firewallName string) error {
+	discoveryClient := discovery.NewDiscoveryClientForConfigOrDie(config)
+
+	resources, err := discoveryClient.ServerResourcesForGroupVersion(firewallv2.GroupVersion.String())
+	if err != nil {
+		return err
+	}
+
+	found := false
+	for _, r := range resources.APIResources {
+		if r.Kind == "Firewall" {
+			found = true
+			break
+		}
+	}
+	if found {
+		return nil
+	}
+
+	log.Info("client cannot find firewall v2 resource on server side, assuming that this firewall was provisioned with shoot client in the past")
+
+	migrationSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "firewall-controller-migration-secret",
+			Namespace: v2.FirewallShootNamespace,
+		},
+	}
+	err = c.Get(ctx, client.ObjectKeyFromObject(migrationSecret), migrationSecret)
+	if err != nil {
+		return fmt.Errorf("no migration secret found, cannot run with shoot client")
+	}
+
+	log.Info("found migration secret, attempting to exchange kubeconfig from original provisioning process")
+
+	kubeconfig := migrationSecret.Data["kubeconfig"]
+
+	seedConfig, err := clientcmd.RESTConfigFromKubeConfig(kubeconfig)
+	if err != nil {
+		return fmt.Errorf("unable to create rest config from migration secret: %w", err)
+	}
+
+	seed, err := client.New(seedConfig, client.Options{
+		Scheme: scheme,
+	})
+	if err != nil {
+		return fmt.Errorf("unable to create seed client from migration secret: %w", err)
+	}
+
+	_, _, err = newShootClientWithCheck(ctx, log, seed, firewallName)
+	if err != nil {
+		return fmt.Errorf("unable to startup with seed client from migration secret: %w", err)
+	}
+
+	log.Info("possible to start up with client from migration secret, exchanging original kubeconfig")
+
+	path := os.Getenv("KUBECONFIG")
+	if path == "" {
+		return fmt.Errorf("KUBECONFIG environment variable is not set, aborting")
+	}
+
+	err = os.WriteFile(path, kubeconfig, 0600)
+	if err != nil {
+		return fmt.Errorf("unable to write kubeconfig to destination: %w", err)
+	}
+
+	log.Info("exchanged kubeconfig, restarting controller")
+	os.Exit(0)
+
+	return nil
+}
+
 func newShootClientWithCheck(ctx context.Context, log logr.Logger, seed client.Client, firewallName string) (client.Client, string, error) {
 	fwList := &firewallv2.FirewallList{}
 	err := seed.List(ctx, fwList)
@@ -194,7 +276,7 @@ func newShootClientWithCheck(ctx context.Context, log logr.Logger, seed client.C
 		}
 	}
 	if len(fws) != 1 {
-		return nil, "", fmt.Errorf("found no single firewall resourcefor firewall: %s", firewallName)
+		return nil, "", fmt.Errorf("found no single firewall resource for firewall: %s", firewallName)
 	}
 
 	var (
