@@ -24,6 +24,7 @@ func snatRules(f *Firewall) (nftablesRules, error) {
 	if f.primaryPrivateNet == nil {
 		return nil, fmt.Errorf("no primary private network found")
 	}
+	sourceNetworks := strings.Join(f.primaryPrivateNet.Prefixes, ", ")
 
 	rules := nftablesRules{}
 	for _, s := range f.firewall.Spec.EgressRules {
@@ -73,11 +74,21 @@ func snatRules(f *Firewall) (nftablesRules, error) {
 
 		snatRule := snatRule{
 			comment:        fmt.Sprintf("snat for %s", s.NetworkID),
-			sourceNetworks: strings.Join(f.primaryPrivateNet.Prefixes, ", "),
+			sourceNetworks: sourceNetworks,
 			oifname:        fmt.Sprintf("vlan%d", *n.Vrf),
 			to:             to,
 		}
 		rules = append(rules, snatRule.String())
 	}
+
+	enableDNS := len(f.clusterwideNetworkPolicies.GetFQDNs()) > 0
+	if enableDNS {
+		escapeDNSRules := []string{
+			fmt.Sprintf(`ip saddr { %s } tcp dport { 53 } accept comment "escape snat for dns proxy tcp"`, sourceNetworks),
+			fmt.Sprintf(`ip saddr { %s } udp dport { 53 } accept comment "escape snat for dns proxy udp"`, sourceNetworks),
+		}
+		return append(escapeDNSRules, uniqueSorted(rules)...), nil
+	}
+
 	return uniqueSorted(rules), nil
 }
