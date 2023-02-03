@@ -21,7 +21,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/go-logr/logr"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -32,10 +31,9 @@ import (
 // ClusterwideNetworkPolicyValidationReconciler validates a ClusterwideNetworkPolicy object
 // +kubebuilder:rbac:groups=metal-stack.io,resources=events,verbs=create;patch
 type ClusterwideNetworkPolicyValidationReconciler struct {
-	client.Client
-	Log      logr.Logger
-	Scheme   *runtime.Scheme
-	recorder record.EventRecorder
+	ShootClient client.Client
+	Log         logr.Logger
+	recorder    record.EventRecorder
 }
 
 // Validates ClusterwideNetworkPolicy object
@@ -43,7 +41,7 @@ type ClusterwideNetworkPolicyValidationReconciler struct {
 // +kubebuilder:rbac:groups=metal-stack.io,resources=clusterwidenetworkpolicies/status,verbs=get;update;patch
 func (r *ClusterwideNetworkPolicyValidationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var clusterNP firewallv1.ClusterwideNetworkPolicy
-	if err := r.Get(ctx, req.NamespacedName, &clusterNP); err != nil {
+	if err := r.ShootClient.Get(ctx, req.NamespacedName, &clusterNP); err != nil {
 		return done, client.IgnoreNotFound(err)
 	}
 

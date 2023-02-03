@@ -47,7 +47,7 @@ var _ = Describe("Reconcile CWNP resources", func() {
 		r := newCWNPReconciler(createTestFirewallFunc(firewall), tc.objects)
 		req := reconcile.Request{
 			NamespacedName: types.NamespacedName{
-				Name:      firewallName,
+				Name:      "firewall",
 				Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
 			},
 		}

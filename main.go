@@ -70,7 +70,6 @@ func main() {
 		logLevel             string
 		isVersion            bool
 		metricsAddr          string
-		enableLeaderElection bool
 		enableIDS            bool
 		enableSignatureCheck bool
 		hostsFile            string
@@ -80,9 +79,6 @@ func main() {
 	flag.StringVar(&logLevel, "log-level", "info", "the log level of the controller")
 	flag.BoolVar(&isVersion, "v", false, "Show firewall-controller version")
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
-		"Enable leader election for controller manager. "+
-			"Enabling this will ensure there is only one active controller manager.")
 	flag.BoolVar(&enableIDS, "enable-IDS", true, "Set this to false to exclude IDS.")
 	flag.StringVar(&hostsFile, "hosts-file", "/etc/hosts", "The hosts file to manipulate for the droptailer.")
 	flag.BoolVar(&enableSignatureCheck, "enable-signature-check", true, "Set this to false to ignore signature checking.")
@@ -114,19 +110,6 @@ func main() {
 		seedConfig = ctrl.GetConfigOrDie()
 	)
 
-	mgr, err := ctrl.NewManager(seedConfig, ctrl.Options{
-		Scheme:             scheme,
-		MetricsBindAddress: metricsAddr,
-		Port:               9443,
-		LeaderElection:     enableLeaderElection,
-		LeaderElectionID:   "firewall-controller-leader-election",
-	})
-	if err != nil {
-		l.Fatalw("unable to start firewall-controller manager", "error", err)
-	}
-
-	// cannot use seedMgr.GetClient() at the start because it gets initialized at a later point in time
-	// we have to create an own client
 	client, err := controllerclient.New(seedConfig, controllerclient.Options{
 		Scheme: scheme,
 	})
@@ -139,52 +122,86 @@ func main() {
 		l.Fatalw("not possible to connect to seed", "error", err)
 	}
 
-	shootClient, firewallNamespace, err := newShootClientWithCheck(ctx, setupLog, client, firewallName, ctx)
+	shootConfig, shootClient, firewallNamespace, err := newShootClientWithCheck(ctx, setupLog, client, firewallName, ctx)
 	if err != nil {
 		l.Fatalw("unable to construct shoot client", "error", err)
 	}
 
-	// Droptailer Reconciler
-	if err = (&controllers.DroptailerReconciler{
-		Client:    shootClient,
-		Log:       ctrl.Log.WithName("controllers").WithName("Droptailer"),
-		Scheme:    mgr.GetScheme(),
-		HostsFile: hostsFile,
-	}).SetupWithManager(mgr); err != nil {
-		l.Fatalw("unable to create droptailer controller", "error", err)
-	}
-
-	// ClusterwideNetworkPolicy Reconciler
-	if err = controllers.NewClusterwideNetworkPolicyReconciler(mgr).SetupWithManager(mgr); err != nil {
-		l.Fatalw("unable to create clusterwidenetworkpolicy controller", "error", err)
-	}
-
-	if err = (&controllers.ClusterwideNetworkPolicyValidationReconciler{
-		Client: shootClient,
-		Log:    ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicyValidation"),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		l.Fatalw("unable to create clusterwidenetworkpolicyvalidation controller", "error", err)
+	seedMgr, err := ctrl.NewManager(seedConfig, ctrl.Options{
+		Scheme:             scheme,
+		MetricsBindAddress: metricsAddr,
+		Port:               9443,
+		Namespace:          firewallNamespace,
+		LeaderElection:     false, // leader election does not make sense for this controller, it's always single managed by systemd
+	})
+	if err != nil {
+		l.Fatalw("unable to create seed manager", "error", err)
 	}
 
 	// Firewall Reconciler
 	if err = (&controllers.FirewallReconciler{
-		SeedClient:   mgr.GetClient(),
+		SeedClient:   seedMgr.GetClient(),
 		ShootClient:  shootClient,
 		Log:          ctrl.Log.WithName("controllers").WithName("Firewall"),
-		Scheme:       mgr.GetScheme(),
+		Scheme:       scheme,
 		EnableIDS:    enableIDS,
 		Namespace:    firewallNamespace,
 		FirewallName: firewallName,
-	}).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(seedMgr); err != nil {
 		l.Fatalw("unable to create firewall controller", "error", err)
 	}
+
+	shootMgr, err := ctrl.NewManager(shootConfig, ctrl.Options{
+		Scheme:             scheme,
+		MetricsBindAddress: "0",
+		LeaderElection:     false,
+		Namespace:          v2.FirewallShootNamespace,
+	})
+	if err != nil {
+		l.Fatalw("unable to create shoot manager", "error", err)
+	}
+
+	// Droptailer Reconciler
+	if err = (&controllers.DroptailerReconciler{
+		Client:    shootMgr.GetClient(),
+		Log:       ctrl.Log.WithName("controllers").WithName("Droptailer"),
+		HostsFile: hostsFile,
+	}).SetupWithManager(shootMgr); err != nil {
+		l.Fatalw("unable to create droptailer controller", "error", err)
+	}
+
+	// ClusterwideNetworkPolicy Reconciler
+	if err = (&controllers.ClusterwideNetworkPolicyReconciler{
+		SeedClient:     seedMgr.GetClient(),
+		ShootClient:    shootMgr.GetClient(),
+		Log:            ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicy"),
+		FirewallName:   firewallName,
+		SeedNamespace:  firewallNamespace,
+		CreateFirewall: controllers.NewFirewall,
+	}).SetupWithManager(shootMgr); err != nil {
+		l.Fatalw("unable to create clusterwidenetworkpolicy controller", "error", err)
+	}
+
+	if err = (&controllers.ClusterwideNetworkPolicyValidationReconciler{
+		Client: shootMgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicyValidation"),
+	}).SetupWithManager(shootMgr); err != nil {
+		l.Fatalw("unable to create clusterwidenetworkpolicyvalidation controller", "error", err)
+	}
+
 	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting firewall-controller", "version", v.V)
 
-	if err := mgr.Start(ctx); err != nil {
-		l.Errorw("problem running firewall-controller", "error", err)
+	go func() {
+		l.Infow("starting shoot controller", "version", v.V)
+		if err := shootMgr.Start(ctx); err != nil {
+			l.Fatalw("problem running shoot controller", "error", err)
+		}
+	}()
+
+	if err := seedMgr.Start(ctx); err != nil {
+		l.Errorw("problem running seed controller", "error", err)
 		panic(err)
 	}
 }
@@ -205,6 +222,7 @@ func seedClientCheck(ctx context.Context, log logr.Logger, config *rest.Config, 
 		}
 	}
 	if found {
+		log.Info("found firewall v2 resource on server side")
 		return nil
 	}
 
@@ -237,7 +255,7 @@ func seedClientCheck(ctx context.Context, log logr.Logger, config *rest.Config, 
 		return fmt.Errorf("unable to create seed client from migration secret: %w", err)
 	}
 
-	_, _, err = newShootClientWithCheck(ctx, log, seed, firewallName, stop)
+	_, _, _, err = newShootClientWithCheck(ctx, log, seed, firewallName, stop)
 	if err != nil {
 		return fmt.Errorf("unable to startup with seed client from migration secret: %w", err)
 	}
@@ -257,10 +275,10 @@ func seedClientCheck(ctx context.Context, log logr.Logger, config *rest.Config, 
 	log.Info("exchanged kubeconfig, restarting controller")
 	os.Exit(0)
 
-	return nil
+	return nil // not reachable, but satisfies the compiler
 }
 
-func newShootClientWithCheck(ctx context.Context, log logr.Logger, seed client.Client, firewallName string, stop context.Context) (client.Client, string, error) {
+func newShootClientWithCheck(ctx context.Context, log logr.Logger, seed client.Client, firewallName string, stop context.Context) (*rest.Config, client.Client, string, error) {
 	// TODO: maybe there is another way to get the seed namespace...
 	seedNamespace, _, _ := strings.Cut(firewallName, "-firewall-")
 
@@ -269,7 +287,7 @@ func newShootClientWithCheck(ctx context.Context, log logr.Logger, seed client.C
 		Namespace: seedNamespace,
 	})
 	if err != nil {
-		return nil, "", fmt.Errorf("unable to list firewalls: %w", err)
+		return nil, nil, "", fmt.Errorf("unable to list firewalls: %w", err)
 	}
 
 	var fws []firewallv2.Firewall
@@ -279,8 +297,10 @@ func newShootClientWithCheck(ctx context.Context, log logr.Logger, seed client.C
 		}
 	}
 	if len(fws) != 1 {
-		return nil, "", fmt.Errorf("found no single firewall resource for firewall: %s", firewallName)
+		return nil, nil, "", fmt.Errorf("found no single firewall resource for firewall: %s", firewallName)
 	}
+
+	log.Info("found firewall resource to be responsible for", "firewall-name", firewallName, "namespace", seedNamespace)
 
 	var (
 		fw          = fws[0]
@@ -288,19 +308,19 @@ func newShootClientWithCheck(ctx context.Context, log logr.Logger, seed client.C
 	)
 
 	if shootAccess == nil {
-		return nil, "", fmt.Errorf("shoot access status field is empty")
+		return nil, nil, "", fmt.Errorf("shoot access status field is empty")
 	}
 
 	expiresAt, shootConfig, err := helper.NewShootConfig(ctx, seed, shootAccess)
 	if err != nil {
-		return nil, "", fmt.Errorf("unable to get shoot config: %w", err)
+		return nil, nil, "", fmt.Errorf("unable to get shoot config: %w", err)
 	}
 
 	helper.ShutdownOnTokenExpiration(log.WithName("token-expiration"), expiresAt, stop)
 
 	shootClient, err := client.New(shootConfig, client.Options{Scheme: scheme})
 	if err != nil {
-		return nil, "", fmt.Errorf("unable to create shoot client: %w", err)
+		return nil, nil, "", fmt.Errorf("unable to create shoot client: %w", err)
 	}
 
 	go func() {
@@ -339,7 +359,7 @@ func newShootClientWithCheck(ctx context.Context, log logr.Logger, seed client.C
 		}
 	}()
 
-	return shootClient, shootAccess.Namespace, nil
+	return shootConfig, shootClient, shootAccess.Namespace, nil
 }
 
 func newZapLogger(levelString string) (*zap.SugaredLogger, error) {

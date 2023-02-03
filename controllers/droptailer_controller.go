@@ -18,7 +18,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/txn2/txeh"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -36,7 +35,6 @@ const (
 type DroptailerReconciler struct {
 	client.Client
 	Log       logr.Logger
-	Scheme    *runtime.Scheme
 	HostsFile string
 	// FIXME is not filled properly
 	certificateBase string

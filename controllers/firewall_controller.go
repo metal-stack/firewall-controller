@@ -36,10 +36,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
@@ -47,7 +44,6 @@ import (
 	"github.com/metal-stack/firewall-controller/pkg/network"
 	"github.com/metal-stack/firewall-controller/pkg/nftables"
 	"github.com/metal-stack/firewall-controller/pkg/suricata"
-	"github.com/metal-stack/firewall-controller/pkg/updater"
 )
 
 // FirewallReconciler reconciles a Firewall object
@@ -66,7 +62,6 @@ type FirewallReconciler struct {
 
 const (
 	reconcilationInterval = 10 * time.Second
-	firewallName          = "firewall"
 
 	nftablesExporterService   = "node-exporter"
 	nftablesExporterNamedPort = "nodeexporter"
@@ -83,6 +78,21 @@ var (
 		RequeueAfter: reconcilationInterval,
 	}
 )
+
+// SetupWithManager configures this controller to watch for the CRDs in a specific namespace
+func (r *FirewallReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.recorder = mgr.GetEventRecorderFor("FirewallController")
+
+	namespacePredicate := predicate.NewPredicateFuncs(func(obj client.Object) bool {
+		return obj.GetNamespace() == namespace
+	})
+
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&firewallv2.Firewall{}, builder.WithPredicates(namespacePredicate)).
+		// don't trigger a reconcilation for status updates
+		WithEventFilter(predicate.GenerationChangedPredicate{}).
+		Complete(r)
+}
 
 // Reconcile reconciles a firewall by:
 // - reading Services of type Loadbalancer
@@ -114,11 +124,13 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	log.Info("reconciling firewall-controller")
-	err := updater.UpdateToSpecVersion(f, log, r.recorder)
-	if err != nil {
-		r.recorder.Eventf(&f, corev1.EventTypeWarning, "Self-Reconcilation", "failed with error: %v", err)
-		return requeue, err
-	}
+
+	// TODO: put back in
+	// err := updater.UpdateToSpecVersion(f, log, r.recorder)
+	// if err != nil {
+	// 	r.recorder.Eventf(&f, corev1.EventTypeWarning, "Self-Reconcilation", "failed with error: %v", err)
+	// 	return requeue, err
+	// }
 
 	// Update reconcilation interval
 	if i, err := time.ParseDuration(f.Spec.Interval); err == nil {
@@ -401,26 +413,4 @@ func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv2.Fire
 		return fmt.Errorf("unable to update firewall monitor status, err: %w", err)
 	}
 	return nil
-}
-
-// SetupWithManager configures this controller to watch for the CRDs in a specific namespace
-func (r *FirewallReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.recorder = mgr.GetEventRecorderFor("FirewallController")
-	triggerFirewallReconcilation := handler.EnqueueRequestsFromMapFunc(func(a client.Object) []reconcile.Request {
-		return []reconcile.Request{
-			{NamespacedName: types.NamespacedName{
-				Name:      firewallName,
-				Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
-			}},
-		}
-	})
-	namespacePredicate := predicate.NewPredicateFuncs(func(obj client.Object) bool {
-		return obj.GetNamespace() == namespace
-	})
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&firewallv2.Firewall{}, builder.WithPredicates(namespacePredicate)).
-		// don't trigger a reconcilation for status updates
-		WithEventFilter(predicate.GenerationChangedPredicate{}).
-		Watches(&source.Kind{Type: &corev1.Service{}}, triggerFirewallReconcilation).
-		Complete(r)
 }
