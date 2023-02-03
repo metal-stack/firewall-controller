@@ -15,12 +15,11 @@ limitations under the License.
 // nolint
 package controllers
 
-// TODO: Bring back this test
-//
 // import (
 // 	"context"
 
 // 	"github.com/metal-stack/firewall-controller/controllers/mocks"
+// 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 // 	"github.com/golang/mock/gomock"
 
@@ -29,7 +28,6 @@ package controllers
 // 	. "github.com/onsi/gomega"
 // 	"k8s.io/apimachinery/pkg/runtime"
 // 	"k8s.io/apimachinery/pkg/types"
-// 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 // 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 // )
@@ -47,12 +45,12 @@ package controllers
 
 // 		firewall := mocks.NewMockFirewallInterface(ctrl)
 // 		r := newCWNPReconciler(createTestFirewallFunc(firewall), tc.objects)
-// 		// req := reconcile.Request{
-// 		// 	NamespacedName: types.NamespacedName{
-// 		// 		Name:      "firewall",
-// 		// 		Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
-// 		// 	},
-// 		// }
+// 		req := reconcile.Request{
+// 			NamespacedName: types.NamespacedName{
+// 				Name:      "firewall",
+// 				Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
+// 			},
+// 		}
 
 // 		if tc.reconcile {
 // 			firewall.EXPECT().Reconcile().Return(true, nil)

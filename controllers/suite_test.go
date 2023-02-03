@@ -102,7 +102,7 @@ package controllers
 // ) *ClusterwideNetworkPolicyReconciler {
 // 	return &ClusterwideNetworkPolicyReconciler{
 // 		SeedClient:     fake.NewClientBuilder().WithScheme(setupScheme()).WithRuntimeObjects(objects...).Build(),
-// 		ShootClient:    fake.NewClientBuilder().WithScheme(setupScheme()).WithRuntimeObjects().Build(),
+// 		ShootClient:    fake.NewClientBuilder().WithScheme(setupScheme()).WithRuntimeObjects(objects...).Build(),
 // 		Log:            zap.New(zap.UseDevMode(true)),
 // 		CreateFirewall: createFW,
 // 		SkipDNS:        true,
@@ -119,7 +119,7 @@ package controllers
 // 	}
 // 	objMeta := metav1.ObjectMeta{
 // 		Name:      "firewall",
-// 		Namespace: "seed-namespace",
+// 		Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
 // 	}
 
 // 	return &firewallv2.Firewall{

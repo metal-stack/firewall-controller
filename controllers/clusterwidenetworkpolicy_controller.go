@@ -24,12 +24,16 @@ import (
 	"github.com/go-logr/logr"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/util/workqueue"
 
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
@@ -64,11 +68,25 @@ func (r *ClusterwideNetworkPolicyReconciler) SetupWithManager(mgr ctrl.Manager) 
 		return fmt.Errorf("failed to add runnable to manager: %w", err)
 	}
 
+	firewallTrigger := handler.Funcs{
+		CreateFunc: func(_ event.CreateEvent, rli workqueue.RateLimitingInterface) {
+			rli.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: r.FirewallName, Namespace: r.SeedNamespace}})
+		},
+		UpdateFunc: func(_ event.UpdateEvent, rli workqueue.RateLimitingInterface) {
+			rli.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: r.FirewallName, Namespace: r.SeedNamespace}})
+		},
+		DeleteFunc: func(_ event.DeleteEvent, rli workqueue.RateLimitingInterface) {
+			rli.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: r.FirewallName, Namespace: r.SeedNamespace}})
+		},
+		GenericFunc: func(_ event.GenericEvent, rli workqueue.RateLimitingInterface) {
+			rli.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: r.FirewallName, Namespace: r.SeedNamespace}})
+		},
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&firewallv1.ClusterwideNetworkPolicy{}).
-		// TODO: Bring this back
-		// Watches(&source.Channel{Source: scheduleChan}, triggerFirewallReconcilation).
-		// Watches(&source.Kind{Type: &corev1.Service{}}, triggerFirewallReconcilation).
+		Watches(&source.Channel{Source: scheduleChan}, firewallTrigger).
+		Watches(&source.Kind{Type: &corev1.Service{}}, firewallTrigger).
 		Complete(r)
 }
 
