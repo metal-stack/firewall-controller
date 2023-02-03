@@ -57,10 +57,13 @@ func (r *ClusterwideNetworkPolicyReconciler) SetupWithManager(mgr ctrl.Manager) 
 	if r.Interval == 0 {
 		r.Interval = reconcilationInterval
 	}
+
 	scheduleChan := make(chan event.GenericEvent)
 	if err := mgr.Add(r.getReconciliationTicker(scheduleChan)); err != nil {
 		return fmt.Errorf("failed to add runnable to manager: %w", err)
 	}
+
+	// TODO: Bring the triggers back, but now they are running in the seed with another client:
 
 	// triggerFirewallReconcilation := handler.EnqueueRequestsFromMapFunc(func(a client.Object) []reconcile.Request {
 	// 	return []reconcile.Request{

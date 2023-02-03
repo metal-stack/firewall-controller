@@ -183,8 +183,8 @@ func main() {
 	}
 
 	if err = (&controllers.ClusterwideNetworkPolicyValidationReconciler{
-		Client: shootMgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicyValidation"),
+		ShootClient: shootMgr.GetClient(),
+		Log:         ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicyValidation"),
 	}).SetupWithManager(shootMgr); err != nil {
 		l.Fatalw("unable to create clusterwidenetworkpolicyvalidation controller", "error", err)
 	}

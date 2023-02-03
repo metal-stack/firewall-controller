@@ -101,7 +101,8 @@ func newCWNPReconciler(
 	objects []runtime.Object,
 ) *ClusterwideNetworkPolicyReconciler {
 	return &ClusterwideNetworkPolicyReconciler{
-		ShootClient:    fake.NewClientBuilder().WithScheme(setupScheme()).WithRuntimeObjects(objects...).Build(),
+		SeedClient:     fake.NewClientBuilder().WithScheme(setupScheme()).WithRuntimeObjects(objects...).Build(),
+		ShootClient:    fake.NewClientBuilder().WithScheme(setupScheme()).WithRuntimeObjects().Build(),
 		Log:            zap.New(zap.UseDevMode(true)),
 		CreateFirewall: createFW,
 		SkipDNS:        true,
@@ -114,11 +115,11 @@ func newFirewall() *firewallv2.Firewall {
 	}
 	typeMeta := metav1.TypeMeta{
 		Kind:       "Firewall",
-		APIVersion: firewallv1.GroupVersion.String(),
+		APIVersion: firewallv2.GroupVersion.String(),
 	}
 	objMeta := metav1.ObjectMeta{
-		Name:      "firewalsl",
-		Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
+		Name:      "firewall",
+		Namespace: "seed-namespace",
 	}
 
 	return &firewallv2.Firewall{

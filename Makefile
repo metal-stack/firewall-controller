@@ -38,7 +38,7 @@ firewall-controller: generate fmt vet
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet manifests
-	go run ./main.go --firewall-name shoot--prod--seed-firewall-ff6be
+	go run ./main.go
 
 # Install CRDs into a cluster
 install: manifests
