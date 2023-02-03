@@ -24,7 +24,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
 	"github.com/metal-stack/v"
@@ -41,6 +40,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	controllerclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	v2 "github.com/metal-stack/firewall-controller-manager/api/v2"
@@ -51,8 +51,8 @@ import (
 )
 
 var (
-	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
+	scheme   = runtime.NewScheme()
 )
 
 func init() {
@@ -76,6 +76,7 @@ func main() {
 		hostsFile            string
 		firewallName         string
 	)
+
 	flag.StringVar(&logLevel, "log-level", "info", "the log level of the controller")
 	flag.BoolVar(&isVersion, "v", false, "Show firewall-controller version")
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
@@ -99,54 +100,48 @@ func main() {
 		setupLog.Error(err, "unable to parse log level")
 		os.Exit(1)
 	}
+	ctrl.SetLogger(zapr.NewLogger(l.Desugar()))
 
 	if firewallName == "" {
 		firewallName, err = os.Hostname()
 		if err != nil {
-			l.Fatalw("unable to default firewall name flag to hostname")
+			l.Fatalw("unable to default firewall name flag to hostname", "error", err)
 		}
 	}
 
-	ctrl.SetLogger(zapr.NewLogger(l.Desugar()))
+	var (
+		ctx        = ctrl.SetupSignalHandler()
+		seedConfig = ctrl.GetConfigOrDie()
+	)
 
-	seedConfig := ctrl.GetConfigOrDie()
 	mgr, err := ctrl.NewManager(seedConfig, ctrl.Options{
 		Scheme:             scheme,
 		MetricsBindAddress: metricsAddr,
 		Port:               9443,
 		LeaderElection:     enableLeaderElection,
-		LeaderElectionID:   "25f95f9f.metal-stack.io",
+		LeaderElectionID:   "firewall-controller-leader-election",
 	})
 	if err != nil {
-		setupLog.Error(err, "unable to start firewall-controller manager")
-		os.Exit(1)
+		l.Fatalw("unable to start firewall-controller manager", "error", err)
 	}
 
-	ctx := ctrl.SetupSignalHandler()
-
-	// FIXME better at the end and not in a go func
-	go func() {
-		setupLog.Info("starting firewall-controller", "version", v.V)
-		if err := mgr.Start(ctx); err != nil {
-			setupLog.Error(err, "problem running firewall-controller")
-			panic(err)
-		}
-	}()
-
-	if started := mgr.GetCache().WaitForCacheSync(ctx); !started {
-		panic("not all started")
-	}
-
-	err = seedClientCheck(ctx, setupLog, seedConfig, mgr.GetClient(), firewallName)
+	// cannot use seedMgr.GetClient() at the start because it gets initialized at a later point in time
+	// we have to create an own client
+	client, err := controllerclient.New(seedConfig, controllerclient.Options{
+		Scheme: scheme,
+	})
 	if err != nil {
-		setupLog.Error(err, "not possible to connect to seed")
-		os.Exit(1)
+		l.Fatalw("unable to create seed client", "error", err)
 	}
 
-	shootClient, firewallNamespace, err := newShootClientWithCheck(ctx, setupLog, mgr.GetClient(), firewallName)
+	err = seedClientCheck(ctx, setupLog, seedConfig, client, firewallName, ctx)
 	if err != nil {
-		setupLog.Error(err, "unable to construct shoot client")
-		os.Exit(1)
+		l.Fatalw("not possible to connect to seed", "error", err)
+	}
+
+	shootClient, firewallNamespace, err := newShootClientWithCheck(ctx, setupLog, client, firewallName, ctx)
+	if err != nil {
+		l.Fatalw("unable to construct shoot client", "error", err)
 	}
 
 	// Droptailer Reconciler
@@ -156,14 +151,12 @@ func main() {
 		Scheme:    mgr.GetScheme(),
 		HostsFile: hostsFile,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Droptailer")
-		os.Exit(1)
+		l.Fatalw("unable to create droptailer controller", "error", err)
 	}
 
 	// ClusterwideNetworkPolicy Reconciler
 	if err = controllers.NewClusterwideNetworkPolicyReconciler(mgr).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "ClusterwideNetworkPolicy")
-		os.Exit(1)
+		l.Fatalw("unable to create clusterwidenetworkpolicy controller", "error", err)
 	}
 
 	if err = (&controllers.ClusterwideNetworkPolicyValidationReconciler{
@@ -171,8 +164,7 @@ func main() {
 		Log:    ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicyValidation"),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "ClusterwideNetworkPolicyValidation")
-		os.Exit(1)
+		l.Fatalw("unable to create clusterwidenetworkpolicyvalidation controller", "error", err)
 	}
 
 	// Firewall Reconciler
@@ -185,33 +177,31 @@ func main() {
 		Namespace:    firewallNamespace,
 		FirewallName: firewallName,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Firewall")
-		os.Exit(1)
+		l.Fatalw("unable to create firewall controller", "error", err)
 	}
 	// +kubebuilder:scaffold:builder
 
-	<-ctx.Done()
+	setupLog.Info("starting firewall-controller", "version", v.V)
+
+	if err := mgr.Start(ctx); err != nil {
+		l.Errorw("problem running firewall-controller", "error", err)
+		panic(err)
+	}
 }
 
-func seedClientCheck(ctx context.Context, log logr.Logger, config *rest.Config, c client.Client, firewallName string) error {
+func seedClientCheck(ctx context.Context, log logr.Logger, config *rest.Config, c client.Client, firewallName string, stop context.Context) error {
 	discoveryClient := discovery.NewDiscoveryClientForConfigOrDie(config)
 
-	// resources, err := discoveryClient.ServerResourcesForGroupVersion(firewallv2.GroupVersion.String())
-	groups, resources, err := discoveryClient.ServerGroupsAndResources()
-
-	spew.Dump(groups)
-	spew.Dump(resources)
+	resources, err := discoveryClient.ServerResourcesForGroupVersion(firewallv2.GroupVersion.String())
 	if err != nil {
 		return err
 	}
 
 	found := false
-	for _, r := range resources {
-		for _, item := range r.APIResources {
-			if item.Kind == "Firewall" {
-				found = true
-				break
-			}
+	for _, r := range resources.APIResources {
+		if r.Kind == "Firewall" {
+			found = true
+			break
 		}
 	}
 	if found {
@@ -247,7 +237,7 @@ func seedClientCheck(ctx context.Context, log logr.Logger, config *rest.Config, 
 		return fmt.Errorf("unable to create seed client from migration secret: %w", err)
 	}
 
-	_, _, err = newShootClientWithCheck(ctx, log, seed, firewallName)
+	_, _, err = newShootClientWithCheck(ctx, log, seed, firewallName, stop)
 	if err != nil {
 		return fmt.Errorf("unable to startup with seed client from migration secret: %w", err)
 	}
@@ -270,7 +260,7 @@ func seedClientCheck(ctx context.Context, log logr.Logger, config *rest.Config, 
 	return nil
 }
 
-func newShootClientWithCheck(ctx context.Context, log logr.Logger, seed client.Client, firewallName string) (client.Client, string, error) {
+func newShootClientWithCheck(ctx context.Context, log logr.Logger, seed client.Client, firewallName string, stop context.Context) (client.Client, string, error) {
 	// TODO: maybe there is another way to get the seed namespace...
 	seedNamespace, _, _ := strings.Cut(firewallName, "-firewall-")
 
@@ -293,19 +283,20 @@ func newShootClientWithCheck(ctx context.Context, log logr.Logger, seed client.C
 	}
 
 	var (
-		fw                = fws[0]
-		firewallNamespace = fw.Namespace
-		shootAccess       = fw.Status.ShootAccess
+		fw          = fws[0]
+		shootAccess = fw.Status.ShootAccess
 	)
 
 	if shootAccess == nil {
 		return nil, "", fmt.Errorf("shoot access status field is empty")
 	}
 
-	shootConfig, err := helper.NewShootConfig(ctx, seed, shootAccess)
+	expiresAt, shootConfig, err := helper.NewShootConfig(ctx, seed, shootAccess)
 	if err != nil {
 		return nil, "", fmt.Errorf("unable to get shoot config: %w", err)
 	}
+
+	helper.ShutdownOnTokenExpiration(log.WithName("token-expiration"), expiresAt, stop)
 
 	shootClient, err := client.New(shootConfig, client.Options{Scheme: scheme})
 	if err != nil {
@@ -322,7 +313,7 @@ func newShootClientWithCheck(ctx context.Context, log logr.Logger, seed client.C
 				fw := &firewallv2.Firewall{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      firewallName,
-						Namespace: firewallNamespace,
+						Namespace: shootAccess.Namespace,
 					},
 				}
 				err = seed.Get(ctx, client.ObjectKeyFromObject(fw), fw)
@@ -348,7 +339,7 @@ func newShootClientWithCheck(ctx context.Context, log logr.Logger, seed client.C
 		}
 	}()
 
-	return shootClient, firewallNamespace, nil
+	return shootClient, shootAccess.Namespace, nil
 }
 
 func newZapLogger(levelString string) (*zap.SugaredLogger, error) {
