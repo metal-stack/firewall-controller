@@ -33,7 +33,7 @@ import (
 type ClusterwideNetworkPolicyValidationReconciler struct {
 	ShootClient client.Client
 	Log         logr.Logger
-	recorder    record.EventRecorder
+	Recorder    record.EventRecorder
 }
 
 // Validates ClusterwideNetworkPolicy object
@@ -48,7 +48,7 @@ func (r *ClusterwideNetworkPolicyValidationReconciler) Reconcile(ctx context.Con
 	// if network policy does not belong to the namespace where clusterwide network policies are stored:
 	// update status with error message
 	if req.Namespace != firewallv1.ClusterwideNetworkPolicyNamespace {
-		r.recorder.Event(
+		r.Recorder.Event(
 			&clusterNP,
 			corev1.EventTypeWarning,
 			"Unapplicable",
@@ -59,7 +59,7 @@ func (r *ClusterwideNetworkPolicyValidationReconciler) Reconcile(ctx context.Con
 
 	err := clusterNP.Spec.Validate()
 	if err != nil {
-		r.recorder.Event(
+		r.Recorder.Event(
 			&clusterNP,
 			corev1.EventTypeWarning,
 			"Unapplicable",
@@ -73,7 +73,6 @@ func (r *ClusterwideNetworkPolicyValidationReconciler) Reconcile(ctx context.Con
 
 // SetupWithManager configures this controller to watch for ClusterwideNetworkPolicy CRD
 func (r *ClusterwideNetworkPolicyValidationReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.recorder = mgr.GetEventRecorderFor("FirewallController")
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&firewallv1.ClusterwideNetworkPolicy{}).
 		Complete(r)

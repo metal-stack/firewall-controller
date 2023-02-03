@@ -24,6 +24,7 @@ import (
 	"github.com/go-logr/logr"
 
 	corev1 "k8s.io/api/core/v1"
+
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -63,29 +64,10 @@ func (r *ClusterwideNetworkPolicyReconciler) SetupWithManager(mgr ctrl.Manager) 
 		return fmt.Errorf("failed to add runnable to manager: %w", err)
 	}
 
-	// TODO: Bring the triggers back, but now they are running in the seed with another client:
-
-	// triggerFirewallReconcilation := handler.EnqueueRequestsFromMapFunc(func(a client.Object) []reconcile.Request {
-	// 	return []reconcile.Request{
-	// 		{NamespacedName: types.NamespacedName{
-	// 			Name:      firewallName,
-	// 			Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
-	// 		}},
-	// 	}
-	// })
-
-	// firewallHandler := handler.EnqueueRequestsFromMapFunc(func(a client.Object) []reconcile.Request {
-	// 	return []reconcile.Request{
-	// 		{NamespacedName: types.NamespacedName{
-	// 			Name:      firewallName,
-	// 			Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
-	// 		}},
-	// 	}
-	// })
-
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&firewallv1.ClusterwideNetworkPolicy{}).
-		// Watches(&source.Channel{Source: scheduleChan}, firewallHandler).
+		// TODO: Bring this back
+		// Watches(&source.Channel{Source: scheduleChan}, triggerFirewallReconcilation).
 		// Watches(&source.Kind{Type: &corev1.Service{}}, triggerFirewallReconcilation).
 		Complete(r)
 }

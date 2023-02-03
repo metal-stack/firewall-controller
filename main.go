@@ -138,6 +138,16 @@ func main() {
 		l.Fatalw("unable to create seed manager", "error", err)
 	}
 
+	shootMgr, err := ctrl.NewManager(shootConfig, ctrl.Options{
+		Scheme:             scheme,
+		MetricsBindAddress: "0",
+		LeaderElection:     false,
+		Namespace:          v2.FirewallShootNamespace,
+	})
+	if err != nil {
+		l.Fatalw("unable to create shoot manager", "error", err)
+	}
+
 	// Firewall Reconciler
 	if err = (&controllers.FirewallReconciler{
 		SeedClient:   seedMgr.GetClient(),
@@ -147,18 +157,9 @@ func main() {
 		EnableIDS:    enableIDS,
 		Namespace:    firewallNamespace,
 		FirewallName: firewallName,
+		Recorder:     shootMgr.GetEventRecorderFor("FirewallController"),
 	}).SetupWithManager(seedMgr); err != nil {
 		l.Fatalw("unable to create firewall controller", "error", err)
-	}
-
-	shootMgr, err := ctrl.NewManager(shootConfig, ctrl.Options{
-		Scheme:             scheme,
-		MetricsBindAddress: "0",
-		LeaderElection:     false,
-		Namespace:          v2.FirewallShootNamespace,
-	})
-	if err != nil {
-		l.Fatalw("unable to create shoot manager", "error", err)
 	}
 
 	// Droptailer Reconciler
@@ -185,6 +186,7 @@ func main() {
 	if err = (&controllers.ClusterwideNetworkPolicyValidationReconciler{
 		ShootClient: shootMgr.GetClient(),
 		Log:         ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicyValidation"),
+		Recorder:    shootMgr.GetEventRecorderFor("FirewallController"),
 	}).SetupWithManager(shootMgr); err != nil {
 		l.Fatalw("unable to create clusterwidenetworkpolicyvalidation controller", "error", err)
 	}

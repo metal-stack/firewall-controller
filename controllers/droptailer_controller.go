@@ -16,6 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/go-logr/logr"
+	v1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/txn2/txeh"
 	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -23,12 +24,13 @@ import (
 )
 
 const (
-	namespace               = "firewall"
 	secretName              = "droptailer-client"     //nolint:gosec
 	secretKeyCertificate    = "droptailer-client.crt" //nolint:gosec
 	secretKeyCertificateKey = "droptailer-client.key" //nolint:gosec
 	secretKeyCaCertificate  = "ca.crt"                //nolint:gosec
 	defaultCertificateBase  = "/etc/droptailer-client"
+
+	droptailerReconcileInterval = time.Second * 10
 )
 
 // DroptailerReconciler reconciles a Droptailer object
@@ -42,10 +44,6 @@ type DroptailerReconciler struct {
 	hosts           *txeh.Hosts
 }
 
-const (
-	droptailerReconcileInterval = time.Second * 10
-)
-
 // Reconcile droptailer with certificate and droptailer-server ip from pod inspection
 // +kubebuilder:rbac:groups=metal-stack.io,resources=Droptailers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=metal-stack.io,resources=Droptailers/status,verbs=get;update;patch
@@ -56,7 +54,7 @@ func (r *DroptailerReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	var secrets corev1.SecretList
-	if err := r.List(ctx, &secrets, &client.ListOptions{Namespace: namespace}); err != nil {
+	if err := r.List(ctx, &secrets, &client.ListOptions{Namespace: v1.ClusterwideNetworkPolicyNamespace}); err != nil {
 		// we'll ignore not-found errors, since they can't be fixed by an immediate
 		// requeue (we'll need to wait for a new notification), and we can get them
 		// on deleted requests.
@@ -84,8 +82,8 @@ func (r *DroptailerReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	var pods corev1.PodList
-	if err := r.List(ctx, &pods, &client.ListOptions{Namespace: namespace}); err != nil {
-		return ctrl.Result{}, fmt.Errorf("no pod running in namespace %v", namespace)
+	if err := r.List(ctx, &pods, &client.ListOptions{Namespace: v1.ClusterwideNetworkPolicyNamespace}); err != nil {
+		return ctrl.Result{}, fmt.Errorf("no pod running in namespace %v", v1.ClusterwideNetworkPolicyNamespace)
 	}
 
 	var droptailerPod *corev1.Pod
@@ -164,13 +162,13 @@ func (r *DroptailerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		r.certificateBase = certificateBase
 	}
 	namespacePredicate := predicate.NewPredicateFuncs(func(obj client.Object) bool {
-		return obj.GetNamespace() == namespace
+		return obj.GetNamespace() == v1.ClusterwideNetworkPolicyNamespace
 	})
 	triggerDroptailerReconcilation := handler.EnqueueRequestsFromMapFunc(func(a client.Object) []reconcile.Request {
 		return []reconcile.Request{
 			{NamespacedName: types.NamespacedName{
 				Name:      "trigger-reconcilation-for-droptailer",
-				Namespace: namespace,
+				Namespace: v1.ClusterwideNetworkPolicyNamespace,
 			}},
 		}
 	})
