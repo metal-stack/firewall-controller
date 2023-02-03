@@ -85,7 +85,6 @@ func (r *FirewallReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&firewallv2.Firewall{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})). // don't trigger a reconcilation for status updates
 		WithEventFilter(predicate.NewPredicateFuncs(controllers.SkipOtherNamespace(r.Namespace))).
-		WithEventFilter(firewallv2.SkipReconcileAnnotationRemoval()).
 		Complete(r)
 }
 
