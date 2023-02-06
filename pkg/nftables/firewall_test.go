@@ -1,19 +1,25 @@
 package nftables
 
 import (
+	"os"
 	"os/exec"
 	"testing"
 
+	"github.com/fatih/color"
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 )
+
+func init() {
+	color.NoColor = false
+}
 
 // TestFirewallValidateRulesIntegration is a integration test an is skipped during normal unit testing
 // this is achieved by running the test with go test -short
 // to run this test you should either only execute go test
-// or to run only thes integration test go test Integration
+// or to run only the integration test go test Integration
 func TestFirewallValidateRulesIntegration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test")
+	if os.Getegid() != 0 {
+		t.Skipf(color.YellowString("skipping integration test because not root"))
 	}
 
 	type fields struct {

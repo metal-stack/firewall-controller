@@ -14,10 +14,7 @@ all: firewall-controller
 
 test: generate fmt vet manifests
 	@if ! which $(SETUP_ENVTEST) > /dev/null; then echo "setup-envtest needs to be installed. you can use setup-envtest target to achieve this."; exit 1; fi
-	KUBEBUILDER_ASSETS="$(shell $(SETUP_ENVTEST) use --arch=amd64 --bin-dir $(PWD)/bin -p path)" go test ./... -short -v -coverprofile cover.out
-
-test-all: generate fmt vet manifests
-	KUBEBUILDER_ASSETS="$(shell $(SETUP_ENVTEST) use --arch=amd64 --bin-dir $(PWD)/bin -p path)" go test ./... -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(SETUP_ENVTEST) use --arch=amd64 --bin-dir $(PWD)/bin -p path)" go test ./... -v -coverprofile cover.out
 
 clean:
 	rm -rf bin/*
