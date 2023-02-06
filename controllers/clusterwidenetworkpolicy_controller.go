@@ -32,7 +32,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
@@ -50,7 +49,8 @@ type ClusterwideNetworkPolicyReconciler struct {
 
 	Log logr.Logger
 
-	CreateFirewall CreateFirewall
+	CreateFirewall          CreateFirewall
+	ExternalFirewallTrigger chan event.GenericEvent
 
 	Interval time.Duration
 	DnsProxy *dns.DNSProxy
@@ -63,30 +63,26 @@ func (r *ClusterwideNetworkPolicyReconciler) SetupWithManager(mgr ctrl.Manager) 
 		r.Interval = reconcilationInterval
 	}
 
-	scheduleChan := make(chan event.GenericEvent)
-	if err := mgr.Add(r.getReconciliationTicker(scheduleChan)); err != nil {
+	if err := mgr.Add(r.getReconciliationTicker(r.ExternalFirewallTrigger)); err != nil {
 		return fmt.Errorf("failed to add runnable to manager: %w", err)
-	}
-
-	firewallTrigger := handler.Funcs{
-		CreateFunc: func(_ event.CreateEvent, rli workqueue.RateLimitingInterface) {
-			rli.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: r.FirewallName, Namespace: r.SeedNamespace}})
-		},
-		UpdateFunc: func(_ event.UpdateEvent, rli workqueue.RateLimitingInterface) {
-			rli.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: r.FirewallName, Namespace: r.SeedNamespace}})
-		},
-		DeleteFunc: func(_ event.DeleteEvent, rli workqueue.RateLimitingInterface) {
-			rli.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: r.FirewallName, Namespace: r.SeedNamespace}})
-		},
-		GenericFunc: func(_ event.GenericEvent, rli workqueue.RateLimitingInterface) {
-			rli.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: r.FirewallName, Namespace: r.SeedNamespace}})
-		},
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&firewallv1.ClusterwideNetworkPolicy{}).
-		Watches(&source.Channel{Source: scheduleChan}, firewallTrigger).
-		Watches(&source.Kind{Type: &corev1.Service{}}, firewallTrigger).
+		Watches(&source.Kind{Type: &corev1.Service{}}, handler.Funcs{
+			CreateFunc: func(ce event.CreateEvent, rli workqueue.RateLimitingInterface) {
+				r.Log.Info("requesting firewall reconcile due to service creation in shoot cluster")
+				r.ExternalFirewallTrigger <- event.GenericEvent{}
+			},
+			UpdateFunc: func(ue event.UpdateEvent, rli workqueue.RateLimitingInterface) {
+				r.Log.Info("requesting firewall reconcile due to service update in shoot cluster")
+				r.ExternalFirewallTrigger <- event.GenericEvent{}
+			},
+			DeleteFunc: func(de event.DeleteEvent, rli workqueue.RateLimitingInterface) {
+				r.Log.Info("requesting firewall reconcile due to service deletion in shoot cluster")
+				r.ExternalFirewallTrigger <- event.GenericEvent{}
+			},
+		}).
 		Complete(r)
 }
 
@@ -203,6 +199,7 @@ func (r *ClusterwideNetworkPolicyReconciler) getReconciliationTicker(scheduleCha
 		for {
 			select {
 			case <-ticker.C:
+				r.Log.Info("requesting firewall reconcile due to reconciliation ticker event")
 				scheduleChan <- e
 			case <-ctx.Done():
 				return nil

@@ -71,7 +71,6 @@ package controllers
 
 // 	Expect(firewallv1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 // 	Expect(firewallv2.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
-// 	Expect(corev1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 
 // 	// +kubebuilder:scaffold:scheme
 
@@ -92,7 +91,6 @@ package controllers
 // 	scheme := runtime.NewScheme()
 // 	_ = firewallv1.AddToScheme(scheme)
 // 	_ = firewallv2.AddToScheme(scheme)
-// 	_ = corev1.AddToScheme(scheme)
 // 	return scheme
 // }
 
@@ -110,42 +108,34 @@ package controllers
 // }
 
 // func newFirewall() *firewallv2.Firewall {
-// 	spec := firewallv2.FirewallSpec{
-// 		Interval: "1h",
-// 	}
-// 	typeMeta := metav1.TypeMeta{
-// 		Kind:       "Firewall",
-// 		APIVersion: firewallv2.GroupVersion.String(),
-// 	}
-// 	objMeta := metav1.ObjectMeta{
-// 		Name:      "firewall",
-// 		Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
-// 	}
-
 // 	return &firewallv2.Firewall{
-// 		TypeMeta:   typeMeta,
-// 		ObjectMeta: objMeta,
-// 		Spec:       spec,
+// 		TypeMeta: metav1.TypeMeta{
+// 			Kind:       "Firewall",
+// 			APIVersion: firewallv2.GroupVersion.String(),
+// 		},
+// 		ObjectMeta: metav1.ObjectMeta{
+// 			Name:      "firewall",
+// 			Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
+// 		},
+// 		Spec: firewallv2.FirewallSpec{
+// 			Interval: "1h",
+// 		},
 // 	}
 // }
 
 // func newCWNP(name string, egress []firewallv1.EgressRule) *firewallv1.ClusterwideNetworkPolicy {
-// 	spec := firewallv1.PolicySpec{
-// 		Egress: egress,
-// 	}
-// 	typeMeta := metav1.TypeMeta{
-// 		Kind:       "ClusterwideNetworkPolicy",
-// 		APIVersion: firewallv1.GroupVersion.String(),
-// 	}
-// 	objMeta := metav1.ObjectMeta{
-// 		Name:      name,
-// 		Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
-// 	}
-
 // 	return &firewallv1.ClusterwideNetworkPolicy{
-// 		TypeMeta:   typeMeta,
-// 		ObjectMeta: objMeta,
-// 		Spec:       spec,
+// 		TypeMeta: metav1.TypeMeta{
+// 			Kind:       "ClusterwideNetworkPolicy",
+// 			APIVersion: firewallv1.GroupVersion.String(),
+// 		},
+// 		ObjectMeta: metav1.ObjectMeta{
+// 			Name:      name,
+// 			Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
+// 		},
+// 		Spec: firewallv1.PolicySpec{
+// 			Egress: egress,
+// 		},
 // 	}
 // }
 

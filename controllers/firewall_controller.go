@@ -36,10 +36,13 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
-	"github.com/metal-stack/firewall-controller-manager/controllers"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/pkg/collector"
 	"github.com/metal-stack/firewall-controller/pkg/network"
@@ -59,6 +62,8 @@ type FirewallReconciler struct {
 
 	FirewallName string
 	Namespace    string
+
+	ExternalReconcileTrigger chan event.GenericEvent
 }
 
 const (
@@ -84,7 +89,10 @@ var (
 func (r *FirewallReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&firewallv2.Firewall{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})). // don't trigger a reconcilation for status updates
-		WithEventFilter(predicate.NewPredicateFuncs(controllers.SkipOtherNamespace(r.Namespace))).
+		Watches(&source.Channel{Source: r.ExternalReconcileTrigger}, handler.EnqueueRequestsFromMapFunc(func(o client.Object) []reconcile.Request {
+			r.Log.Info("firewall reconcile requested from external controller")
+			return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: r.FirewallName, Namespace: r.Namespace}}}
+		})).
 		Complete(r)
 }
 
@@ -92,8 +100,6 @@ func (r *FirewallReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // - reading Services of type Loadbalancer
 // - rendering nftables rules
 // - updating the firewall object with nftable rule statistics grouped by action
-// +kubebuilder:rbac:groups=metal-stack.io,resources=firewalls,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=metal-stack.io,resources=firewalls/status,verbs=get;update;patch
 func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	if req.Namespace != r.Namespace || req.Name != r.FirewallName {
 		return ctrl.Result{}, nil
@@ -255,7 +261,6 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 
 	var currentSvc corev1.Service
 	err := r.ShootClient.Get(ctx, nn, &currentSvc)
-
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}

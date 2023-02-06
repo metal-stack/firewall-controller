@@ -41,6 +41,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	controllerclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	v2 "github.com/metal-stack/firewall-controller-manager/api/v2"
@@ -148,16 +149,19 @@ func main() {
 		l.Fatalw("unable to create shoot manager", "error", err)
 	}
 
+	externalTrigger := make(chan event.GenericEvent)
+
 	// Firewall Reconciler
 	if err = (&controllers.FirewallReconciler{
-		SeedClient:   seedMgr.GetClient(),
-		ShootClient:  shootClient,
-		Log:          ctrl.Log.WithName("controllers").WithName("Firewall"),
-		Scheme:       scheme,
-		EnableIDS:    enableIDS,
-		Namespace:    firewallNamespace,
-		FirewallName: firewallName,
-		Recorder:     shootMgr.GetEventRecorderFor("FirewallController"),
+		SeedClient:               seedMgr.GetClient(),
+		ShootClient:              shootClient,
+		Log:                      ctrl.Log.WithName("controllers").WithName("Firewall"),
+		Scheme:                   scheme,
+		EnableIDS:                enableIDS,
+		Namespace:                firewallNamespace,
+		FirewallName:             firewallName,
+		Recorder:                 shootMgr.GetEventRecorderFor("FirewallController"),
+		ExternalReconcileTrigger: externalTrigger,
 	}).SetupWithManager(seedMgr); err != nil {
 		l.Fatalw("unable to create firewall controller", "error", err)
 	}
@@ -173,12 +177,13 @@ func main() {
 
 	// ClusterwideNetworkPolicy Reconciler
 	if err = (&controllers.ClusterwideNetworkPolicyReconciler{
-		SeedClient:     seedMgr.GetClient(),
-		ShootClient:    shootMgr.GetClient(),
-		Log:            ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicy"),
-		FirewallName:   firewallName,
-		SeedNamespace:  firewallNamespace,
-		CreateFirewall: controllers.NewFirewall,
+		SeedClient:              seedMgr.GetClient(),
+		ShootClient:             shootMgr.GetClient(),
+		Log:                     ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicy"),
+		FirewallName:            firewallName,
+		SeedNamespace:           firewallNamespace,
+		CreateFirewall:          controllers.NewFirewall,
+		ExternalFirewallTrigger: externalTrigger,
 	}).SetupWithManager(shootMgr); err != nil {
 		l.Fatalw("unable to create clusterwidenetworkpolicy controller", "error", err)
 	}
