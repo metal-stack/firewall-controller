@@ -103,4 +103,4 @@ jobs:
         sudo ip link add vrf42 type dummy
         sudo ip link add vlan42 type dummy
         sudo make setup-envtest
-        sudo make test-all
+        sudo make test
