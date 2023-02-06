@@ -85,7 +85,7 @@ jobs:
           bin/firewall-controller-*
       if: ${{ github.event_name == 'release' }}
 
-  integration:
+  test:
     runs-on: ubuntu-latest
 
     steps:
@@ -96,7 +96,7 @@ jobs:
       with:
         go-version: '1.19.x'
 
-    - name: run integration tests
+    - name: run tests
       run: |
         sudo apt install -y --no-install-recommends nftables iproute2 kmod
         sudo modprobe dummy
