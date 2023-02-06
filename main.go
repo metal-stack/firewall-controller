@@ -182,7 +182,6 @@ func main() {
 		Log:                     ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicy"),
 		FirewallName:            firewallName,
 		SeedNamespace:           firewallNamespace,
-		CreateFirewall:          controllers.NewFirewall,
 		ExternalFirewallTrigger: externalTrigger,
 	}).SetupWithManager(shootMgr); err != nil {
 		l.Fatalw("unable to create clusterwidenetworkpolicy controller", "error", err)

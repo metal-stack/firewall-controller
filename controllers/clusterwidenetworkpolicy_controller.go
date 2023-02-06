@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/metal-stack/firewall-controller/pkg/dns"
+	"github.com/metal-stack/firewall-controller/pkg/nftables"
 
 	"github.com/go-logr/logr"
 
@@ -49,7 +50,6 @@ type ClusterwideNetworkPolicyReconciler struct {
 
 	Log logr.Logger
 
-	CreateFirewall          CreateFirewall
 	ExternalFirewallTrigger chan event.GenericEvent
 
 	Interval time.Duration
@@ -121,7 +121,7 @@ func (r *ClusterwideNetworkPolicyReconciler) reconcileRules(ctx context.Context,
 	if err := r.ShootClient.List(ctx, &services); err != nil {
 		return done, err
 	}
-	nftablesFirewall := r.CreateFirewall(f, &cwnps, &services, r.DnsProxy, log)
+	nftablesFirewall := nftables.NewFirewall(f, &cwnps, &services, r.DnsProxy, log)
 	if err := r.manageDNSProxy(ctx, log, f, cwnps, nftablesFirewall); err != nil {
 		return done, err
 	}
@@ -145,7 +145,7 @@ func (r *ClusterwideNetworkPolicyReconciler) reconcileRules(ctx context.Context,
 // manageDNSProxy start DNS proxy if toFQDN rules are present
 // if rules were deleted it will stop running DNS proxy
 func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
-	ctx context.Context, log logr.Logger, f firewallv2.Firewall, cwnps firewallv1.ClusterwideNetworkPolicyList, nftablesFirewall FirewallInterface,
+	ctx context.Context, log logr.Logger, f firewallv2.Firewall, cwnps firewallv1.ClusterwideNetworkPolicyList, nftablesFirewall *nftables.Firewall,
 ) (err error) {
 	// Skipping is needed for testing
 	if r.SkipDNS {
