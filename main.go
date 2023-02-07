@@ -242,7 +242,7 @@ func seedClientCheck(ctx context.Context, log logr.Logger, config *rest.Config, 
 	}
 	err = c.Get(ctx, client.ObjectKeyFromObject(migrationSecret), migrationSecret)
 	if err != nil {
-		return fmt.Errorf("no migration secret found, cannot run with shoot client")
+		return fmt.Errorf("no migration secret found, cannot run with shoot client: %w", err)
 	}
 
 	log.Info("found migration secret, attempting to exchange kubeconfig from original provisioning process")
