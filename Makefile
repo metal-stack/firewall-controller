@@ -64,7 +64,7 @@ vet:
 
 # Generate code
 generate: controller-gen manifests
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	$(CONTROLLER_GEN) object paths="./..."
 
 kubebuilder:
 	set -ex \
