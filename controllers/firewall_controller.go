@@ -34,6 +34,7 @@ import (
 	"github.com/metal-stack/firewall-controller/pkg/network"
 	"github.com/metal-stack/firewall-controller/pkg/nftables"
 	"github.com/metal-stack/firewall-controller/pkg/suricata"
+	"github.com/metal-stack/firewall-controller/pkg/updater"
 )
 
 // FirewallReconciler reconciles a Firewall object
@@ -111,6 +112,12 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	log.Info("reconciling firewall-controller")
 
+	err := updater.UpdateToSpecVersion(f, log, r.Recorder)
+	if err != nil {
+		r.Recorder.Eventf(&f, corev1.EventTypeWarning, "Self-Reconcilation", "failed with error: %v", err)
+		return requeue, err
+	}
+
 	recordFirewallEvent := func(eventtype, reason, message string) {
 		// we want to have this event in the shoot cluster and not in the seed
 		// the seed namespace does not exist in the shoot, so we need to alter it to the shoot's namespace
@@ -118,13 +125,6 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		copy.Namespace = firewallv1.ClusterwideNetworkPolicyNamespace
 		r.Recorder.Event(copy, eventtype, reason, message)
 	}
-
-	// TODO: put back in
-	// err := updater.UpdateToSpecVersion(f, log, r.recorder)
-	// if err != nil {
-	// 	r.recorder.Eventf(&f, corev1.EventTypeWarning, "Self-Reconcilation", "failed with error: %v", err)
-	// 	return requeue, err
-	// }
 
 	// Update reconcilation interval
 	if i, err := time.ParseDuration(f.Spec.Interval); err == nil {
