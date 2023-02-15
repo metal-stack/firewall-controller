@@ -294,7 +294,7 @@ func (c *DNSCache) Update(lookupTime time.Time, msg *dnsgo.Msg, fqdnsfield ...[]
 
 	fqdns := []string{}
 	if len(fqdnsfield) == 0 {
-		fqdns[0] = qname
+		fqdns = append(fqdns, qname)
 	} else {
 		fqdns = fqdnsfield[0]
 	}
