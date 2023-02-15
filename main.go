@@ -37,6 +37,10 @@ import (
 	// +kubebuilder:scaffold:imports
 )
 
+const (
+	seedKubeconfigPath = "/etc/firewall-controller/.seed-kubeconfig"
+)
+
 var (
 	setupLog = ctrl.Log.WithName("setup")
 	scheme   = runtime.NewScheme()
@@ -61,6 +65,7 @@ func main() {
 		enableSignatureCheck bool
 		hostsFile            string
 		firewallName         string
+		kubeconfigPath       = os.Getenv("KUBECONFIG")
 	)
 
 	flag.StringVar(&logLevel, "log-level", "info", "the log level of the controller")
@@ -70,6 +75,16 @@ func main() {
 	flag.StringVar(&hostsFile, "hosts-file", "/etc/hosts", "The hosts file to manipulate for the droptailer.")
 	flag.BoolVar(&enableSignatureCheck, "enable-signature-check", true, "Set this to false to ignore signature checking.")
 	flag.StringVar(&firewallName, "firewall-name", "", "the name of the firewall resource in the seed cluster to reconcile (defaults to hostname)")
+
+	if _, err := os.Stat(seedKubeconfigPath); err == nil || os.IsExist(err) {
+		// controller-runtime registered this flag already, so we can use it
+		err = flag.Set("kubeconfig", seedKubeconfigPath)
+		if err != nil {
+			setupLog.Error(err, "unable to set seed kubeconfig path")
+			os.Exit(1)
+		}
+		kubeconfigPath = seedKubeconfigPath
+	}
 
 	flag.Parse()
 
@@ -85,10 +100,11 @@ func main() {
 	}
 	ctrl.SetLogger(zapr.NewLogger(l.Desugar()))
 
+	l.Infow("using kubeconfig path", "path", kubeconfigPath)
+
 	var (
-		kubeconfigPath = os.Getenv("KUBECONFIG")
-		ctx            = ctrl.SetupSignalHandler()
-		seedConfig     = ctrl.GetConfigOrDie()
+		ctx        = ctrl.SetupSignalHandler()
+		seedConfig = ctrl.GetConfigOrDie()
 	)
 
 	if firewallName == "" {
@@ -99,7 +115,7 @@ func main() {
 	}
 
 	if kubeconfigPath == "" {
-		l.Fatalw("KUBECONFIG environment variable is not set, aborting")
+		l.Fatalw("kubeconfig path is empty, aborting")
 	}
 
 	seedClient, err := controllerclient.New(seedConfig, controllerclient.Options{
@@ -123,7 +139,7 @@ func main() {
 	if err != nil {
 		l.Info(err.Error())
 
-		err = controllerMigration(ctx, setupLog, seedClient, firewallName, seedNamespace, kubeconfigPath)
+		err = controllerMigration(ctx, setupLog, seedClient, firewallName, seedNamespace)
 		if err != nil {
 			l.Fatalw("unable to migrate firewall-controller", "error", err)
 		}
@@ -363,7 +379,7 @@ func secretRotation(ctx context.Context, log logr.Logger, fw *firewallv2.Firewal
 	}
 }
 
-func controllerMigration(ctx context.Context, log logr.Logger, c client.Client, firewallName, seedNamespace, kubeconfigPath string) error {
+func controllerMigration(ctx context.Context, log logr.Logger, c client.Client, firewallName, seedNamespace string) error {
 	// changing from existing shoot kubeconfig from deployments before firewall-controller-manager
 	// to seed kubeconfig by trying to use an offered migration secret in the shoot's firewall namespace.
 
@@ -406,7 +422,7 @@ func controllerMigration(ctx context.Context, log logr.Logger, c client.Client, 
 
 	log.Info("possible to start up with client from migration secret, exchanging original kubeconfig")
 
-	err = os.WriteFile(kubeconfigPath, kubeconfig, 0600)
+	err = os.WriteFile(seedKubeconfigPath, kubeconfig, 0600)
 	if err != nil {
 		return fmt.Errorf("unable to write kubeconfig to destination: %w", err)
 	}

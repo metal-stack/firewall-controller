@@ -1,6 +1,6 @@
 module github.com/metal-stack/firewall-controller
 
-go 1.19
+go 1.20
 
 require (
 	github.com/fatih/color v1.13.0
@@ -11,7 +11,7 @@ require (
 	github.com/google/nftables v0.1.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ks2211/go-suricata v0.0.0-20200823200910-986ce1470707
-	github.com/metal-stack/firewall-controller-manager v0.0.0-20230213080341-efa9558b393a
+	github.com/metal-stack/firewall-controller-manager v0.0.0-20230215192037-e41e5201e8fb
 	github.com/metal-stack/metal-go v0.21.4
 	github.com/metal-stack/metal-lib v0.11.2
 	github.com/metal-stack/metal-networker v0.31.2
