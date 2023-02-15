@@ -1,13 +1,16 @@
-<mxfile host="" modified="2020-06-17T13:01:47.021Z" agent="5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Code/1.46.0 Chrome/78.0.3904.130 Electron/7.3.1 Safari/537.36" etag="IZGaQyWtVY2mHcgWngqc" version="13.1.3">
+<mxfile host="65bd71144e">
     <diagram id="6hGFLwfOUW9BJ-s0fimq" name="Page-1">
-        <mxGraphModel dx="1174" dy="623" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+        <mxGraphModel dx="1887" dy="755" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
-                <mxCell id="26" value="Worker Node" style="verticalAlign=top;align=left;spacingTop=8;spacingLeft=2;spacingRight=12;shape=cube;size=10;direction=south;fontStyle=4;html=1;" vertex="1" parent="1">
+                <mxCell id="26" value="Worker Node" style="verticalAlign=top;align=left;spacingTop=8;spacingLeft=2;spacingRight=12;shape=cube;size=10;direction=south;fontStyle=4;html=1;" parent="1" vertex="1">
                     <mxGeometry x="85" y="760" width="180" height="120" as="geometry"/>
                 </mxCell>
-                <mxCell id="22" value="Firewall" style="verticalAlign=top;align=left;spacingTop=8;spacingLeft=2;spacingRight=12;shape=cube;size=10;direction=south;fontStyle=4;html=1;" vertex="1" parent="1">
+                <mxCell id="47" value="reconciles" style="edgeStyle=none;html=1;entryX=0;entryY=0;entryDx=72.5;entryDy=180;entryPerimeter=0;endArrow=classic;endFill=1;verticalAlign=bottom;" edge="1" parent="1" source="22" target="44">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="22" value="Firewall" style="verticalAlign=top;align=left;spacingTop=8;spacingLeft=2;spacingRight=12;shape=cube;size=10;direction=south;fontStyle=4;html=1;" parent="1" vertex="1">
                     <mxGeometry x="210" y="410" width="460" height="180" as="geometry"/>
                 </mxCell>
                 <mxCell id="6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0;exitDx=180;exitDy=185;endArrow=none;endFill=0;exitPerimeter=0;entryX=0;entryY=0;entryDx=0;entryDy=85;entryPerimeter=0;" parent="1" source="22" target="26" edge="1">
@@ -81,31 +84,79 @@
                 <mxCell id="20" value="0.0.0.0/0" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;" parent="1" vertex="1">
                     <mxGeometry x="205" y="250" width="60" height="20" as="geometry"/>
                 </mxCell>
-                <mxCell id="23" value="&amp;lt;service&amp;gt;&lt;br&gt;nftables-exporter" style="html=1;" vertex="1" parent="1">
+                <mxCell id="23" value="&amp;lt;service&amp;gt;&lt;br&gt;nftables-exporter" style="html=1;" parent="1" vertex="1">
                     <mxGeometry x="240" y="520" width="110" height="50" as="geometry"/>
                 </mxCell>
-                <mxCell id="24" value="&amp;lt;service&amp;gt;&lt;br&gt;node-exporter" style="html=1;" vertex="1" parent="1">
+                <mxCell id="24" value="&amp;lt;service&amp;gt;&lt;br&gt;node-exporter" style="html=1;" parent="1" vertex="1">
                     <mxGeometry x="385" y="520" width="110" height="50" as="geometry"/>
                 </mxCell>
-                <mxCell id="25" value="droptailer" style="html=1;" vertex="1" parent="1">
+                <mxCell id="25" value="droptailer" style="html=1;" parent="1" vertex="1">
                     <mxGeometry x="530" y="520" width="110" height="50" as="geometry"/>
                 </mxCell>
-                <mxCell id="29" value="Worker Node" style="verticalAlign=top;align=left;spacingTop=8;spacingLeft=2;spacingRight=12;shape=cube;size=10;direction=south;fontStyle=4;html=1;" vertex="1" parent="1">
+                <mxCell id="29" value="Worker Node" style="verticalAlign=top;align=left;spacingTop=8;spacingLeft=2;spacingRight=12;shape=cube;size=10;direction=south;fontStyle=4;html=1;" parent="1" vertex="1">
                     <mxGeometry x="330" y="760" width="180" height="120" as="geometry"/>
                 </mxCell>
-                <mxCell id="30" value="Worker Node" style="verticalAlign=top;align=left;spacingTop=8;spacingLeft=2;spacingRight=12;shape=cube;size=10;direction=south;fontStyle=4;html=1;" vertex="1" parent="1">
+                <mxCell id="30" value="Worker Node" style="verticalAlign=top;align=left;spacingTop=8;spacingLeft=2;spacingRight=12;shape=cube;size=10;direction=south;fontStyle=4;html=1;" parent="1" vertex="1">
                     <mxGeometry x="575" y="760" width="180" height="120" as="geometry"/>
                 </mxCell>
-                <mxCell id="31" value="droptailer" style="html=1;" vertex="1" parent="1">
+                <mxCell id="31" value="droptailer" style="html=1;" parent="1" vertex="1">
                     <mxGeometry x="610" y="810" width="110" height="50" as="geometry"/>
                 </mxCell>
-                <mxCell id="32" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="25" target="31">
+                <mxCell id="32" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" parent="1" source="25" target="31" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="34" value="send nftables drops&lt;br&gt;&amp;lt;grpc&amp;gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="32">
+                <mxCell id="34" value="send nftables drops&lt;br&gt;&amp;lt;grpc&amp;gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="32" vertex="1" connectable="0">
                     <mxGeometry x="-0.3092" y="37" relative="1" as="geometry">
                         <mxPoint x="0.07000000000000028" y="-23.03" as="offset"/>
                     </mxGeometry>
+                </mxCell>
+                <mxCell id="42" value="updates" style="edgeStyle=none;html=1;entryX=0;entryY=0;entryDx=95;entryDy=460;entryPerimeter=0;endArrow=none;endFill=0;startArrow=classic;startFill=1;verticalAlign=bottom;" edge="1" parent="1" source="35" target="22">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="35" value="Shoot kube-api-server" style="verticalAlign=top;align=left;spacingTop=8;spacingLeft=2;spacingRight=12;shape=cube;size=10;direction=south;fontStyle=4;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="-50" y="406" width="180" height="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="37" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;endFill=0;entryX=0;entryY=0;entryDx=120;entryDy=95;entryPerimeter=0;exitX=0;exitY=0;exitDx=240;exitDy=95;exitPerimeter=0;" edge="1" parent="1" source="35" target="26">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="-70" y="650" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="35" y="920"/>
+                            <mxPoint x="170" y="920"/>
+                        </Array>
+                        <mxPoint x="200" y="670" as="sourcePoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="41" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=none;endFill=0;entryX=0;entryY=0;entryDx=120;entryDy=95;entryPerimeter=0;exitX=0;exitY=0;exitDx=240;exitDy=95;exitPerimeter=0;" edge="1" parent="1" source="35" target="29">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="180" y="890" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="35" y="920"/>
+                            <mxPoint x="415" y="920"/>
+                        </Array>
+                        <mxPoint x="100" y="670" as="sourcePoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="43" value="FirewallMonitor CRD" style="html=1;" vertex="1" parent="1">
+                    <mxGeometry x="-30" y="466" width="130" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="44" value="Seed kube-api-server" style="verticalAlign=top;align=left;spacingTop=8;spacingLeft=2;spacingRight=12;shape=cube;size=10;direction=south;fontStyle=4;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="755" y="430" width="180" height="135" as="geometry"/>
+                </mxCell>
+                <mxCell id="46" value="Firewall CRD" style="html=1;" vertex="1" parent="1">
+                    <mxGeometry x="775" y="485" width="130" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="48" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0;exitDx=200;exitDy=95;endArrow=none;endFill=0;exitPerimeter=0;entryX=0;entryY=0;entryDx=120;entryDy=95;entryPerimeter=0;" edge="1" parent="1" source="35" target="30">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="425" y="890" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="35" y="920"/>
+                            <mxPoint x="660" y="920"/>
+                        </Array>
+                        <mxPoint x="45" y="610" as="sourcePoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="49" value="CWNP CRD" style="html=1;" vertex="1" parent="1">
+                    <mxGeometry x="-30" y="526" width="130" height="50" as="geometry"/>
                 </mxCell>
             </root>
         </mxGraphModel>
