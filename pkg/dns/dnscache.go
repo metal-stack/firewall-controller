@@ -29,6 +29,9 @@ const (
 	// Versions specifically for nftables rendering purposes
 	IPv4 IPVersion = "ipv4_addr"
 	IPv6 IPVersion = "ipv6_addr"
+
+	// How many DNS redirections (CNAME/DNAME) are followed, to break up redirection loops.
+	maxDNSRedirects = 10
 )
 
 // RenderIPSet stores set info for rendering
@@ -245,7 +248,7 @@ func (c *DNSCache) loadDataFromDNSServer(fqdns []string) error {
 	if len(fqdns) == 0 {
 		return fmt.Errorf("no fqdn given")
 	}
-	if len(fqdns) > 30 {
+	if len(fqdns) > maxDNSRedirects+1 {
 		return fmt.Errorf("too many hops, fqdn chain: %s", strings.Join(fqdns, ","))
 	}
 	cl := new(dnsgo.Client)
