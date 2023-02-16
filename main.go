@@ -155,7 +155,7 @@ func main() {
 		l.Fatalw("unable to find firewall resource to be responsible for", "error", err)
 	}
 
-	l.Info("found firewall resource to be responsible for", "firewall-name", firewallName, "namespace", seedNamespace)
+	l.Infow("found firewall resource to be responsible for", "firewall-name", firewallName, "namespace", seedNamespace)
 
 	expiresAt, shootRaw, shootConfig, err := helper.NewShootConfig(ctx, seedClient, fw.Status.ShootAccess)
 	if err != nil {
