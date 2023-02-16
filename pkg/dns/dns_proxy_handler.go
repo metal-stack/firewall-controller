@@ -111,6 +111,7 @@ func getUpdateCacheFunc(log logr.Logger, cache *DNSCache) func(lookupTime time.T
 	return func(lookupTime time.Time, response *dnsgo.Msg) {
 		if response.Response && response.Rcode == dnsgo.RcodeSuccess {
 			scopedLog := log.WithValues(reqIdLogField, response.Id)
+			log.Info("DEBUG dnsproxyhandler function getUpdateCacheFunc updating DNS cache", "dns response", response)
 			if err := cache.Update(lookupTime, response); err != nil {
 				scopedLog.Error(err, "failed to update DNS cache")
 			} else {
