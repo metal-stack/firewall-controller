@@ -112,18 +112,18 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	log.Info("reconciling firewall-controller")
 
-	err := updater.UpdateToSpecVersion(f, log, r.Recorder)
-	if err != nil {
-		r.Recorder.Eventf(&f, corev1.EventTypeWarning, "Self-Reconcilation", "failed with error: %v", err)
-		return requeue, err
-	}
-
 	recordFirewallEvent := func(eventtype, reason, message string) {
 		// we want to have this event in the shoot cluster and not in the seed
 		// the seed namespace does not exist in the shoot, so we need to alter it to the shoot's namespace
 		copy := f.DeepCopy()
 		copy.Namespace = firewallv1.ClusterwideNetworkPolicyNamespace
 		r.Recorder.Event(copy, eventtype, reason, message)
+	}
+
+	err := updater.UpdateToSpecVersion(f, log, r.Recorder)
+	if err != nil {
+		recordFirewallEvent(corev1.EventTypeWarning, "Self-Reconcilation", fmt.Sprintf("failed with error: %v", err))
+		return requeue, err
 	}
 
 	// Update reconcilation interval
