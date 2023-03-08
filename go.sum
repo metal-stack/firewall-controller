@@ -328,8 +328,8 @@ github.com/mdlayher/netlink v1.7.0 h1:ZNGI4V7i1fJ94DPYtWhI/R85i/Q7ZxnuhUJQcJMood
 github.com/mdlayher/netlink v1.7.0/go.mod h1:nKO5CSjE/DJjVhk/TNp6vCE1ktVxEA8VEh8drhZzxsQ=
 github.com/mdlayher/socket v0.4.0 h1:280wsy40IC9M9q1uPGcLBwXpcTQDtoGwVt+BNoITxIw=
 github.com/mdlayher/socket v0.4.0/go.mod h1:xxFqz5GRCUN3UEOm9CZqEJsAbe1C8OwSK46NlmWuVoc=
-github.com/metal-stack/firewall-controller-manager v0.0.0-20230308131415-4de9afeb326b h1:aJ7zarHB/d4lSD+JCVb9uXmLNhMBizhmfkl4MCHk/HY=
-github.com/metal-stack/firewall-controller-manager v0.0.0-20230308131415-4de9afeb326b/go.mod h1:yUUZLiKpZAr9Dmf+LAyhQmSp5HupACuuxRGreBRzHb8=
+github.com/metal-stack/firewall-controller-manager v0.0.0-20230308141529-5ac3e4d442e7 h1:i3f1lKXIVbs2zH/nbVpjkP4Ht9ZBSjZ3d0bBJUt6EwU=
+github.com/metal-stack/firewall-controller-manager v0.0.0-20230308141529-5ac3e4d442e7/go.mod h1:yUUZLiKpZAr9Dmf+LAyhQmSp5HupACuuxRGreBRzHb8=
 github.com/metal-stack/metal-go v0.22.2 h1:AqA7vfhhV8nLr1Xn7dM86iLqkDK3tVY9EOkiQPFDNK4=
 github.com/metal-stack/metal-go v0.22.2/go.mod h1:IZ7qY6dUAi72ZTz7Ni5cwWzzUXJj2Or1t04c3u4AUzU=
 github.com/metal-stack/metal-hammer v0.11.1 h1:Ir7MPIrHW3h7D7sMUnzo4QrH6f24gF19UqW8A4UblyI=

@@ -3,6 +3,7 @@ module github.com/metal-stack/firewall-controller
 go 1.20
 
 require (
+	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/fatih/color v1.13.0
 	github.com/go-logr/logr v1.2.3
 	github.com/go-logr/zapr v1.2.3
@@ -11,7 +12,7 @@ require (
 	github.com/google/nftables v0.1.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ks2211/go-suricata v0.0.0-20200823200910-986ce1470707
-	github.com/metal-stack/firewall-controller-manager v0.0.0-20230308131415-4de9afeb326b
+	github.com/metal-stack/firewall-controller-manager v0.0.0-20230308141529-5ac3e4d442e7
 	github.com/metal-stack/metal-go v0.22.2
 	github.com/metal-stack/metal-lib v0.11.4
 	github.com/metal-stack/metal-networker v0.31.2
@@ -33,7 +34,6 @@ require (
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
-	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/emicklei/go-restful/v3 v3.10.1 // indirect
 	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
