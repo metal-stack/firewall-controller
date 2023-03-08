@@ -126,6 +126,12 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return requeue, err
 	}
 
+	err = updater.UpdateNFTablesExporterToSpecVersion(ctx, f, log, r.Recorder)
+	if err != nil {
+		recordFirewallEvent(corev1.EventTypeWarning, "Self-Reconcilation", fmt.Sprintf("failed with error: %v", err))
+		return requeue, err
+	}
+
 	// Update reconcilation interval
 	if i, err := time.ParseDuration(f.Spec.Interval); err == nil {
 		requeue.RequeueAfter = i

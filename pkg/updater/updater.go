@@ -38,26 +38,26 @@ func UpdateToSpecVersion(f firewallv2.Firewall, log logr.Logger, recorder record
 		return err
 	}
 
-	recorder.Eventf(&f, corev1.EventTypeNormal, "Self-Reconcilation", "replacing firewall-controller version %s with version %s", v.Version, f.Spec.ControllerVersion)
+	recorder.Eventf(&f, corev1.EventTypeNormal, "Self-Reconciliation", "replacing firewall-controller version %s with version %s", v.Version, f.Spec.ControllerVersion)
 
-	binaryReader, checksum, err := FetchBinaryAndChecksum(f.Spec.ControllerURL)
+	binaryReader, checksum, err := fetchBinaryAndChecksum(f.Spec.ControllerURL)
 	if err != nil {
 		return fmt.Errorf("could not download binary or checksum for firewall-controller version %s, err: %w", f.Spec.ControllerVersion, err)
 	}
 
-	err = replaceBinary(binaryReader, checksum)
+	err = replaceBinary(binaryReader, binaryLocation, checksum)
 	if err != nil {
 		return fmt.Errorf("could not replace firewall-controller with version %s, err: %w", f.Spec.ControllerVersion, err)
 	}
 
-	recorder.Eventf(&f, corev1.EventTypeNormal, "Self-Reconcilation", "replaced firewall-controller version %s with version %s successfully", v.Version, f.Spec.ControllerVersion)
+	recorder.Eventf(&f, corev1.EventTypeNormal, "Self-Reconciliation", "replaced firewall-controller version %s with version %s successfully", v.Version, f.Spec.ControllerVersion)
 
-	// after a successful self-reconcilation of the firewall-controller binary we want to get restarted by exiting and letting systemd restart the process.
+	// after a successful self-reconciliation of the firewall-controller binary we want to get restarted by exiting and letting systemd restart the process.
 	os.Exit(0)
 	return nil
 }
 
-func FetchBinaryAndChecksum(url string) (io.ReadCloser, string, error) {
+func fetchBinaryAndChecksum(url string) (io.ReadCloser, string, error) {
 	checksum, err := slurpFile(url + ".sha256")
 	if err != nil {
 		return nil, "", fmt.Errorf("could not slurp checksum file at %s, err: %w", url, err)
@@ -72,8 +72,8 @@ func FetchBinaryAndChecksum(url string) (io.ReadCloser, string, error) {
 	return resp.Body, checksum, nil
 }
 
-func replaceBinary(binaryReader io.ReadCloser, checksum string) error {
-	filename, err := copyToTempFile(binaryReader, binaryLocation)
+func replaceBinary(binaryReader io.ReadCloser, binaryPath, checksum string) error {
+	filename, err := copyToTempFile(binaryReader, binaryPath)
 	if err != nil {
 		return err
 	}
@@ -83,7 +83,7 @@ func replaceBinary(binaryReader io.ReadCloser, checksum string) error {
 		return err
 	}
 
-	if err = os.Rename(filename, binaryLocation); err != nil {
+	if err = os.Rename(filename, binaryPath); err != nil {
 		return err
 	}
 	return nil
