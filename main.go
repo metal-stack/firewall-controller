@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/metal-stack/v"
 
@@ -157,14 +156,27 @@ func main() {
 
 	l.Infow("found firewall resource to be responsible for", "firewall-name", firewallName, "namespace", seedNamespace)
 
-	expiresAt, shootRaw, shootConfig, err := helper.NewShootConfig(ctx, seedClient, fw.Status.ShootAccess)
+	shootAccessHelper := helper.NewShootAccessHelper(seedClient, fw.Status.ShootAccess)
 	if err != nil {
-		l.Fatalw("unable to construct shoot client", "error", err)
+		l.Fatalw("unable to construct shoot access helper", "error", err)
 	}
 
-	helper.ShutdownOnTokenExpiration(ctrl.Log.WithName("token-expiration"), expiresAt, ctx)
+	updater, err := helper.NewShootAccessTokenUpdater(shootAccessHelper, "/etc/firewall-controller")
+	if err != nil {
+		l.Fatalw("unable to create shoot access token updater", "error", err)
+	}
 
-	go secretRotation(ctx, ctrl.Log.WithName("secret-rotation"), fw, seedClient, shootRaw)
+	err = updater.UpdateContinuously(ctrl.Log.WithName("token-updater"), ctx)
+	if err != nil {
+		l.Fatalw("unable to start token updater", "error", err)
+	}
+
+	// TODO: implement ssh key rotation
+
+	shootConfig, err := shootAccessHelper.RESTConfig(ctx)
+	if err != nil {
+		l.Fatalw("unable to create shoot config", "error", err)
+	}
 
 	seedMgr, err := ctrl.NewManager(seedConfig, ctrl.Options{
 		Scheme:             scheme,
@@ -334,49 +346,6 @@ func getSeedNamespace(rawKubeconfig []byte) (string, error) {
 	}
 
 	return "", fmt.Errorf("unable to figure out seed namespace from kubeconfig")
-}
-
-func secretRotation(ctx context.Context, log logr.Logger, fw *firewallv2.Firewall, seed client.Client, currentShootConfig []byte) {
-	ticker := time.NewTicker(5 * time.Minute)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			fw := fw.DeepCopy()
-			err := seed.Get(ctx, client.ObjectKeyFromObject(fw), fw)
-			if err != nil {
-				log.Error(err, "unable to get firewall resource, retrying in five minutes")
-				continue
-			}
-
-			if fw.Status.ShootAccess == nil {
-				log.Error(fmt.Errorf("shoot access is nil"), "shoot access is not present on firewall resource")
-				continue
-			}
-
-			timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-			_, newShootConfig, _, err := helper.NewShootConfig(timeoutCtx, seed, fw.Status.ShootAccess)
-			cancel()
-			if err != nil {
-				log.Error(err, "unable to create shoot client from shoot access")
-				continue
-			}
-
-			if string(currentShootConfig) != string(newShootConfig) {
-				log.Info("shoot access has changed, restarting controller")
-				ctx.Done()
-				return
-			}
-
-			// TODO: implement ssh key rotation
-
-			log.Info("shoot access has not changed, checking again in five minutes")
-		case <-ctx.Done():
-			log.Info("stopping ticker")
-			return
-		}
-	}
 }
 
 func controllerMigration(ctx context.Context, log logr.Logger, c client.Client, firewallName, seedNamespace string) error {
