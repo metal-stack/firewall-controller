@@ -15,7 +15,6 @@ import (
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	"github.com/metal-stack/v"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/tools/record"
 )
 
 const (
@@ -23,7 +22,7 @@ const (
 )
 
 // UpdateToSpecVersion updates the firewall-controller binary to the version specified in the firewall spec.
-func UpdateToSpecVersion(f firewallv2.Firewall, log logr.Logger, recorder record.EventRecorder) error {
+func UpdateToSpecVersion(f firewallv2.Firewall, log logr.Logger, recorder func(eventtype, reason, message string)) error {
 	if f.Spec.ControllerVersion == "" {
 		return nil
 	}
@@ -38,7 +37,7 @@ func UpdateToSpecVersion(f firewallv2.Firewall, log logr.Logger, recorder record
 		return err
 	}
 
-	recorder.Eventf(&f, corev1.EventTypeNormal, "Self-Reconciliation", "replacing firewall-controller version %s with version %s", v.Version, f.Spec.ControllerVersion)
+	recorder(corev1.EventTypeNormal, "Self-Reconciliation", fmt.Sprintf("replacing firewall-controller version %s with version %s", v.Version, f.Spec.ControllerVersion))
 
 	binaryReader, checksum, err := fetchBinaryAndChecksum(f.Spec.ControllerURL)
 	if err != nil {
@@ -50,7 +49,7 @@ func UpdateToSpecVersion(f firewallv2.Firewall, log logr.Logger, recorder record
 		return fmt.Errorf("could not replace firewall-controller with version %s, err: %w", f.Spec.ControllerVersion, err)
 	}
 
-	recorder.Eventf(&f, corev1.EventTypeNormal, "Self-Reconciliation", "replaced firewall-controller version %s with version %s successfully", v.Version, f.Spec.ControllerVersion)
+	recorder(corev1.EventTypeNormal, "Self-Reconciliation", fmt.Sprintf("replaced firewall-controller version %s with version %s successfully", v.Version, f.Spec.ControllerVersion))
 
 	// after a successful self-reconciliation of the firewall-controller binary we want to get restarted by exiting and letting systemd restart the process.
 	os.Exit(0)
