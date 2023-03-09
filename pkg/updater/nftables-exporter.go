@@ -43,6 +43,7 @@ func UpdateNFTablesExporterToSpecVersion(ctx context.Context, f firewallv2.Firew
 
 	_, err = url.Parse(f.Spec.NftablesExporterURL)
 	if err != nil {
+		log.Error(err, "error parsing nftables-exporter url")
 		return err
 	}
 
@@ -50,23 +51,29 @@ func UpdateNFTablesExporterToSpecVersion(ctx context.Context, f firewallv2.Firew
 
 	binaryReader, checksum, err := fetchBinaryAndChecksum(f.Spec.NftablesExporterURL)
 	if err != nil {
+		log.Error(err, "error fetching nftables-exporter binary and checksum")
 		return fmt.Errorf("could not download binary or checksum for nftables-exporter version %s, err: %w", targetVersion, err)
 	}
 
 	err = replaceBinary(binaryReader, nftablesBinary, checksum)
 	if err != nil {
+		log.Error(err, "error replacing nftables-exporter binary")
 		return fmt.Errorf("could not replace nftables-exporter with version %s, err: %w", targetVersion, err)
 	}
 
 	err = os.WriteFile(nftablesVersionFile, []byte(targetVersion), 0600)
 	if err != nil {
+		log.Error(err, "error writing nftables-exporter version file")
 		return err
 	}
 
-	err = restart(ctx, "nftables-exporter")
+	err = restart(ctx, "nftables-exporter.service")
 	if err != nil {
+		log.Error(err, "error restarting nftables-exporter")
 		return err
 	}
+
+	log.Info("successfully restarted nftables-exporter")
 
 	recorder(corev1.EventTypeNormal, "nftables-exporter", fmt.Sprintf("replaced nftables-exporter version %s with version %s successfully", version, targetVersion))
 
