@@ -193,7 +193,6 @@ func main() {
 		Scheme:             scheme,
 		MetricsBindAddress: "0",
 		LeaderElection:     false,
-		Namespace:          firewallv2.FirewallShootNamespace,
 	})
 	if err != nil {
 		l.Fatalw("unable to create shoot manager", "error", err)
