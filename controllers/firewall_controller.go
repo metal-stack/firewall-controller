@@ -120,13 +120,13 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		r.Recorder.Event(copy, eventtype, reason, message)
 	}
 
-	err := updater.UpdateToSpecVersion(f, log, r.Recorder)
+	err := updater.UpdateToSpecVersion(f, log, recordFirewallEvent)
 	if err != nil {
 		recordFirewallEvent(corev1.EventTypeWarning, "Self-Reconcilation", fmt.Sprintf("failed with error: %v", err))
 		return requeue, err
 	}
 
-	err = updater.UpdateNFTablesExporterToSpecVersion(ctx, f, log, r.Recorder)
+	err = updater.UpdateNFTablesExporterToSpecVersion(ctx, f, log, recordFirewallEvent)
 	if err != nil {
 		recordFirewallEvent(corev1.EventTypeWarning, "Self-Reconcilation", fmt.Sprintf("failed with error: %v", err))
 		return requeue, err
