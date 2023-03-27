@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/metal-stack/v"
 
@@ -33,6 +34,7 @@ import (
 
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/controllers"
+	"github.com/metal-stack/firewall-controller/pkg/updater"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -161,12 +163,12 @@ func main() {
 		l.Fatalw("unable to construct shoot access helper", "error", err)
 	}
 
-	updater, err := helper.NewShootAccessTokenUpdater(shootAccessHelper, "/etc/firewall-controller")
+	accessTokenUpdater, err := helper.NewShootAccessTokenUpdater(shootAccessHelper, "/etc/firewall-controller")
 	if err != nil {
 		l.Fatalw("unable to create shoot access token updater", "error", err)
 	}
 
-	err = updater.UpdateContinuously(ctrl.Log.WithName("token-updater"), ctx)
+	err = accessTokenUpdater.UpdateContinuously(ctrl.Log.WithName("token-updater"), ctx)
 	if err != nil {
 		l.Fatalw("unable to start token updater", "error", err)
 	}
@@ -205,6 +207,8 @@ func main() {
 		l.Fatalw("unable to create shoot client", "error", err)
 	}
 
+	updater := updater.New(ctrl.Log.WithName("updater"), shootMgr.GetEventRecorderFor("FirewallController"))
+
 	// Firewall Reconciler
 	if err = (&controllers.FirewallReconciler{
 		SeedClient:               seedMgr.GetClient(),
@@ -216,6 +220,7 @@ func main() {
 		FirewallName:             firewallName,
 		Recorder:                 shootMgr.GetEventRecorderFor("FirewallController"),
 		ExternalReconcileTrigger: externalTrigger,
+		Updater:                  updater,
 	}).SetupWithManager(seedMgr); err != nil {
 		l.Fatalw("unable to create firewall controller", "error", err)
 	}
@@ -252,6 +257,16 @@ func main() {
 	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting firewall-controller", "version", v.V)
+
+	// before starting up the controllers, we update components to the specified versions
+	// otherwise we can run into races where controllers start reconfiguring the firewall
+	// while an update is progressing
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	err = updater.Run(ctx, fw)
+	if err != nil {
+		l.Fatalw("unable to update firewall components", "error", err)
+	}
 
 	go func() {
 		l.Infow("starting shoot controller", "version", v.V)
