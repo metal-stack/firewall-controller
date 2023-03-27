@@ -184,7 +184,7 @@ func (f *Firewall) ReconcileNetconfTables() error {
 	return nil
 }
 
-func getConfiguredIPs() []string {
+func getConfiguredIPs(networkID string) []string {
 	c, err := netconf.New(network.GetLogger(), network.MetalNetworkerConfig)
 	if err != nil || c == nil {
 		return nil
@@ -192,6 +192,9 @@ func getConfiguredIPs() []string {
 	var ips []string
 	for _, nw := range c.Networks {
 		nw := nw
+		if nw.Networkid == nil || *nw.Networkid != networkID {
+			continue
+		}
 		for _, ip := range nw.Ips {
 			ip := ip
 			ips = append(ips, ip)
@@ -233,7 +236,7 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 	var errors *multierror.Error
 
 	for _, n := range f.networkMap {
-		if n.Networktype == nil {
+		if n.Networktype == nil || n.Networkid == nil {
 			continue
 		}
 
@@ -241,7 +244,7 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 			continue
 		}
 
-		configureIPs := getConfiguredIPs()
+		configureIPs := getConfiguredIPs(*n.Networkid)
 
 		wantedIPs := sets.NewString(configureIPs...)
 		for _, i := range f.firewall.Spec.EgressRules {
