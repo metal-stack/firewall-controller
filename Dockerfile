@@ -1,4 +1,4 @@
-FROM debian:10
+FROM scratch
 WORKDIR /
 COPY bin/firewall-controller .
 RUN apt update \
