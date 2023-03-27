@@ -3,10 +3,11 @@ package nftables
 import (
 	"embed"
 	"fmt"
-	"github.com/metal-stack/firewall-controller/pkg/dns"
 	"os"
 	"os/exec"
 	"path/filepath"
+
+	"github.com/metal-stack/firewall-controller/pkg/dns"
 
 	"github.com/metal-stack/firewall-controller/pkg/network"
 
@@ -183,6 +184,22 @@ func (f *Firewall) ReconcileNetconfTables() error {
 	return nil
 }
 
+func getConfiguredIPs() []string {
+	c, err := netconf.New(network.GetLogger(), network.MetalNetworkerConfig)
+	if err != nil || c == nil {
+		return nil
+	}
+	var ips []string
+	for _, nw := range c.Networks {
+		nw := nw
+		for _, ip := range nw.Ips {
+			ip := ip
+			ips = append(ips, ip)
+		}
+	}
+	return ips
+}
+
 func (f *Firewall) renderFile(file string) error {
 	fd, err := newFirewallRenderingData(f)
 	if err != nil {
@@ -224,7 +241,9 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 			continue
 		}
 
-		wantedIPs := sets.NewString()
+		configureIPs := getConfiguredIPs()
+
+		wantedIPs := sets.NewString(configureIPs...)
 		for _, i := range f.firewall.Spec.EgressRules {
 			if i.NetworkID == *n.Networkid {
 				wantedIPs.Insert(i.IPs...)
