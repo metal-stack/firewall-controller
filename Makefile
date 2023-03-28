@@ -5,12 +5,13 @@ VERSION := $(or ${VERSION},$(shell git describe --tags --exact-match 2> /dev/nul
 
 CONTROLLER_TOOLS_VERSION ?= v0.11.3
 LOCALBIN ?= $(shell pwd)/bin
-$(LOCALBIN):
-	mkdir -p $(LOCALBIN)
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 
 all: firewall-controller
+
+$(LOCALBIN):
+	mkdir -p $(LOCALBIN)
 
 test: generate fmt vet manifests setup-envtest
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -coverprofile cover.out
