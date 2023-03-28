@@ -62,6 +62,7 @@ jobs:
 
     - name: Build
       run: |
+        cp -f `which go` /usr/bin/go
         make
 
     - name: Push Docker image
@@ -92,8 +93,6 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - run: sudo rm -f /usr/bin/go
-
     - name: Set up Go 1.20
       uses: actions/setup-go@v4
       with:
@@ -105,8 +104,6 @@ jobs:
         sudo modprobe dummy
         sudo ip link add vrf42 type dummy
         sudo ip link add vlan42 type dummy
-        which go
-        go version
+        cp -f `which go` /usr/bin/go
         sudo make setup-envtest
-        go version
         sudo make test
