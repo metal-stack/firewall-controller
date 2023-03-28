@@ -8,8 +8,6 @@ LOCALBIN ?= $(shell pwd)/bin
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 
-export PATH := $(GOPATH)/bin:$(PATH)
-
 all: firewall-controller
 
 # Build firewall-controller binary
