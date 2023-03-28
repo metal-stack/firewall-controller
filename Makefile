@@ -69,14 +69,14 @@ generate: controller-gen manifests
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN)
 $(CONTROLLER_GEN): $(LOCALBIN)
-	echo "before controller-gen installation"
-	go version
 	test -s $(LOCALBIN)/controller-gen && $(LOCALBIN)/controller-gen --version | grep -q $(CONTROLLER_TOOLS_VERSION) || \
 	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
-	echo "after controller-gen installation"
-	go version
 
 .PHONY: setup-envtest
 setup-envtest: $(ENVTEST)
 $(ENVTEST): $(LOCALBIN)
+	echo "before env installation"
+	go version
 	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+	echo "after env installation"
+	go version
