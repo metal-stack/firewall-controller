@@ -3,18 +3,17 @@ GITVERSION := $(shell git describe --long --all)
 BUILDDATE := $(shell date -Iseconds)
 VERSION := $(or ${VERSION},$(shell git describe --tags --exact-match 2> /dev/null || git symbolic-ref -q --short HEAD || git rev-parse --short HEAD))
 
-# Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
-ifeq (,$(shell go env GOBIN))
-GOBIN=$(shell go env GOPATH)/bin
-else
-GOBIN=$(shell go env GOBIN)
-endif
+CONTROLLER_TOOLS_VERSION ?= v0.11.3
+LOCALBIN ?= $(shell pwd)/bin
+$(LOCALBIN):
+	mkdir -p $(LOCALBIN)
+CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
+ENVTEST ?= $(LOCALBIN)/setup-envtest
 
 all: firewall-controller
 
-test: generate fmt vet manifests
-	@if ! which $(SETUP_ENVTEST) > /dev/null; then echo "setup-envtest needs to be installed. you can use setup-envtest target to achieve this."; exit 1; fi
-	KUBEBUILDER_ASSETS="$(shell $(SETUP_ENVTEST) use --arch=amd64 --bin-dir $(PWD)/bin -p path)" go test ./... -v -coverprofile cover.out
+test: generate fmt vet manifests setup-envtest
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -coverprofile cover.out
 
 clean:
 	rm -rf bin/*
@@ -66,44 +65,17 @@ vet:
 generate: controller-gen manifests
 	$(CONTROLLER_GEN) object paths="./..."
 
-kubebuilder:
-	set -ex \
- 		&& mkdir -p /tmp/kubebuilder ${KUBEBUILDER_ASSETS} \
- 		&& curl -L ${KUBEBUILDER_DOWNLOAD_URL}/v${KUBEBUILDER_VER}/kubebuilder_linux_amd64 -o ${KUBEBUILDER_ASSETS}/kubebuilder \
- 		&& chmod +x ${KUBEBUILDER_ASSETS}/kubebuilder \
- 		&& curl -sSLo /tmp/kubebuilder/envtest-bins.tar.gz "https://go.kubebuilder.io/test-tools/${K8S_VERSION}/linux/amd64" \
- 		&& tar -C ${KUBEBUILDER_ASSETS} --strip-components=2 -zvxf /tmp/kubebuilder/envtest-bins.tar.gz
-
-# find or download controller-gen
-# download controller-gen if necessary
 .PHONY: controller-gen
-controller-gen:
-ifeq (, $(shell which controller-gen))
-	@{ \
-	set -e ;\
-	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
-	cd $$CONTROLLER_GEN_TMP_DIR ;\
-	go mod init tmp ;\
-	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.10.0 ;\
-	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
-	}
-CONTROLLER_GEN=$(GOBIN)/controller-gen
-else
-CONTROLLER_GEN=$(shell which controller-gen)
-endif
+controller-gen: $(CONTROLLER_GEN)
+$(CONTROLLER_GEN): $(LOCALBIN)
+	echo "before controller-gen installation"
+	go version
+	test -s $(LOCALBIN)/controller-gen && $(LOCALBIN)/controller-gen --version | grep -q $(CONTROLLER_TOOLS_VERSION) || \
+	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
+	echo "after controller-gen installation"
+	go version
 
 .PHONY: setup-envtest
-setup-envtest:
-ifeq (, $(shell which setup-envtest))
-	@{ \
-	set -e ;\
-	TMP_DIR=$$(mktemp -d) ;\
-	cd $$TMP_DIR ;\
-	go mod init tmp ;\
-	go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest ;\
-	rm -rf $$TMP_DIR ;\
-	}
-SETUP_ENVTEST=$(GOBIN)/setup-envtest
-else
-SETUP_ENVTEST=$(shell which setup-envtest)
-endif
+setup-envtest: $(ENVTEST)
+$(ENVTEST): $(LOCALBIN)
+	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest

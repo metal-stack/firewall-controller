@@ -23,7 +23,7 @@ jobs:
 
     steps:
     - name: Log in to the container registry
-      uses: docker/login-action@v1
+      uses: docker/login-action@v2
       with:
         registry: ${{ env.REGISTRY }}
         username: ${{ secrets.DOCKER_REGISTRY_USER }}
@@ -39,8 +39,8 @@ jobs:
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v0
 
-    - name: Ensure Go Version
-      uses: actions/setup-go@v3
+    - name: Set up Go 1.20
+      uses: actions/setup-go@v4
       with:
         go-version: '1.20'
         # go-version-file: 'go.mod'
@@ -74,7 +74,7 @@ jobs:
     - name: Upload image tarballs to GCS
       run: |
         mkdir -p firewall-controller/${TARGET_BINARY_LOCATION}
-        cp bin/* firewall-controller/${TARGET_BINARY_LOCATION}/
+        cp bin/firewall-controller* firewall-controller/${TARGET_BINARY_LOCATION}/
         gsutil -m cp -r -p firewall-controller gs://$GCS_BUCKET
 
     - name: Upload Release Asset
@@ -82,25 +82,28 @@ jobs:
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         files: |
-          bin/firewall-controller-*
+          bin/firewall-controller*
       if: ${{ github.event_name == 'release' }}
 
   test:
+    name: Test
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v3
 
     - name: Set up Go 1.20
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v4
       with:
-        go-version: '1.20.x'
+        go-version: '1.20'
 
-    - name: run tests
+    - name: Run tests
       run: |
         sudo apt install -y --no-install-recommends nftables iproute2 kmod
         sudo modprobe dummy
         sudo ip link add vrf42 type dummy
         sudo ip link add vlan42 type dummy
+        go version
         sudo make setup-envtest
+        go version
         sudo make test
