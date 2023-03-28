@@ -10,7 +10,6 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.5.9
 	github.com/google/nftables v0.1.0
-	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ks2211/go-suricata v0.0.0-20200823200910-986ce1470707
 	github.com/metal-stack/firewall-controller-manager v0.1.3
 	github.com/metal-stack/metal-go v0.22.3
@@ -55,7 +54,6 @@ require (
 	github.com/google/gnostic v0.6.9 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
-	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/imdario/mergo v0.3.15 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/josharian/native v1.0.0 // indirect

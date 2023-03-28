@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"time"
@@ -9,11 +10,10 @@ import (
 	"github.com/metal-stack/v"
 
 	"github.com/go-logr/logr"
-	"github.com/hashicorp/go-multierror"
 	mn "github.com/metal-stack/metal-lib/pkg/net"
 	corev1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -100,7 +100,7 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	var f firewallv2.Firewall
 	if err := r.SeedClient.Get(ctx, req.NamespacedName, &f); err != nil {
-		if errors.IsNotFound(err) {
+		if k8serrors.IsNotFound(err) {
 			defaultFw := nftables.NewDefaultFirewall()
 			log.Info("flushing k8s firewall rules")
 			err := defaultFw.Flush()
@@ -129,7 +129,7 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	log.Info("reconciling network settings")
 
-	var errors *multierror.Error
+	var errs []error
 	changed, err := network.ReconcileNetwork(f)
 	if changed && err == nil {
 		recordFirewallEvent(&f, corev1.EventTypeNormal, "Network settings", "reconcilation succeeded (frr.conf)")
@@ -137,22 +137,22 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		recordFirewallEvent(&f, corev1.EventTypeWarning, "Network settings", fmt.Sprintf("reconcilation failed (frr.conf): %v", err))
 	}
 	if err != nil {
-		errors = multierror.Append(errors, err)
+		errs = append(errs, err)
 	}
 
 	log.Info("reconciling firewall services")
 	if err = r.reconcileFirewallServices(ctx, f); err != nil {
-		errors = multierror.Append(errors, err)
+		errs = append(errs, err)
 	}
 
 	log.Info("updating status field")
 	if err = r.updateStatus(ctx, f); err != nil {
-		errors = multierror.Append(errors, err)
+		errs = append(errs, err)
 	}
 
-	if errors.ErrorOrNil() != nil {
-		recordFirewallEvent(&f, corev1.EventTypeWarning, "Error", multierror.Flatten(errors).Error())
-		return requeue, errors
+	if len(errs) > 0 {
+		recordFirewallEvent(&f, corev1.EventTypeWarning, "Error", errors.Join(errs...).Error())
+		return requeue, errors.Join(errs...)
 	}
 
 	recordFirewallEvent(&f, corev1.EventTypeNormal, "Reconciled", "nftables rules and statistics successfully")
@@ -222,14 +222,14 @@ func (r *FirewallReconciler) reconcileFirewallServices(ctx context.Context, f fi
 		},
 	}
 
-	var errors *multierror.Error
+	var errs []error
 	for _, s := range services {
 		err := r.reconcileFirewallService(ctx, s, f)
 		if err != nil {
-			errors = multierror.Append(errors, err)
+			errs = append(errs, err)
 		}
 	}
-	return errors.ErrorOrNil()
+	return errors.Join(errs...)
 }
 
 // reconcileFirewallService reconciles a single service that is to be exposed at the firewall.
@@ -243,7 +243,7 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 
 	var currentSvc corev1.Service
 	err := r.ShootClient.Get(ctx, nn, &currentSvc)
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil && !k8serrors.IsNotFound(err) {
 		return err
 	}
 
@@ -262,7 +262,7 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 		},
 	}
 
-	if errors.IsNotFound(err) {
+	if k8serrors.IsNotFound(err) {
 		err = r.ShootClient.Create(ctx, &svc)
 		if err != nil {
 			return err
@@ -323,11 +323,11 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 
 	var currentEndpoints corev1.Endpoints
 	err = r.ShootClient.Get(ctx, nn, &currentEndpoints)
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil && !k8serrors.IsNotFound(err) {
 		return err
 	}
 
-	if errors.IsNotFound(err) {
+	if k8serrors.IsNotFound(err) {
 		err = r.ShootClient.Create(ctx, &endpoints)
 		if err != nil {
 			return err
