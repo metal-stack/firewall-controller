@@ -92,7 +92,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - run: sudo apt remove --purge go
+    - run: sudo snap remove go
 
     - name: Set up Go 1.20
       uses: actions/setup-go@v4
