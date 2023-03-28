@@ -74,7 +74,7 @@ jobs:
     - name: Upload image tarballs to GCS
       run: |
         mkdir -p firewall-controller/${TARGET_BINARY_LOCATION}
-        cp bin/* firewall-controller/${TARGET_BINARY_LOCATION}/
+        cp bin/firewall-controller* firewall-controller/${TARGET_BINARY_LOCATION}/
         gsutil -m cp -r -p firewall-controller gs://$GCS_BUCKET
 
     - name: Upload Release Asset
@@ -82,7 +82,7 @@ jobs:
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         files: |
-          bin/firewall-controller-*
+          bin/firewall-controller*
       if: ${{ github.event_name == 'release' }}
 
   test:

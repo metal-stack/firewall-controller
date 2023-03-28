@@ -3,13 +3,17 @@ GITVERSION := $(shell git describe --long --all)
 BUILDDATE := $(shell date -Iseconds)
 VERSION := $(or ${VERSION},$(shell git describe --tags --exact-match 2> /dev/null || git symbolic-ref -q --short HEAD || git rev-parse --short HEAD))
 
-GOBIN := $(or ${GOBIN},~/go/bin)
+CONTROLLER_TOOLS_VERSION ?= v0.11.3
+LOCALBIN ?= $(shell pwd)/bin
+$(LOCALBIN):
+	mkdir -p $(LOCALBIN)
+CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
+ENVTEST ?= $(LOCALBIN)/setup-envtest
 
 all: firewall-controller
 
-test: generate fmt vet manifests
-	@if ! which $(SETUP_ENVTEST) > /dev/null; then echo "setup-envtest needs to be installed. you can use setup-envtest target to achieve this."; exit 1; fi
-	KUBEBUILDER_ASSETS="$(shell $(SETUP_ENVTEST) use --arch=amd64 --bin-dir $(PWD)/bin -p path)" go test ./... -v -coverprofile cover.out
+test: generate fmt vet manifests setup-envtest
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -coverprofile cover.out
 
 clean:
 	rm -rf bin/*
@@ -61,36 +65,13 @@ vet:
 generate: controller-gen manifests
 	$(CONTROLLER_GEN) object paths="./..."
 
-# find or download controller-gen
-# download controller-gen if necessary
 .PHONY: controller-gen
-controller-gen:
-ifeq (, $(shell which controller-gen))
-	@{ \
-	set -e ;\
-	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
-	cd $$CONTROLLER_GEN_TMP_DIR ;\
-	go version; go mod init tmp ;\
-	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.11.3 ;\
-	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
-	}
-CONTROLLER_GEN=$(GOBIN)/controller-gen
-else
-CONTROLLER_GEN=$(shell which controller-gen)
-endif
+controller-gen: $(CONTROLLER_GEN)
+$(CONTROLLER_GEN): $(LOCALBIN)
+	test -s $(LOCALBIN)/controller-gen && $(LOCALBIN)/controller-gen --version | grep -q $(CONTROLLER_TOOLS_VERSION) || \
+	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
 
 .PHONY: setup-envtest
-setup-envtest:
-ifeq (, $(shell which setup-envtest))
-	@{ \
-	set -e ;\
-	TMP_DIR=$$(mktemp -d) ;\
-	cd $$TMP_DIR ;\
-	go mod init tmp ;\
-	go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest ;\
-	rm -rf $$TMP_DIR ;\
-	}
-SETUP_ENVTEST=~/go/bin/setup-envtest
-else
-SETUP_ENVTEST=$(shell which setup-envtest)
-endif
+setup-envtest: $(ENVTEST)
+$(ENVTEST): $(LOCALBIN)
+	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
