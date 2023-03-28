@@ -3,12 +3,7 @@ GITVERSION := $(shell git describe --long --all)
 BUILDDATE := $(shell date -Iseconds)
 VERSION := $(or ${VERSION},$(shell git describe --tags --exact-match 2> /dev/null || git symbolic-ref -q --short HEAD || git rev-parse --short HEAD))
 
-# Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
-ifeq (,$(shell go env GOBIN))
-GOBIN=$(shell go env GOPATH)/bin
-else
-GOBIN=$(shell go env GOBIN)
-endif
+GOBIN := $(or ${GOBIN},~/go/bin)
 
 all: firewall-controller
 
@@ -95,7 +90,7 @@ ifeq (, $(shell which setup-envtest))
 	go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest ;\
 	rm -rf $$TMP_DIR ;\
 	}
-SETUP_ENVTEST=$(GOBIN)/setup-envtest
+SETUP_ENVTEST=~/go/bin/setup-envtest
 else
 SETUP_ENVTEST=$(shell which setup-envtest)
 endif
