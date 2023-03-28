@@ -47,6 +47,8 @@ type FirewallReconciler struct {
 	Scheme    *runtime.Scheme
 	EnableIDS bool
 
+	Updater *updater.Updater
+
 	FirewallName string
 	Namespace    string
 
@@ -94,6 +96,7 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	log := r.Log.WithValues("firewall", req.NamespacedName)
 	requeue := firewallRequeue
+	recordFirewallEvent := updater.ShootRecorderNamespaceRewriter(r.Recorder)
 
 	var f firewallv2.Firewall
 	if err := r.SeedClient.Get(ctx, req.NamespacedName, &f); err != nil {
@@ -112,24 +115,11 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	log.Info("reconciling firewall-controller")
 
-	recordFirewallEvent := func(eventtype, reason, message string) {
-		// we want to have this event in the shoot cluster and not in the seed
-		// the seed namespace does not exist in the shoot, so we need to alter it to the shoot's namespace
-		copy := f.DeepCopy()
-		copy.Namespace = firewallv1.ClusterwideNetworkPolicyNamespace
-		r.Recorder.Event(copy, eventtype, reason, message)
-	}
-
-	err := updater.UpdateToSpecVersion(f, log, recordFirewallEvent)
-	if err != nil {
-		recordFirewallEvent(corev1.EventTypeWarning, "Self-Reconcilation", fmt.Sprintf("failed with error: %v", err))
-		return requeue, err
-	}
-
-	err = updater.UpdateNFTablesExporterToSpecVersion(ctx, f, log, recordFirewallEvent)
-	if err != nil {
-		recordFirewallEvent(corev1.EventTypeWarning, "Self-Reconcilation", fmt.Sprintf("failed with error: %v", err))
-		return requeue, err
+	if r.Updater != nil {
+		err := r.Updater.Run(ctx, &f)
+		if err != nil {
+			return requeue, err
+		}
 	}
 
 	// Update reconcilation interval
@@ -142,9 +132,9 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	var errors *multierror.Error
 	changed, err := network.ReconcileNetwork(f)
 	if changed && err == nil {
-		recordFirewallEvent(corev1.EventTypeNormal, "Network settings", "reconcilation succeeded (frr.conf)")
+		recordFirewallEvent(&f, corev1.EventTypeNormal, "Network settings", "reconcilation succeeded (frr.conf)")
 	} else if changed && err != nil {
-		recordFirewallEvent(corev1.EventTypeWarning, "Network settings", fmt.Sprintf("reconcilation failed (frr.conf): %v", err))
+		recordFirewallEvent(&f, corev1.EventTypeWarning, "Network settings", fmt.Sprintf("reconcilation failed (frr.conf): %v", err))
 	}
 	if err != nil {
 		errors = multierror.Append(errors, err)
@@ -161,11 +151,11 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	if errors.ErrorOrNil() != nil {
-		recordFirewallEvent(corev1.EventTypeWarning, "Error", multierror.Flatten(errors).Error())
+		recordFirewallEvent(&f, corev1.EventTypeWarning, "Error", multierror.Flatten(errors).Error())
 		return requeue, errors
 	}
 
-	recordFirewallEvent(corev1.EventTypeNormal, "Reconciled", "nftables rules and statistics successfully")
+	recordFirewallEvent(&f, corev1.EventTypeNormal, "Reconciled", "nftables rules and statistics successfully")
 	log.Info("reconciled firewall")
 
 	return requeue, nil

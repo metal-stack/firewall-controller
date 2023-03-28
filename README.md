@@ -9,10 +9,6 @@ This controller is typically setup through the [firewall-controller-manager](htt
 
 ## Architecture
 
-![Architecture](architecture.svg)
-
-## Configuration
-
 The firewall-controller is acting on 3 CRDs typically running in your cluster and a provider-managed cluster (in Gardener terms "shoot" and "seed").:
 
 | CRD                              | API                          | Resides In | Purpose                                                             |
@@ -22,6 +18,8 @@ The firewall-controller is acting on 3 CRDs typically running in your cluster an
 | `FirewallMonitor` defined by FCM | `firewall.metal-stack.io/v2` | Shoot      | Used as an overview for the user on the status of the firewall      |
 
 Note that `clusterwidenetworkpolicy` resources are namespaced and must reside in the `firewall` namespace, otherwise this controller does not reconcile them.
+
+![Architecture](architecture.drawio.svg)
 
 Example `ClusterwideNetworkPolicy`:
 
