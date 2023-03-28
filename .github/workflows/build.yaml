@@ -62,8 +62,6 @@ jobs:
 
     - name: Build
       run: |
-        echo ${GOROOT}
-        sudo unlink /usr/bin/go; sudo ln -s ${GOROOT}/bin/go /usr/bin/go; ls -lrt /usr/bin/go
         make
 
     - name: Push Docker image
@@ -106,8 +104,7 @@ jobs:
         sudo ip link add vrf42 type dummy
         sudo ip link add vlan42 type dummy
 
-        echo ${GOROOT}
-        sudo unlink /usr/bin/go; sudo ln -s ${GOROOT}/bin/go /usr/bin/go; ls -lrt /usr/bin/go
+        echo ${$GOPATH}
 
         sudo make setup-envtest
         sudo make test
