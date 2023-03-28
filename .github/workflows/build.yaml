@@ -62,7 +62,7 @@ jobs:
 
     - name: Build
       run: |
-        cp -f `which go` /usr/bin/go
+        export PATH=${GOROOT}/bin:$PATH
         make
 
     - name: Push Docker image
@@ -104,6 +104,6 @@ jobs:
         sudo modprobe dummy
         sudo ip link add vrf42 type dummy
         sudo ip link add vlan42 type dummy
-        cp -f `which go` /usr/bin/go
+        export PATH=${GOROOT}/bin:$PATH
         sudo make setup-envtest
         sudo make test
