@@ -13,7 +13,6 @@ import (
 	"github.com/metal-stack/firewall-controller/pkg/network"
 
 	"github.com/go-logr/logr"
-	"github.com/hashicorp/go-multierror"
 	"github.com/vishvananda/netlink"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -236,7 +235,7 @@ func (f *Firewall) validate(file string) error {
 }
 
 func (f *Firewall) reconcileIfaceAddresses() error {
-	var errs *multierror.Error
+	var errs []error
 
 	for _, n := range f.networkMap {
 		if n.NetworkType == nil || n.NetworkID == nil {
@@ -268,7 +267,7 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 		}
 		addrs, err := netlink.AddrList(link, netlink.FAMILY_V4)
 		if err != nil {
-			errs = multierror.Append(errs, err)
+			errs = append(errs, err)
 			continue
 		}
 
@@ -293,7 +292,7 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 			addr, _ := netlink.ParseAddr(fmt.Sprintf("%s/32", add))
 			err = netlink.AddrAdd(link, addr)
 			if err != nil {
-				errs = multierror.Append(errs, err)
+				errs = append(errs, err)
 			}
 		}
 
@@ -301,12 +300,12 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 			addr, _ := netlink.ParseAddr(fmt.Sprintf("%s/32", delete))
 			err = netlink.AddrDel(link, addr)
 			if err != nil {
-				errs = multierror.Append(errs, err)
+				errs = append(errs, err)
 			}
 		}
 	}
 
-	return errs.ErrorOrNil()
+	return errors.Join(errs...)
 }
 
 func (f *Firewall) reload() error {
