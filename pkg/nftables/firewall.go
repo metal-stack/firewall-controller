@@ -2,6 +2,7 @@ package nftables
 
 import (
 	"embed"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -235,7 +236,7 @@ func (f *Firewall) validate(file string) error {
 }
 
 func (f *Firewall) reconcileIfaceAddresses() error {
-	var errors *multierror.Error
+	var errs *multierror.Error
 
 	for _, n := range f.networkMap {
 		if n.NetworkType == nil || n.NetworkID == nil {
@@ -256,13 +257,18 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 			}
 		}
 
-		link, err := netlink.LinkByName(fmt.Sprintf("vlan%d", *n.Vrf))
+		linkName := fmt.Sprintf("vlan%d", *n.Vrf)
+		link, err := netlink.LinkByName(linkName)
 		if err != nil {
+			var notFound netlink.LinkNotFoundError
+			if errors.As(err, &notFound) {
+				f.log.Info("skipping link because not found", "name", linkName)
+			}
 			return fmt.Errorf("unable to detect link by name: %w", err)
 		}
 		addrs, err := netlink.AddrList(link, netlink.FAMILY_V4)
 		if err != nil {
-			errors = multierror.Append(errors, err)
+			errs = multierror.Append(errs, err)
 			continue
 		}
 
@@ -287,7 +293,7 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 			addr, _ := netlink.ParseAddr(fmt.Sprintf("%s/32", add))
 			err = netlink.AddrAdd(link, addr)
 			if err != nil {
-				errors = multierror.Append(errors, err)
+				errs = multierror.Append(errs, err)
 			}
 		}
 
@@ -295,12 +301,12 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 			addr, _ := netlink.ParseAddr(fmt.Sprintf("%s/32", delete))
 			err = netlink.AddrDel(link, addr)
 			if err != nil {
-				errors = multierror.Append(errors, err)
+				errs = multierror.Append(errs, err)
 			}
 		}
 	}
 
-	return errors.ErrorOrNil()
+	return errs.ErrorOrNil()
 }
 
 func (f *Firewall) reload() error {
