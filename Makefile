@@ -10,15 +10,6 @@ ENVTEST ?= $(LOCALBIN)/setup-envtest
 
 all: firewall-controller
 
-$(LOCALBIN):
-	mkdir -p $(LOCALBIN)
-
-test: generate fmt vet manifests setup-envtest
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -coverprofile cover.out
-
-clean:
-	rm -rf bin/*
-
 # Build firewall-controller binary
 firewall-controller: generate fmt vet
 	CGO_ENABLED=0 go build \
@@ -32,6 +23,15 @@ firewall-controller: generate fmt vet
 		-o bin/firewall-controller main.go
 	strip bin/firewall-controller
 	sha256sum bin/firewall-controller > bin/firewall-controller.sha256
+
+$(LOCALBIN):
+	mkdir -p $(LOCALBIN)
+
+test: generate fmt vet manifests setup-envtest
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -coverprofile cover.out
+
+clean:
+	rm -rf bin/*
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet manifests
