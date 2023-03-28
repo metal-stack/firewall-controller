@@ -66,14 +66,6 @@ vet:
 generate: controller-gen manifests
 	$(CONTROLLER_GEN) object paths="./..."
 
-kubebuilder:
-	set -ex \
- 		&& mkdir -p /tmp/kubebuilder ${KUBEBUILDER_ASSETS} \
- 		&& curl -L ${KUBEBUILDER_DOWNLOAD_URL}/v${KUBEBUILDER_VER}/kubebuilder_linux_amd64 -o ${KUBEBUILDER_ASSETS}/kubebuilder \
- 		&& chmod +x ${KUBEBUILDER_ASSETS}/kubebuilder \
- 		&& curl -sSLo /tmp/kubebuilder/envtest-bins.tar.gz "https://go.kubebuilder.io/test-tools/${K8S_VERSION}/linux/amd64" \
- 		&& tar -C ${KUBEBUILDER_ASSETS} --strip-components=2 -zvxf /tmp/kubebuilder/envtest-bins.tar.gz
-
 # find or download controller-gen
 # download controller-gen if necessary
 .PHONY: controller-gen
@@ -84,7 +76,7 @@ ifeq (, $(shell which controller-gen))
 	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
 	cd $$CONTROLLER_GEN_TMP_DIR ;\
 	go mod init tmp ;\
-	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.10.0 ;\
+	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.11.3 ;\
 	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
 	}
 CONTROLLER_GEN=$(GOBIN)/controller-gen
