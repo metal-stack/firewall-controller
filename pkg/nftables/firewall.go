@@ -254,7 +254,10 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 			}
 		}
 
-		link, _ := netlink.LinkByName(fmt.Sprintf("vlan%d", *n.Vrf))
+		link, err := netlink.LinkByName(fmt.Sprintf("vlan%d", *n.Vrf))
+		if err != nil {
+			return fmt.Errorf("unable to detect link by name: %w", err)
+		}
 		addrs, err := netlink.AddrList(link, netlink.FAMILY_V4)
 		if err != nil {
 			errors = multierror.Append(errors, err)
