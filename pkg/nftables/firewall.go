@@ -238,7 +238,7 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 	var errors *multierror.Error
 
 	for _, n := range f.networkMap {
-		if n.Networktype == nil || n.Networkid == nil {
+		if n.NetworkType == nil || n.NetworkID == nil {
 			continue
 		}
 
@@ -246,7 +246,7 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 			continue
 		}
 
-		configureIPs := getConfiguredIPs(*n.Networkid)
+		configureIPs := getConfiguredIPs(*n.NetworkID)
 
 		wantedIPs := sets.NewString(configureIPs...)
 		for _, i := range f.firewall.Spec.EgressRules {
