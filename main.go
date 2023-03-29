@@ -136,7 +136,7 @@ func main() {
 		l.Fatalw("unable to find seed namespace from kubeconfig", "error", err)
 	}
 
-	err = isFirewallV2GVKPresent(seedConfig)
+	err = isFirewallV2GVKPresent(seedConfig) // only works for shoots, not for seeds because extension-provider deploys crds immediately into seeds
 	if err != nil {
 		l.Info(err.Error())
 
@@ -153,7 +153,23 @@ func main() {
 
 	fw, err := findResponsibleFirewall(ctx, seedClient, firewallName, seedNamespace)
 	if err != nil {
-		l.Fatalw("unable to find firewall resource to be responsible for", "error", err)
+		l.Errorw("unable to find firewall resource to be responsible for", "error", err)
+
+		if kubeconfigPath != seedKubeconfigPath {
+			os.Exit(1)
+		}
+
+		l.Info("controller is potentially still running with shoot kubeconfig, attempting migration")
+
+		err = controllerMigration(ctx, setupLog, seedClient, firewallName, seedNamespace)
+		if err != nil {
+			l.Fatalw("unable to migrate firewall-controller", "error", err)
+		}
+
+		l.Info("controller migrated, restarting controller")
+		os.Exit(0)
+
+		return
 	}
 
 	l.Infow("found firewall resource to be responsible for", "firewall-name", firewallName, "namespace", seedNamespace)
