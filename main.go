@@ -155,7 +155,7 @@ func main() {
 	if err != nil {
 		l.Errorw("unable to find firewall resource to be responsible for", "error", err)
 
-		if kubeconfigPath != seedKubeconfigPath {
+		if kubeconfigPath == seedKubeconfigPath {
 			os.Exit(1)
 		}
 
