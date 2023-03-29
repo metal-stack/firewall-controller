@@ -10,6 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
 
+	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 )
 
@@ -27,7 +28,7 @@ func TestSnatRules(t *testing.T) {
 	underlayNet := mn.Underlay
 	tests := []struct {
 		name    string
-		input   firewallv1.FirewallSpec
+		input   firewallv2.Firewall
 		cwnps   firewallv1.ClusterwideNetworkPolicyList
 		want    nftablesRules
 		wantErr bool
@@ -35,37 +36,39 @@ func TestSnatRules(t *testing.T) {
 	}{
 		{
 			name: "snat for multiple networks",
-			input: firewallv1.FirewallSpec{
-				Data: firewallv1.Data{
-					FirewallNetworks: []firewallv1.FirewallNetwork{
-						{
-							Networkid:   &private,
-							Prefixes:    []string{"10.0.1.0/24"},
-							Ips:         []string{"10.0.1.1"},
-							Networktype: &privatePrimary,
-						},
-						{
-							Networkid:   &internet,
-							Prefixes:    []string{"185.0.0.0/24"},
-							Ips:         []string{"185.0.0.1"},
-							Vrf:         &vrf1,
-							Networktype: &external,
-						},
-						{
-							Networkid:   &mpls,
-							Prefixes:    []string{"100.0.0.0/24"},
-							Ips:         []string{"100.0.0.1"},
-							Vrf:         &vrf2,
-							Networktype: &external,
-						},
-					},
-					EgressRules: []firewallv1.EgressRuleSNAT{
+			input: firewallv2.Firewall{
+				Spec: firewallv2.FirewallSpec{
+					EgressRules: []firewallv2.EgressRuleSNAT{
 						{
 							NetworkID: "internet",
 							IPs:       []string{"185.0.0.2", "185.0.0.3"},
 						}, {
 							NetworkID: "mpls",
 							IPs:       []string{"100.0.0.2"},
+						},
+					},
+				},
+				Status: firewallv2.FirewallStatus{
+					FirewallNetworks: []firewallv2.FirewallNetwork{
+						{
+							NetworkID:   &private,
+							Prefixes:    []string{"10.0.1.0/24"},
+							IPs:         []string{"10.0.1.1"},
+							NetworkType: &privatePrimary,
+						},
+						{
+							NetworkID:   &internet,
+							Prefixes:    []string{"185.0.0.0/24"},
+							IPs:         []string{"185.0.0.1"},
+							Vrf:         &vrf1,
+							NetworkType: &external,
+						},
+						{
+							NetworkID:   &mpls,
+							Prefixes:    []string{"100.0.0.0/24"},
+							IPs:         []string{"100.0.0.1"},
+							Vrf:         &vrf2,
+							NetworkType: &external,
 						},
 					},
 				},
@@ -78,37 +81,39 @@ func TestSnatRules(t *testing.T) {
 		},
 		{
 			name: "escape DNS for dns-based CWNPs",
-			input: firewallv1.FirewallSpec{
-				Data: firewallv1.Data{
-					FirewallNetworks: []firewallv1.FirewallNetwork{
-						{
-							Networkid:   &private,
-							Prefixes:    []string{"10.0.1.0/24"},
-							Ips:         []string{"10.0.1.1"},
-							Networktype: &privatePrimary,
-						},
-						{
-							Networkid:   &internet,
-							Prefixes:    []string{"185.0.0.0/24"},
-							Ips:         []string{"185.0.0.1"},
-							Vrf:         &vrf1,
-							Networktype: &external,
-						},
-						{
-							Networkid:   &mpls,
-							Prefixes:    []string{"100.0.0.0/24"},
-							Ips:         []string{"100.0.0.1"},
-							Vrf:         &vrf2,
-							Networktype: &external,
-						},
-					},
-					EgressRules: []firewallv1.EgressRuleSNAT{
+			input: firewallv2.Firewall{
+				Spec: firewallv2.FirewallSpec{
+					EgressRules: []firewallv2.EgressRuleSNAT{
 						{
 							NetworkID: "internet",
 							IPs:       []string{"185.0.0.2", "185.0.0.3"},
 						}, {
 							NetworkID: "mpls",
 							IPs:       []string{"100.0.0.2"},
+						},
+					},
+				},
+				Status: firewallv2.FirewallStatus{
+					FirewallNetworks: []firewallv2.FirewallNetwork{
+						{
+							NetworkID:   &private,
+							Prefixes:    []string{"10.0.1.0/24"},
+							IPs:         []string{"10.0.1.1"},
+							NetworkType: &privatePrimary,
+						},
+						{
+							NetworkID:   &internet,
+							Prefixes:    []string{"185.0.0.0/24"},
+							IPs:         []string{"185.0.0.1"},
+							Vrf:         &vrf1,
+							NetworkType: &external,
+						},
+						{
+							NetworkID:   &mpls,
+							Prefixes:    []string{"100.0.0.0/24"},
+							IPs:         []string{"100.0.0.1"},
+							Vrf:         &vrf2,
+							NetworkType: &external,
 						},
 					},
 				},
@@ -152,18 +157,20 @@ func TestSnatRules(t *testing.T) {
 		},
 		{
 			name: "empty snat rules",
-			input: firewallv1.FirewallSpec{
-				Data: firewallv1.Data{
-					FirewallNetworks: []firewallv1.FirewallNetwork{
+			input: firewallv2.Firewall{
+				Spec: firewallv2.FirewallSpec{
+					EgressRules: []firewallv2.EgressRuleSNAT{},
+				},
+				Status: firewallv2.FirewallStatus{
+					FirewallNetworks: []firewallv2.FirewallNetwork{
 						{
-							Networkid:   &private,
+							NetworkID:   &private,
 							Prefixes:    []string{"10.0.1.0/24"},
-							Ips:         []string{"10.0.1.1"},
-							Networktype: &privatePrimary,
+							IPs:         []string{"10.0.1.1"},
+							NetworkType: &privatePrimary,
 							Vrf:         &vrf1,
 						},
 					},
-					EgressRules: []firewallv1.EgressRuleSNAT{},
 				},
 			},
 			cwnps: firewallv1.ClusterwideNetworkPolicyList{},
@@ -171,14 +178,14 @@ func TestSnatRules(t *testing.T) {
 		},
 		{
 			name: "no primary network",
-			input: firewallv1.FirewallSpec{
-				Data: firewallv1.Data{
-					FirewallNetworks: []firewallv1.FirewallNetwork{
+			input: firewallv2.Firewall{
+				Status: firewallv2.FirewallStatus{
+					FirewallNetworks: []firewallv2.FirewallNetwork{
 						{
-							Networkid:   &underlay,
+							NetworkID:   &underlay,
 							Prefixes:    []string{"10.0.1.0/24"},
-							Ips:         []string{"10.0.1.1"},
-							Networktype: &underlayNet,
+							IPs:         []string{"10.0.1.1"},
+							NetworkType: &underlayNet,
 						},
 					},
 				},
@@ -191,7 +198,7 @@ func TestSnatRules(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			f := NewFirewall(firewallv1.Firewall{Spec: tt.input}, &tt.cwnps, nil, nil, logr.Discard())
+			f := NewFirewall(firewallv2.Firewall{Spec: tt.input.Spec, Status: tt.input.Status}, &tt.cwnps, nil, nil, logr.Discard())
 			got, err := snatRules(f)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("snatRules() error = %v, wantErr %v", err, tt.err)

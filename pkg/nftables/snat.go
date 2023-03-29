@@ -33,7 +33,7 @@ func snatRules(f *Firewall) (nftablesRules, error) {
 			return nil, fmt.Errorf("network not found")
 		}
 
-		if n.Networktype == nil || *n.Networktype != mn.External {
+		if n.NetworkType == nil || *n.NetworkType != mn.External {
 			continue
 		}
 
