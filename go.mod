@@ -5,18 +5,18 @@ go 1.20
 require (
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/fatih/color v1.15.0
-	github.com/go-logr/logr v1.2.3
+	github.com/go-logr/logr v1.2.4
 	github.com/go-logr/zapr v1.2.3
 	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.5.9
 	github.com/google/nftables v0.1.0
 	github.com/ks2211/go-suricata v0.0.0-20200823200910-986ce1470707
-	github.com/metal-stack/firewall-controller-manager v0.1.3
+	github.com/metal-stack/firewall-controller-manager v0.1.5
 	github.com/metal-stack/metal-go v0.22.3
 	github.com/metal-stack/metal-lib v0.11.6
 	github.com/metal-stack/metal-networker v0.33.0
 	github.com/metal-stack/v v1.0.3
-	github.com/miekg/dns v1.1.52
+	github.com/miekg/dns v1.1.53
 	github.com/txn2/txeh v1.3.0
 	github.com/vishvananda/netlink v1.2.1-beta.2
 	go.uber.org/zap v1.24.0
@@ -25,7 +25,7 @@ require (
 	k8s.io/apimachinery v0.26.3
 	k8s.io/client-go v0.26.3
 	k8s.io/utils v0.0.0-20230313181309-38a27ef9d749
-	sigs.k8s.io/controller-runtime v0.14.5
+	sigs.k8s.io/controller-runtime v0.14.6
 )
 
 require (
