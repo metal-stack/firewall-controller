@@ -15,8 +15,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 )
 
 // ShootWatcherController watches service resources in the shoot cluster and
@@ -31,7 +29,6 @@ func (r *ShootWatcherController) SetupWithManager(mgr ctrl.Manager) error {
 	r.trigger = make(chan event.GenericEvent)
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&firewallv1.ClusterwideNetworkPolicy{}).
 		Watches(&source.Kind{Type: &corev1.Service{}}, handler.Funcs{
 			CreateFunc: func(ce event.CreateEvent, rli workqueue.RateLimitingInterface) {
 				r.Log.Info("requesting firewall reconcile due to service creation in shoot cluster")
