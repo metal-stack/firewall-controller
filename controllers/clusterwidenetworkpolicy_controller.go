@@ -92,7 +92,7 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ct
 		return ctrl.Result{}, err
 	}
 	nftablesFirewall := nftables.NewFirewall(f, &cwnps, &services, r.DnsProxy, r.Log)
-	if err := r.manageDNSProxy(ctx, r.Log, f, cwnps, nftablesFirewall); err != nil {
+	if err := r.manageDNSProxy(ctx, f, cwnps, nftablesFirewall); err != nil {
 		return ctrl.Result{}, err
 	}
 	updated, err := nftablesFirewall.Reconcile()
@@ -115,7 +115,7 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ct
 // manageDNSProxy start DNS proxy if toFQDN rules are present
 // if rules were deleted it will stop running DNS proxy
 func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
-	ctx context.Context, log logr.Logger, f *firewallv2.Firewall, cwnps firewallv1.ClusterwideNetworkPolicyList, nftablesFirewall *nftables.Firewall,
+	ctx context.Context, f *firewallv2.Firewall, cwnps firewallv1.ClusterwideNetworkPolicyList, nftablesFirewall *nftables.Firewall,
 ) (err error) {
 	// Skipping is needed for testing
 	if r.SkipDNS {
@@ -129,13 +129,13 @@ func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
 	}
 
 	if enableDNS && r.DnsProxy == nil {
-		log.Info("DNS Proxy is initialized")
+		r.Log.Info("DNS Proxy is initialized")
 		if r.DnsProxy, err = dns.NewDNSProxy(f.Spec.DNSPort, ctrl.Log.WithName("DNS proxy")); err != nil {
 			return fmt.Errorf("failed to init DNS proxy: %w", err)
 		}
 		go r.DnsProxy.Run(ctx)
 	} else if !enableDNS && r.DnsProxy != nil {
-		log.Info("DNS Proxy is stopped")
+		r.Log.Info("DNS Proxy is stopped")
 		r.DnsProxy.Stop()
 		r.DnsProxy = nil
 	}

@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/metal-stack/v"
 
@@ -32,6 +33,7 @@ import (
 
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/controllers"
+	"github.com/metal-stack/firewall-controller/pkg/updater"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -218,8 +220,7 @@ func main() {
 		l.Fatalw("unable to create shoot client", "error", err)
 	}
 
-	// FIXME: Comment back in
-	// updater := updater.New(ctrl.Log.WithName("updater"), shootMgr.GetEventRecorderFor("FirewallController"))
+	updater := updater.New(ctrl.Log.WithName("updater"), shootMgr.GetEventRecorderFor("FirewallController"))
 
 	// Firewall Reconciler
 	if err = (&controllers.FirewallReconciler{
@@ -230,7 +231,7 @@ func main() {
 		Namespace:    seedNamespace,
 		FirewallName: firewallName,
 		Recorder:     shootMgr.GetEventRecorderFor("FirewallController"),
-		// Updater:                updater,
+		Updater:      updater,
 	}).SetupWithManager(seedMgr); err != nil {
 		l.Fatalw("unable to create firewall controller", "error", err)
 	}
@@ -281,12 +282,12 @@ func main() {
 	// before starting up the controllers, we update components to the specified versions
 	// otherwise we can run into races where controllers start reconfiguring the firewall
 	// while an update is progressing
-	// ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	// defer cancel()
-	// err = updater.Run(ctx, fw)
-	// if err != nil {
-	// 	l.Fatalw("unable to update firewall components", "error", err)
-	// }
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	err = updater.Run(ctx, fw)
+	if err != nil {
+		l.Fatalw("unable to update firewall components", "error", err)
+	}
 
 	go func() {
 		l.Infow("starting shoot controller", "version", v.V)
