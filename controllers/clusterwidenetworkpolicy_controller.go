@@ -11,8 +11,8 @@ import (
 	"github.com/go-logr/logr"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -53,70 +53,69 @@ func (r *ClusterwideNetworkPolicyReconciler) SetupWithManager(mgr ctrl.Manager) 
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&firewallv1.ClusterwideNetworkPolicy{}).
+		Watches(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestForObject{}).
 		Watches(&source.Channel{Source: scheduleChan}, &handler.EnqueueRequestForObject{}).
 		Complete(r)
 }
 
-// Reconcile ClusterwideNetworkPolicy and creates nftables rules accordingly
+// Reconcile ClusterwideNetworkPolicy and creates nftables rules accordingly.
+// - services of type load balancer
+//
 // +kubebuilder:rbac:groups=metal-stack.io,resources=clusterwidenetworkpolicies,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=metal-stack.io,resources=clusterwidenetworkpolicies/status,verbs=get;update;patch
-func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := r.Log.WithValues("cwnp", req.Name)
 
+func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ctrl.Request) (ctrl.Result, error) {
 	var cwnps firewallv1.ClusterwideNetworkPolicyList
 	if err := r.ShootClient.List(ctx, &cwnps, client.InNamespace(firewallv1.ClusterwideNetworkPolicyNamespace)); err != nil {
-		return done, err
+		return ctrl.Result{}, err
 	}
 
-	return r.reconcileRules(ctx, log, cwnps)
-}
-
-func (r *ClusterwideNetworkPolicyReconciler) reconcileRules(ctx context.Context, log logr.Logger, cwnps firewallv1.ClusterwideNetworkPolicyList) (ctrl.Result, error) {
-	var f firewallv2.Firewall
-	nn := types.NamespacedName{
-		Name:      r.FirewallName,
-		Namespace: r.SeedNamespace,
+	f := &firewallv2.Firewall{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      r.FirewallName,
+			Namespace: r.SeedNamespace,
+		},
 	}
-	if err := r.SeedClient.Get(ctx, nn, &f); err != nil {
-		return done, client.IgnoreNotFound(err)
+	if err := r.SeedClient.Get(ctx, client.ObjectKeyFromObject(f), f); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	// Set CWNP requeue interval
 	if interval, err := time.ParseDuration(f.Spec.Interval); err == nil {
 		r.Interval = interval
 	} else {
-		return done, fmt.Errorf("failed to parse Interval field: %w", err)
+		return ctrl.Result{}, fmt.Errorf("failed to parse Interval field: %w", err)
 	}
 
 	var services corev1.ServiceList
 	if err := r.ShootClient.List(ctx, &services); err != nil {
-		return done, err
+		return ctrl.Result{}, err
 	}
-	nftablesFirewall := nftables.NewFirewall(f, &cwnps, &services, r.DnsProxy, log)
-	if err := r.manageDNSProxy(ctx, log, f, cwnps, nftablesFirewall); err != nil {
-		return done, err
+	nftablesFirewall := nftables.NewFirewall(f, &cwnps, &services, r.DnsProxy, r.Log)
+	if err := r.manageDNSProxy(ctx, r.Log, f, cwnps, nftablesFirewall); err != nil {
+		return ctrl.Result{}, err
 	}
 	updated, err := nftablesFirewall.Reconcile()
 	if err != nil {
-		return done, err
+		return ctrl.Result{}, err
 	}
 
 	if updated {
 		for _, i := range cwnps.Items {
 			o := i
 			if err := r.ShootClient.Status().Update(ctx, &o); err != nil {
-				return done, fmt.Errorf("failed to updated CWNP status: %w", err)
+				return ctrl.Result{}, fmt.Errorf("failed to updated CWNP status: %w", err)
 			}
 		}
 	}
 
-	return done, nil
+	return ctrl.Result{}, nil
 }
 
 // manageDNSProxy start DNS proxy if toFQDN rules are present
 // if rules were deleted it will stop running DNS proxy
 func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
-	ctx context.Context, log logr.Logger, f firewallv2.Firewall, cwnps firewallv1.ClusterwideNetworkPolicyList, nftablesFirewall *nftables.Firewall,
+	ctx context.Context, log logr.Logger, f *firewallv2.Firewall, cwnps firewallv1.ClusterwideNetworkPolicyList, nftablesFirewall *nftables.Firewall,
 ) (err error) {
 	// Skipping is needed for testing
 	if r.SkipDNS {

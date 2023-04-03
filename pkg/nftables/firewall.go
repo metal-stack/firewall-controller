@@ -45,7 +45,7 @@ type FQDNCache interface {
 type Firewall struct {
 	log logr.Logger
 
-	firewall                   firewallv2.Firewall
+	firewall                   *firewallv2.Firewall
 	clusterwideNetworkPolicies *firewallv1.ClusterwideNetworkPolicyList
 	services                   *corev1.ServiceList
 
@@ -69,12 +69,12 @@ type forwardingRules struct {
 
 // NewDefaultFirewall creates a new default nftables firewall.
 func NewDefaultFirewall() *Firewall {
-	return NewFirewall(firewallv2.Firewall{}, &firewallv1.ClusterwideNetworkPolicyList{}, &corev1.ServiceList{}, nil, logr.Discard())
+	return NewFirewall(&firewallv2.Firewall{}, &firewallv1.ClusterwideNetworkPolicyList{}, &corev1.ServiceList{}, nil, logr.Discard())
 }
 
 // NewFirewall creates a new nftables firewall object based on k8s entities
 func NewFirewall(
-	firewall firewallv2.Firewall,
+	firewall *firewallv2.Firewall,
 	cwnps *firewallv1.ClusterwideNetworkPolicyList,
 	svcs *corev1.ServiceList,
 	cache FQDNCache,

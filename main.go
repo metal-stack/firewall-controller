@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/metal-stack/v"
 
@@ -33,7 +32,6 @@ import (
 
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/controllers"
-	"github.com/metal-stack/firewall-controller/pkg/updater"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -220,37 +218,28 @@ func main() {
 		l.Fatalw("unable to create shoot client", "error", err)
 	}
 
-	updater := updater.New(ctrl.Log.WithName("updater"), shootMgr.GetEventRecorderFor("FirewallController"))
-
-	// Shoot Watcher Controller
-	shootWatcherController := &controllers.ShootWatcherController{
-		Log: ctrl.Log.WithName("controllers").WithName("ShootWatcherController"),
-	}
-	if err = shootWatcherController.SetupWithManager(shootMgr); err != nil {
-		l.Fatalw("unable to create shoot watcher controller", "error", err)
-	}
+	// FIXME: Comment back in
+	// updater := updater.New(ctrl.Log.WithName("updater"), shootMgr.GetEventRecorderFor("FirewallController"))
 
 	// Firewall Reconciler
 	if err = (&controllers.FirewallReconciler{
-		SeedClient:             seedMgr.GetClient(),
-		ShootClient:            shootClient,
-		Log:                    ctrl.Log.WithName("controllers").WithName("Firewall"),
-		Scheme:                 scheme,
-		EnableIDS:              enableIDS,
-		Namespace:              seedNamespace,
-		FirewallName:           firewallName,
-		Recorder:               shootMgr.GetEventRecorderFor("FirewallController"),
-		ShootWatcherController: shootWatcherController,
-		Updater:                updater,
+		SeedClient:   seedMgr.GetClient(),
+		ShootClient:  shootClient,
+		Log:          ctrl.Log.WithName("controllers").WithName("Firewall"),
+		Scheme:       scheme,
+		Namespace:    seedNamespace,
+		FirewallName: firewallName,
+		Recorder:     shootMgr.GetEventRecorderFor("FirewallController"),
+		// Updater:                updater,
 	}).SetupWithManager(seedMgr); err != nil {
 		l.Fatalw("unable to create firewall controller", "error", err)
 	}
 
 	// Droptailer Reconciler
 	if err = (&controllers.DroptailerReconciler{
-		Client:    shootMgr.GetClient(),
-		Log:       ctrl.Log.WithName("controllers").WithName("Droptailer"),
-		HostsFile: hostsFile,
+		ShootClient: shootMgr.GetClient(),
+		Log:         ctrl.Log.WithName("controllers").WithName("Droptailer"),
+		HostsFile:   hostsFile,
 	}).SetupWithManager(shootMgr); err != nil {
 		l.Fatalw("unable to create droptailer controller", "error", err)
 	}
@@ -274,6 +263,17 @@ func main() {
 		l.Fatalw("unable to create clusterwidenetworkpolicyvalidation controller", "error", err)
 	}
 
+	if err = (&controllers.FirewallMonitorReconciler{
+		ShootClient:  shootMgr.GetClient(),
+		Log:          ctrl.Log.WithName("controllers").WithName("FirewallMonitorReconciler"),
+		Recorder:     shootMgr.GetEventRecorderFor("FirewallMonitorController"),
+		IDSEnabled:   enableIDS,
+		FirewallName: firewallName,
+		Namespace:    firewallv2.FirewallShootNamespace,
+	}).SetupWithManager(shootMgr); err != nil {
+		l.Fatalw("unable to create firewall monitor controller", "error", err)
+	}
+
 	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting firewall-controller", "version", v.V)
@@ -281,12 +281,12 @@ func main() {
 	// before starting up the controllers, we update components to the specified versions
 	// otherwise we can run into races where controllers start reconfiguring the firewall
 	// while an update is progressing
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
-	err = updater.Run(ctx, fw)
-	if err != nil {
-		l.Fatalw("unable to update firewall components", "error", err)
-	}
+	// ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	// defer cancel()
+	// err = updater.Run(ctx, fw)
+	// if err != nil {
+	// 	l.Fatalw("unable to update firewall components", "error", err)
+	// }
 
 	go func() {
 		l.Infow("starting shoot controller", "version", v.V)

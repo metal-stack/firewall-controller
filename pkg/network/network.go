@@ -33,7 +33,7 @@ func GetLogger() *zap.SugaredLogger {
 }
 
 // GetNewNetworks returns updated network models
-func GetNewNetworks(f firewallv2.Firewall, oldNetworks []*models.V1MachineNetwork) []*models.V1MachineNetwork {
+func GetNewNetworks(f *firewallv2.Firewall, oldNetworks []*models.V1MachineNetwork) []*models.V1MachineNetwork {
 	networkMap := map[string]firewallv2.FirewallNetwork{}
 	for _, n := range f.Status.FirewallNetworks {
 		if n.NetworkType == nil {
@@ -58,7 +58,7 @@ func GetNewNetworks(f firewallv2.Firewall, oldNetworks []*models.V1MachineNetwor
 
 // ReconcileNetwork reconciles the network settings for a firewall
 // Changes both the FRR-Configuration and Nftable rules when network prefixes or FRR template changes
-func ReconcileNetwork(f firewallv2.Firewall) (changed bool, err error) {
+func ReconcileNetwork(f *firewallv2.Firewall) (changed bool, err error) {
 	tmpFile, err := tmpFile(frrConfig)
 	if err != nil {
 		return false, fmt.Errorf("error during network reconcilation %v: %w", tmpFile, err)

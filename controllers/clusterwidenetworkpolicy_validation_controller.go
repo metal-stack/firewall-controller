@@ -28,7 +28,7 @@ type ClusterwideNetworkPolicyValidationReconciler struct {
 func (r *ClusterwideNetworkPolicyValidationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var clusterNP firewallv1.ClusterwideNetworkPolicy
 	if err := r.ShootClient.Get(ctx, req.NamespacedName, &clusterNP); err != nil {
-		return done, client.IgnoreNotFound(err)
+		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	// if network policy does not belong to the namespace where clusterwide network policies are stored:
@@ -40,7 +40,7 @@ func (r *ClusterwideNetworkPolicyValidationReconciler) Reconcile(ctx context.Con
 			"Unapplicable",
 			fmt.Sprintf("cluster wide network policies must be defined in namespace %s otherwise they won't take effect", firewallv1.ClusterwideNetworkPolicyNamespace),
 		)
-		return done, nil
+		return ctrl.Result{}, nil
 	}
 
 	err := clusterNP.Spec.Validate()
@@ -51,10 +51,10 @@ func (r *ClusterwideNetworkPolicyValidationReconciler) Reconcile(ctx context.Con
 			"Unapplicable",
 			fmt.Sprintf("cluster wide network policy is not valid: %v", err),
 		)
-		return done, nil
+		return ctrl.Result{}, nil
 	}
 
-	return done, nil
+	return ctrl.Result{}, nil
 }
 
 // SetupWithManager configures this controller to watch for ClusterwideNetworkPolicy CRD

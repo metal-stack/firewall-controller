@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"strings"
 	"time"
 
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -16,9 +14,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/go-logr/logr"
-	v1 "github.com/metal-stack/firewall-controller/api/v1"
+	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/txn2/txeh"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -29,109 +30,20 @@ const (
 	secretKeyCertificateKey = "droptailer-client.key" //nolint:gosec
 	secretKeyCaCertificate  = "ca.crt"                //nolint:gosec
 	defaultCertificateBase  = "/etc/droptailer-client"
-
-	droptailerReconcileInterval = time.Second * 10
 )
 
 // DroptailerReconciler reconciles a Droptailer object
 type DroptailerReconciler struct {
-	client.Client
-	Log       logr.Logger
+	ShootClient client.Client
+
+	Log logr.Logger
+
 	HostsFile string
+
 	// FIXME is not filled properly
 	certificateBase string
 	oldPodIP        string
 	hosts           *txeh.Hosts
-}
-
-// Reconcile droptailer with certificate and droptailer-server ip from pod inspection
-// +kubebuilder:rbac:groups=metal-stack.io,resources=Droptailers,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=metal-stack.io,resources=Droptailers/status,verbs=get;update;patch
-func (r *DroptailerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := r.Log.WithValues("Droptailer", req.NamespacedName)
-	requeue := ctrl.Result{
-		RequeueAfter: droptailerReconcileInterval,
-	}
-
-	var secrets corev1.SecretList
-	if err := r.List(ctx, &secrets, &client.ListOptions{Namespace: v1.ClusterwideNetworkPolicyNamespace}); err != nil {
-		// we'll ignore not-found errors, since they can't be fixed by an immediate
-		// requeue (we'll need to wait for a new notification), and we can get them
-		// on deleted requests.
-		return ctrl.Result{}, client.IgnoreNotFound(err)
-	}
-
-	var droptailerSecret corev1.Secret
-	secretFound := false
-	for _, s := range secrets.Items {
-		if s.Name == secretName {
-			droptailerSecret = s
-			secretFound = true
-			break
-		}
-	}
-	if !secretFound {
-		log.Info("droptailer-secret not found")
-		return ctrl.Result{}, nil
-	}
-
-	log.Info("droptailer-secret", "name", droptailerSecret.Name)
-	err := r.writeSecret(droptailerSecret)
-	if err != nil {
-		return requeue, err
-	}
-
-	var pods corev1.PodList
-	if err := r.List(ctx, &pods, &client.ListOptions{Namespace: v1.ClusterwideNetworkPolicyNamespace}); err != nil {
-		return ctrl.Result{}, fmt.Errorf("no pod running in namespace %v", v1.ClusterwideNetworkPolicyNamespace)
-	}
-
-	var droptailerPod *corev1.Pod
-	for _, p := range pods.Items {
-		p := p
-		if strings.HasPrefix(p.Name, "droptailer") && p.Status.Phase == corev1.PodRunning {
-			droptailerPod = &p
-			break
-		}
-	}
-	if droptailerPod == nil {
-		return ctrl.Result{}, fmt.Errorf("droptailer server pod not found")
-	}
-
-	podIP := droptailerPod.Status.PodIP
-	if podIP != "" && r.oldPodIP != podIP {
-		log.Info("podIP changed, update /etc/hosts", "old", r.oldPodIP, "new", podIP)
-		r.hosts.RemoveHost("droptailer")
-		r.hosts.AddHost(podIP, "droptailer")
-		err := r.hosts.Save()
-		if err != nil {
-			log.Error(err, "could not write droptailer hosts entry")
-			return requeue, fmt.Errorf("could not write droptailer hosts entry:%w", err)
-		}
-		r.oldPodIP = podIP
-	}
-
-	return ctrl.Result{}, nil
-}
-
-func (r *DroptailerReconciler) writeSecret(secret corev1.Secret) error {
-	keys := []string{secretKeyCaCertificate, secretKeyCertificate, secretKeyCertificateKey}
-	certificateBase := defaultCertificateBase
-	if r.certificateBase != "" {
-		certificateBase = r.certificateBase
-	}
-	for _, k := range keys {
-		v, ok := secret.Data[k]
-		if !ok {
-			return fmt.Errorf("could not find key in secret key:%s", k)
-		}
-		f := path.Join(certificateBase, k)
-		err := os.WriteFile(f, v, 0600)
-		if err != nil {
-			return fmt.Errorf("could not write secret to certificate base folder:%w", err)
-		}
-	}
-	return nil
 }
 
 // SetupWithManager configure this controller with required defaults
@@ -161,20 +73,126 @@ func (r *DroptailerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if certificateBase == "" {
 		r.certificateBase = certificateBase
 	}
-	namespacePredicate := predicate.NewPredicateFuncs(func(obj client.Object) bool {
-		return obj.GetNamespace() == v1.ClusterwideNetworkPolicyNamespace
-	})
-	triggerDroptailerReconcilation := handler.EnqueueRequestsFromMapFunc(func(a client.Object) []reconcile.Request {
-		return []reconcile.Request{
-			{NamespacedName: types.NamespacedName{
-				Name:      "trigger-reconcilation-for-droptailer",
-				Namespace: v1.ClusterwideNetworkPolicyNamespace,
-			}},
+
+	droptailerPredicate := predicate.NewPredicateFuncs(func(obj client.Object) bool {
+		if obj.GetNamespace() != firewallv1.ClusterwideNetworkPolicyNamespace {
+			return false
 		}
+
+		return obj.GetLabels()["app"] == "droptailer"
+	})
+
+	droptailerSecretPredicate := predicate.NewPredicateFuncs(func(obj client.Object) bool {
+		if obj.GetNamespace() != firewallv1.ClusterwideNetworkPolicyNamespace {
+			return false
+		}
+
+		return obj.GetName() == secretName
 	})
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&corev1.Pod{}, builder.WithPredicates(namespacePredicate)).
-		Watches(&source.Kind{Type: &corev1.Secret{}}, triggerDroptailerReconcilation).
+		For(&corev1.Pod{}, builder.WithPredicates(droptailerPredicate)).
+		Watches(&source.Kind{Type: &corev1.Secret{}}, handler.EnqueueRequestsFromMapFunc(func(_ client.Object) []reconcile.Request {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+
+			pods := &corev1.PodList{}
+			if err := r.ShootClient.List(ctx, pods, client.InNamespace(firewallv1.ClusterwideNetworkPolicyNamespace), client.HasLabels{
+				"app=droptailer",
+			}); err != nil {
+				return nil
+			}
+
+			if len(pods.Items) != 1 {
+				return nil
+			}
+
+			pod := pods.Items[0]
+
+			if !pod.GetDeletionTimestamp().IsZero() {
+				return nil
+			}
+
+			r.Log.Info("triggering reconcile because droptailer secret was changed and droptailer pod is present")
+
+			return []reconcile.Request{ctrl.Request{NamespacedName: types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}}}
+		}), builder.WithPredicates(droptailerSecretPredicate)).
 		Complete(r)
+}
+
+// Reconcile droptailer with certificate and droptailer-server ip from pod inspection
+// +kubebuilder:rbac:groups=metal-stack.io,resources=Droptailers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=metal-stack.io,resources=Droptailers/status,verbs=get;update;patch
+func (r *DroptailerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	pod := &corev1.Pod{}
+	if err := r.ShootClient.Get(ctx, req.NamespacedName, pod); err != nil {
+		if apierrors.IsNotFound(err) {
+			r.Log.Info("resource no longer exists")
+			return ctrl.Result{}, nil
+		}
+
+		return ctrl.Result{}, fmt.Errorf("error retrieving resource: %w", err)
+	}
+
+	if !pod.GetDeletionTimestamp().IsZero() {
+		r.Log.Info("droptailer pod is being deleted")
+		return ctrl.Result{}, nil
+	}
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
+		},
+	}
+	if err := r.ShootClient.Get(ctx, client.ObjectKeyFromObject(secret), secret); err != nil {
+		if apierrors.IsNotFound(err) {
+			r.Log.Info("droptailer-secret not found")
+			return ctrl.Result{}, nil
+		}
+
+		return ctrl.Result{}, err
+	}
+
+	err := r.writeSecret(secret)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	podIP := pod.Status.PodIP
+	if podIP != "" && r.oldPodIP != podIP {
+		r.Log.Info("podIP changed, update /etc/hosts", "old", r.oldPodIP, "new", podIP)
+		r.hosts.RemoveHost("droptailer")
+		r.hosts.AddHost(podIP, "droptailer")
+		err := r.hosts.Save()
+		if err != nil {
+			r.Log.Error(err, "could not write droptailer hosts entry")
+			return ctrl.Result{}, fmt.Errorf("could not write droptailer hosts entry:%w", err)
+		}
+		r.oldPodIP = podIP
+	}
+
+	r.Log.Info("droptailer successfully reconciled")
+
+	return ctrl.Result{}, nil
+}
+
+func (r *DroptailerReconciler) writeSecret(secret *corev1.Secret) error {
+	keys := []string{secretKeyCaCertificate, secretKeyCertificate, secretKeyCertificateKey}
+	certificateBase := defaultCertificateBase
+	if r.certificateBase != "" {
+		certificateBase = r.certificateBase
+	}
+	for _, k := range keys {
+		v, ok := secret.Data[k]
+		if !ok {
+			return fmt.Errorf("could not find key in secret key:%s", k)
+		}
+		f := path.Join(certificateBase, k)
+		err := os.WriteFile(f, v, 0600)
+		if err != nil {
+			return fmt.Errorf("could not write secret to certificate base folder:%w", err)
+		}
+	}
+	return nil
 }

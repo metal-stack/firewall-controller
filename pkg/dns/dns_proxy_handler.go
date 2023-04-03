@@ -54,8 +54,6 @@ func (h *DNSProxyHandler) ServeDNS(w dnsgo.ResponseWriter, request *dnsgo.Msg) {
 		if err != nil {
 			scopedLog.Error(err, "failed to send response")
 		}
-
-		scopedLog.Info("finished processing request")
 	}()
 
 	scopedLog.Info("started processing request")
@@ -113,8 +111,6 @@ func getUpdateCacheFunc(log logr.Logger, cache *DNSCache) func(lookupTime time.T
 			scopedLog := log.WithValues(reqIdLogField, response.Id)
 			if err := cache.Update(lookupTime, response); err != nil {
 				scopedLog.Error(err, "failed to update DNS cache")
-			} else {
-				scopedLog.Info("cache updated")
 			}
 		}
 	}
