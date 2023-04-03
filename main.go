@@ -282,9 +282,9 @@ func main() {
 	// before starting up the controllers, we update components to the specified versions
 	// otherwise we can run into races where controllers start reconfiguring the firewall
 	// while an update is progressing
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	updaterCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
-	err = updater.Run(ctx, fw)
+	err = updater.Run(updaterCtx, fw)
 	if err != nil {
 		l.Fatalw("unable to update firewall components", "error", err)
 	}
