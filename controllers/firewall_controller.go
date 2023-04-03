@@ -102,13 +102,6 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		}
 	}
 
-	requeue := ctrl.Result{
-		RequeueAfter: reconcilationInterval,
-	}
-	if i, err := time.ParseDuration(f.Spec.Interval); err == nil {
-		requeue.RequeueAfter = i
-	}
-
 	r.Log.Info("reconciling network settings")
 
 	var errs []error
@@ -129,14 +122,14 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	if len(errs) > 0 {
 		r.recordFirewallEvent(f, corev1.EventTypeWarning, "Error", errors.Join(errs...).Error())
-		return requeue, errors.Join(errs...)
+		return ctrl.Result{}, errors.Join(errs...)
 	}
 
 	r.recordFirewallEvent(f, corev1.EventTypeNormal, "Reconciled", "nftables rules and statistics successfully")
 
 	r.Log.Info("successfully reconciled firewall")
 
-	return requeue, nil
+	return ctrl.Result{}, nil
 }
 
 type firewallService struct {
