@@ -150,6 +150,10 @@ func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
 	return nil
 }
 
+// TODO: the interval can change over the lifetime of a firewall resource
+// in case the interval has changed nothing happens at the moment
+// we need to implement the recreation of the ticker
+//
 // IMPORTANT!
 // We shouldn't implement reconciliation loop by assigning RequeueAfter in result like it's done in Firewall controller.
 // Here's the case when it would go bad:
