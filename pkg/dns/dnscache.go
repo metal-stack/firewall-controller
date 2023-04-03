@@ -332,7 +332,6 @@ func (c *DNSCache) updateIPEntry(qname string, ips []net.IP, expirationTime time
 		"ip_len", len(ips),
 		"dtype", dtype.Name,
 	)
-	scopedLog.Info("creating new IP entry")
 
 	c.Lock()
 	defer c.Unlock()

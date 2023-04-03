@@ -75,6 +75,23 @@ func Test_GetSetsForFQDN(t *testing.T) {
 			},
 		},
 		{
+			name: "pattern from integration testing",
+			fqdnToEntry: map[string]cacheEntry{
+				"www.freechess.org.": {
+					ipv4: &ipEntry{
+						setName: "testv4",
+					},
+					ipv6: &ipEntry{
+						setName: "testv6",
+					},
+				},
+			},
+			expectedSets: []string{"testv4", "testv6"},
+			fqdnSelector: firewallv1.FQDNSelector{
+				MatchPattern: "ww*.freechess.org",
+			},
+		},
+		{
 			name:         "restore sets",
 			fqdnToEntry:  map[string]cacheEntry{},
 			fqdnSelector: firewallv1.FQDNSelector{},

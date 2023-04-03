@@ -11,9 +11,8 @@ import (
 	"github.com/go-logr/logr"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/util/workqueue"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -36,8 +35,6 @@ type ClusterwideNetworkPolicyReconciler struct {
 
 	Log logr.Logger
 
-	ExternalFirewallTrigger chan event.GenericEvent
-
 	Interval time.Duration
 	DnsProxy *dns.DNSProxy
 	SkipDNS  bool
@@ -49,89 +46,76 @@ func (r *ClusterwideNetworkPolicyReconciler) SetupWithManager(mgr ctrl.Manager) 
 		r.Interval = reconcilationInterval
 	}
 
-	if err := mgr.Add(r.getReconciliationTicker(r.ExternalFirewallTrigger)); err != nil {
+	scheduleChan := make(chan event.GenericEvent)
+	if err := mgr.Add(r.getReconciliationTicker(scheduleChan)); err != nil {
 		return fmt.Errorf("failed to add runnable to manager: %w", err)
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&firewallv1.ClusterwideNetworkPolicy{}).
-		Watches(&source.Kind{Type: &corev1.Service{}}, handler.Funcs{
-			CreateFunc: func(ce event.CreateEvent, rli workqueue.RateLimitingInterface) {
-				r.Log.Info("requesting firewall reconcile due to service creation in shoot cluster")
-				r.ExternalFirewallTrigger <- event.GenericEvent{}
-			},
-			UpdateFunc: func(ue event.UpdateEvent, rli workqueue.RateLimitingInterface) {
-				r.Log.Info("requesting firewall reconcile due to service update in shoot cluster")
-				r.ExternalFirewallTrigger <- event.GenericEvent{}
-			},
-			DeleteFunc: func(de event.DeleteEvent, rli workqueue.RateLimitingInterface) {
-				r.Log.Info("requesting firewall reconcile due to service deletion in shoot cluster")
-				r.ExternalFirewallTrigger <- event.GenericEvent{}
-			},
-		}).
+		Watches(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestForObject{}).
+		Watches(&source.Channel{Source: scheduleChan}, &handler.EnqueueRequestForObject{}).
 		Complete(r)
 }
 
-// Reconcile ClusterwideNetworkPolicy and creates nftables rules accordingly
+// Reconcile ClusterwideNetworkPolicy and creates nftables rules accordingly.
+// - services of type load balancer
+//
 // +kubebuilder:rbac:groups=metal-stack.io,resources=clusterwidenetworkpolicies,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=metal-stack.io,resources=clusterwidenetworkpolicies/status,verbs=get;update;patch
-func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := r.Log.WithValues("cwnp", req.Name)
 
+func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ctrl.Request) (ctrl.Result, error) {
 	var cwnps firewallv1.ClusterwideNetworkPolicyList
 	if err := r.ShootClient.List(ctx, &cwnps, client.InNamespace(firewallv1.ClusterwideNetworkPolicyNamespace)); err != nil {
-		return done, err
+		return ctrl.Result{}, err
 	}
 
-	return r.reconcileRules(ctx, log, cwnps)
-}
-
-func (r *ClusterwideNetworkPolicyReconciler) reconcileRules(ctx context.Context, log logr.Logger, cwnps firewallv1.ClusterwideNetworkPolicyList) (ctrl.Result, error) {
-	var f firewallv2.Firewall
-	nn := types.NamespacedName{
-		Name:      r.FirewallName,
-		Namespace: r.SeedNamespace,
+	f := &firewallv2.Firewall{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      r.FirewallName,
+			Namespace: r.SeedNamespace,
+		},
 	}
-	if err := r.SeedClient.Get(ctx, nn, &f); err != nil {
-		return done, client.IgnoreNotFound(err)
+	if err := r.SeedClient.Get(ctx, client.ObjectKeyFromObject(f), f); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	// Set CWNP requeue interval
 	if interval, err := time.ParseDuration(f.Spec.Interval); err == nil {
 		r.Interval = interval
 	} else {
-		return done, fmt.Errorf("failed to parse Interval field: %w", err)
+		return ctrl.Result{}, fmt.Errorf("failed to parse Interval field: %w", err)
 	}
 
 	var services corev1.ServiceList
 	if err := r.ShootClient.List(ctx, &services); err != nil {
-		return done, err
+		return ctrl.Result{}, err
 	}
-	nftablesFirewall := nftables.NewFirewall(f, &cwnps, &services, r.DnsProxy, log)
-	if err := r.manageDNSProxy(ctx, log, f, cwnps, nftablesFirewall); err != nil {
-		return done, err
+	nftablesFirewall := nftables.NewFirewall(f, &cwnps, &services, r.DnsProxy, r.Log)
+	if err := r.manageDNSProxy(ctx, f, cwnps, nftablesFirewall); err != nil {
+		return ctrl.Result{}, err
 	}
 	updated, err := nftablesFirewall.Reconcile()
 	if err != nil {
-		return done, err
+		return ctrl.Result{}, err
 	}
 
 	if updated {
 		for _, i := range cwnps.Items {
 			o := i
 			if err := r.ShootClient.Status().Update(ctx, &o); err != nil {
-				return done, fmt.Errorf("failed to updated CWNP status: %w", err)
+				return ctrl.Result{}, fmt.Errorf("failed to updated CWNP status: %w", err)
 			}
 		}
 	}
 
-	return done, nil
+	return ctrl.Result{}, nil
 }
 
 // manageDNSProxy start DNS proxy if toFQDN rules are present
 // if rules were deleted it will stop running DNS proxy
 func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
-	ctx context.Context, log logr.Logger, f firewallv2.Firewall, cwnps firewallv1.ClusterwideNetworkPolicyList, nftablesFirewall *nftables.Firewall,
+	ctx context.Context, f *firewallv2.Firewall, cwnps firewallv1.ClusterwideNetworkPolicyList, nftablesFirewall *nftables.Firewall,
 ) (err error) {
 	// Skipping is needed for testing
 	if r.SkipDNS {
@@ -145,13 +129,13 @@ func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
 	}
 
 	if enableDNS && r.DnsProxy == nil {
-		log.Info("DNS Proxy is initialized")
+		r.Log.Info("DNS Proxy is initialized")
 		if r.DnsProxy, err = dns.NewDNSProxy(f.Spec.DNSPort, ctrl.Log.WithName("DNS proxy")); err != nil {
 			return fmt.Errorf("failed to init DNS proxy: %w", err)
 		}
 		go r.DnsProxy.Run(ctx)
 	} else if !enableDNS && r.DnsProxy != nil {
-		log.Info("DNS Proxy is stopped")
+		r.Log.Info("DNS Proxy is stopped")
 		r.DnsProxy.Stop()
 		r.DnsProxy = nil
 	}
@@ -166,6 +150,10 @@ func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
 	return nil
 }
 
+// TODO: the interval can change over the lifetime of a firewall resource
+// in case the interval has changed nothing happens at the moment
+// we need to implement the recreation of the ticker
+//
 // IMPORTANT!
 // We shouldn't implement reconciliation loop by assigning RequeueAfter in result like it's done in Firewall controller.
 // Here's the case when it would go bad:
@@ -178,14 +166,14 @@ func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
 //  2. DNS Proxy is started by CWNP controller, and it will not be started until some CWNP resource is created/updated/deleted.
 func (r *ClusterwideNetworkPolicyReconciler) getReconciliationTicker(scheduleChan chan<- event.GenericEvent) manager.RunnableFunc {
 	return func(ctx context.Context) error {
-		e := event.GenericEvent{}
+		e := event.GenericEvent{Object: &firewallv1.ClusterwideNetworkPolicy{}}
 		ticker := time.NewTicker(r.Interval)
 		defer ticker.Stop()
 
 		for {
 			select {
 			case <-ticker.C:
-				r.Log.Info("requesting firewall reconcile due to reconciliation ticker event")
+				r.Log.Info("requesting cwnp reconcile due to reconciliation ticker event")
 				scheduleChan <- e
 			case <-ctx.Done():
 				return nil

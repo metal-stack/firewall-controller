@@ -7,13 +7,10 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/metal-stack/v"
-
 	"github.com/go-logr/logr"
 	mn "github.com/metal-stack/metal-lib/pkg/net"
 	corev1 "k8s.io/api/core/v1"
-	networking "k8s.io/api/networking/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -22,18 +19,12 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
-	"github.com/metal-stack/firewall-controller/pkg/collector"
 	"github.com/metal-stack/firewall-controller/pkg/network"
 	"github.com/metal-stack/firewall-controller/pkg/nftables"
-	"github.com/metal-stack/firewall-controller/pkg/suricata"
 	"github.com/metal-stack/firewall-controller/pkg/updater"
 )
 
@@ -42,17 +33,16 @@ type FirewallReconciler struct {
 	SeedClient  client.Client
 	ShootClient client.Client
 
-	Recorder  record.EventRecorder
-	Log       logr.Logger
-	Scheme    *runtime.Scheme
-	EnableIDS bool
+	Recorder record.EventRecorder
+	Log      logr.Logger
+	Scheme   *runtime.Scheme
 
 	Updater *updater.Updater
 
 	FirewallName string
 	Namespace    string
 
-	ExternalReconcileTrigger chan event.GenericEvent
+	recordFirewallEvent func(f *firewallv2.Firewall, eventtype, reason, message string)
 }
 
 const (
@@ -67,138 +57,79 @@ const (
 	exporterLabelKey          = "app"
 )
 
-var (
-	done            = ctrl.Result{}
-	firewallRequeue = ctrl.Result{
-		RequeueAfter: reconcilationInterval,
-	}
-)
-
 // SetupWithManager configures this controller to watch for the CRDs in a specific namespace
 func (r *FirewallReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.recordFirewallEvent = updater.ShootRecorderNamespaceRewriter(r.Recorder)
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&firewallv2.Firewall{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})). // don't trigger a reconcilation for status updates
-		Watches(&source.Channel{Source: r.ExternalReconcileTrigger}, handler.EnqueueRequestsFromMapFunc(func(o client.Object) []reconcile.Request {
-			r.Log.Info("firewall reconcile requested from external controller")
-			return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: r.FirewallName, Namespace: r.Namespace}}}
+		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
+			return object.GetNamespace() == r.Namespace && object.GetName() == r.FirewallName
 		})).
 		Complete(r)
 }
 
 // Reconcile reconciles a firewall by:
-// - reading Services of type Loadbalancer
-// - rendering nftables rules
-// - updating the firewall object with nftable rule statistics grouped by action
+// - rendering nftables rules (changes in firewall networks)
+// - exposing local services (nftables exporter and node exporter) in the shoot cluster as services
 func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	if req.Namespace != r.Namespace || req.Name != r.FirewallName {
-		return ctrl.Result{}, nil
-	}
+	r.Log.Info("reconciling firewall resource")
 
-	log := r.Log.WithValues("firewall", req.NamespacedName)
-	requeue := firewallRequeue
-	recordFirewallEvent := updater.ShootRecorderNamespaceRewriter(r.Recorder)
+	f := &firewallv2.Firewall{}
+	if err := r.SeedClient.Get(ctx, req.NamespacedName, f); err != nil {
+		if apierrors.IsNotFound(err) {
+			r.Log.Info("flushing k8s firewall rules")
 
-	var f firewallv2.Firewall
-	if err := r.SeedClient.Get(ctx, req.NamespacedName, &f); err != nil {
-		if k8serrors.IsNotFound(err) {
 			defaultFw := nftables.NewDefaultFirewall()
-			log.Info("flushing k8s firewall rules")
-			err := defaultFw.Flush()
-			if err == nil {
-				return done, nil
+			flushErr := defaultFw.Flush()
+			if flushErr != nil {
+				r.Log.Error(flushErr, "error flushing k8s firewall rules")
+				return ctrl.Result{}, flushErr
 			}
-			return requeue, err
+
+			return ctrl.Result{}, nil
 		}
 
-		return done, client.IgnoreNotFound(err)
+		return ctrl.Result{}, fmt.Errorf("error retrieving resource: %w", err)
 	}
-
-	log.Info("reconciling firewall-controller")
 
 	if r.Updater != nil {
-		err := r.Updater.Run(ctx, &f)
+		r.Log.Info("running binary updater")
+
+		err := r.Updater.Run(ctx, f)
 		if err != nil {
-			return requeue, err
+			return ctrl.Result{}, err
 		}
 	}
 
-	// Update reconcilation interval
-	if i, err := time.ParseDuration(f.Spec.Interval); err == nil {
-		requeue.RequeueAfter = i
-	}
-
-	log.Info("reconciling network settings")
+	r.Log.Info("reconciling network settings")
 
 	var errs []error
 	changed, err := network.ReconcileNetwork(f)
 	if changed && err == nil {
-		recordFirewallEvent(&f, corev1.EventTypeNormal, "Network settings", "reconcilation succeeded (frr.conf)")
+		r.recordFirewallEvent(f, corev1.EventTypeNormal, "Network settings", "reconcilation succeeded (frr.conf)")
 	} else if changed && err != nil {
-		recordFirewallEvent(&f, corev1.EventTypeWarning, "Network settings", fmt.Sprintf("reconcilation failed (frr.conf): %v", err))
+		r.recordFirewallEvent(f, corev1.EventTypeWarning, "Network settings", fmt.Sprintf("reconcilation failed (frr.conf): %v", err))
 	}
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	log.Info("reconciling firewall services")
+	r.Log.Info("reconciling firewall services")
 	if err = r.reconcileFirewallServices(ctx, f); err != nil {
 		errs = append(errs, err)
 	}
 
-	log.Info("updating status field")
-	if err = r.updateStatus(ctx, f); err != nil {
-		errs = append(errs, err)
-	}
-
 	if len(errs) > 0 {
-		recordFirewallEvent(&f, corev1.EventTypeWarning, "Error", errors.Join(errs...).Error())
-		return requeue, errors.Join(errs...)
+		r.recordFirewallEvent(f, corev1.EventTypeWarning, "Error", errors.Join(errs...).Error())
+		return ctrl.Result{}, errors.Join(errs...)
 	}
 
-	recordFirewallEvent(&f, corev1.EventTypeNormal, "Reconciled", "nftables rules and statistics successfully")
-	log.Info("reconciled firewall")
+	r.recordFirewallEvent(f, corev1.EventTypeNormal, "Reconciled", "nftables rules and statistics successfully")
 
-	return requeue, nil
-}
+	r.Log.Info("successfully reconciled firewall")
 
-// converts a network-policy object that was used before in a cluster-wide manner to the new CRD
-func convert(np networking.NetworkPolicy) (*firewallv1.ClusterwideNetworkPolicy, error) {
-	cwnp := firewallv1.ClusterwideNetworkPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      np.Name,
-			Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
-		},
-	}
-	newEgresses := []firewallv1.EgressRule{}
-	for _, egress := range np.Spec.Egress {
-		newTos := []networking.IPBlock{}
-		for _, to := range egress.To {
-			if to.NamespaceSelector != nil {
-				return nil, fmt.Errorf("np %v contains a namespace selector and is not applicable for a conversion to a cluster-wide network policy", np.ObjectMeta)
-			}
-			if to.PodSelector != nil {
-				return nil, fmt.Errorf("np %v contains a pod selector and is not applicable for a conversion to a cluster-wide network policy", np.ObjectMeta)
-			}
-			if to.IPBlock == nil {
-				continue
-			}
-			newTos = append(newTos, *to.IPBlock)
-		}
-		if len(newTos) == 0 {
-			continue
-		}
-		newEgresses = append(newEgresses, firewallv1.EgressRule{
-			Ports: egress.Ports,
-			To:    newTos,
-		})
-	}
-	if len(newEgresses) == 0 {
-		return nil, nil
-	}
-	cwnp.Spec = firewallv1.PolicySpec{
-		Egress: newEgresses,
-	}
-	return &cwnp, nil
+	return ctrl.Result{}, nil
 }
 
 type firewallService struct {
@@ -208,7 +139,7 @@ type firewallService struct {
 }
 
 // reconcileFirewallServices reconciles the services and endpoints exposed by the firewall
-func (r *FirewallReconciler) reconcileFirewallServices(ctx context.Context, f firewallv2.Firewall) error {
+func (r *FirewallReconciler) reconcileFirewallServices(ctx context.Context, f *firewallv2.Firewall) error {
 	services := []firewallService{
 		{
 			name:      nodeExporterService,
@@ -229,11 +160,12 @@ func (r *FirewallReconciler) reconcileFirewallServices(ctx context.Context, f fi
 			errs = append(errs, err)
 		}
 	}
+
 	return errors.Join(errs...)
 }
 
 // reconcileFirewallService reconciles a single service that is to be exposed at the firewall.
-func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s firewallService, f firewallv2.Firewall) error {
+func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s firewallService, f *firewallv2.Firewall) error {
 	nn := types.NamespacedName{Name: s.name, Namespace: firewallv1.ClusterwideNetworkPolicyNamespace}
 	meta := metav1.ObjectMeta{
 		Name:      s.name,
@@ -243,7 +175,7 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 
 	var currentSvc corev1.Service
 	err := r.ShootClient.Get(ctx, nn, &currentSvc)
-	if err != nil && !k8serrors.IsNotFound(err) {
+	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 
@@ -262,7 +194,7 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 		},
 	}
 
-	if k8serrors.IsNotFound(err) {
+	if apierrors.IsNotFound(err) {
 		err = r.ShootClient.Create(ctx, &svc)
 		if err != nil {
 			return err
@@ -323,11 +255,11 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 
 	var currentEndpoints corev1.Endpoints
 	err = r.ShootClient.Get(ctx, nn, &currentEndpoints)
-	if err != nil && !k8serrors.IsNotFound(err) {
+	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 
-	if k8serrors.IsNotFound(err) {
+	if apierrors.IsNotFound(err) {
 		err = r.ShootClient.Create(ctx, &endpoints)
 		if err != nil {
 			return err
@@ -340,73 +272,5 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 		return r.ShootClient.Update(ctx, &currentEndpoints)
 	}
 
-	return nil
-}
-
-// updateStatus updates the status field for this firewall
-func (r *FirewallReconciler) updateStatus(ctx context.Context, f firewallv2.Firewall) error {
-	mon := &firewallv2.FirewallMonitor{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      r.FirewallName,
-			Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
-		},
-	}
-	if err := r.ShootClient.Get(ctx, client.ObjectKeyFromObject(mon), mon); err != nil {
-		r.Log.Error(err, "no firewall monitor found, cannot update")
-		return err
-	}
-
-	if f.Spec.DryRun {
-		mon.ControllerStatus.FirewallStats = &firewallv2.FirewallStats{
-			RuleStats:   firewallv2.RuleStatsByAction{},
-			DeviceStats: firewallv2.DeviceStatsByDevice{},
-			IDSStats:    firewallv2.IDSStatsByDevice{},
-		}
-		f.Status.ControllerStatus.Updated.Time = time.Now()
-		if err := r.ShootClient.Update(ctx, &f); err != nil {
-			return fmt.Errorf("unable to update firewall monitor status, err: %w", err)
-		}
-		return nil
-	}
-
-	c := collector.NewNFTablesCollector(&r.Log)
-	ruleStats := c.CollectRuleStats()
-
-	if mon.ControllerStatus == nil {
-		mon.ControllerStatus = &firewallv2.ControllerStatus{}
-	}
-
-	mon.ControllerStatus.FirewallStats = &firewallv2.FirewallStats{
-		RuleStats: ruleStats,
-	}
-	deviceStats, err := c.CollectDeviceStats()
-	if err != nil {
-		return err
-	}
-	mon.ControllerStatus.FirewallStats.DeviceStats = deviceStats
-
-	idsStats := firewallv2.IDSStatsByDevice{}
-	if r.EnableIDS { // checks the CLI-flag
-		s := suricata.New()
-		ss, err := s.InterfaceStats(ctx)
-		if err != nil {
-			return err
-		}
-		for iface, stat := range *ss {
-			idsStats[iface] = firewallv2.InterfaceStat{
-				Drop:             stat.Drop,
-				InvalidChecksums: stat.InvalidChecksums,
-				Packets:          stat.Pkts,
-			}
-		}
-	}
-	mon.ControllerStatus.FirewallStats.IDSStats = idsStats
-
-	mon.ControllerStatus.ControllerVersion = v.Version
-	mon.ControllerStatus.Updated.Time = time.Now()
-
-	if err := r.ShootClient.Update(ctx, mon); err != nil {
-		return fmt.Errorf("unable to update firewall monitor status, err: %w", err)
-	}
 	return nil
 }

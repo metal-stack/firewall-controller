@@ -27,7 +27,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	controllerclient "sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/event"
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	"github.com/metal-stack/firewall-controller-manager/api/v2/helper"
@@ -216,8 +215,6 @@ func main() {
 		l.Fatalw("unable to create shoot manager", "error", err)
 	}
 
-	externalTrigger := make(chan event.GenericEvent)
-
 	shootClient, err := client.New(shootConfig, client.Options{Scheme: scheme})
 	if err != nil {
 		l.Fatalw("unable to create shoot client", "error", err)
@@ -227,37 +224,34 @@ func main() {
 
 	// Firewall Reconciler
 	if err = (&controllers.FirewallReconciler{
-		SeedClient:               seedMgr.GetClient(),
-		ShootClient:              shootClient,
-		Log:                      ctrl.Log.WithName("controllers").WithName("Firewall"),
-		Scheme:                   scheme,
-		EnableIDS:                enableIDS,
-		Namespace:                seedNamespace,
-		FirewallName:             firewallName,
-		Recorder:                 shootMgr.GetEventRecorderFor("FirewallController"),
-		ExternalReconcileTrigger: externalTrigger,
-		Updater:                  updater,
+		SeedClient:   seedMgr.GetClient(),
+		ShootClient:  shootClient,
+		Log:          ctrl.Log.WithName("controllers").WithName("Firewall"),
+		Scheme:       scheme,
+		Namespace:    seedNamespace,
+		FirewallName: firewallName,
+		Recorder:     shootMgr.GetEventRecorderFor("FirewallController"),
+		Updater:      updater,
 	}).SetupWithManager(seedMgr); err != nil {
 		l.Fatalw("unable to create firewall controller", "error", err)
 	}
 
 	// Droptailer Reconciler
 	if err = (&controllers.DroptailerReconciler{
-		Client:    shootMgr.GetClient(),
-		Log:       ctrl.Log.WithName("controllers").WithName("Droptailer"),
-		HostsFile: hostsFile,
+		ShootClient: shootMgr.GetClient(),
+		Log:         ctrl.Log.WithName("controllers").WithName("Droptailer"),
+		HostsFile:   hostsFile,
 	}).SetupWithManager(shootMgr); err != nil {
 		l.Fatalw("unable to create droptailer controller", "error", err)
 	}
 
 	// ClusterwideNetworkPolicy Reconciler
 	if err = (&controllers.ClusterwideNetworkPolicyReconciler{
-		SeedClient:              seedMgr.GetClient(),
-		ShootClient:             shootMgr.GetClient(),
-		Log:                     ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicy"),
-		FirewallName:            firewallName,
-		SeedNamespace:           seedNamespace,
-		ExternalFirewallTrigger: externalTrigger,
+		SeedClient:    seedMgr.GetClient(),
+		ShootClient:   shootMgr.GetClient(),
+		Log:           ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicy"),
+		FirewallName:  firewallName,
+		SeedNamespace: seedNamespace,
 	}).SetupWithManager(shootMgr); err != nil {
 		l.Fatalw("unable to create clusterwidenetworkpolicy controller", "error", err)
 	}
@@ -268,6 +262,17 @@ func main() {
 		Recorder:    shootMgr.GetEventRecorderFor("FirewallController"),
 	}).SetupWithManager(shootMgr); err != nil {
 		l.Fatalw("unable to create clusterwidenetworkpolicyvalidation controller", "error", err)
+	}
+
+	if err = (&controllers.FirewallMonitorReconciler{
+		ShootClient:  shootMgr.GetClient(),
+		Log:          ctrl.Log.WithName("controllers").WithName("FirewallMonitorReconciler"),
+		Recorder:     shootMgr.GetEventRecorderFor("FirewallMonitorController"),
+		IDSEnabled:   enableIDS,
+		FirewallName: firewallName,
+		Namespace:    firewallv2.FirewallShootNamespace,
+	}).SetupWithManager(shootMgr); err != nil {
+		l.Fatalw("unable to create firewall monitor controller", "error", err)
 	}
 
 	// +kubebuilder:scaffold:builder

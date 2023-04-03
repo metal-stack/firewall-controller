@@ -63,7 +63,7 @@ func (n nfCollector) CollectDeviceStats() (firewallv2.DeviceStatsByDevice, error
 			}
 
 		}
-		n.logger.Info("collectdevicestats", "stats", deviceStat)
+		n.logger.Info("collectdevicestats", "device", device, "stats", deviceStat)
 		deviceStatsByDevice[device] = deviceStat
 	}
 
