@@ -11,7 +11,6 @@ import (
 	"github.com/go-logr/logr"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/util/workqueue"
 
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -36,8 +35,6 @@ type ClusterwideNetworkPolicyReconciler struct {
 
 	Log logr.Logger
 
-	ExternalFirewallTrigger chan event.GenericEvent
-
 	Interval time.Duration
 	DnsProxy *dns.DNSProxy
 	SkipDNS  bool
@@ -49,26 +46,14 @@ func (r *ClusterwideNetworkPolicyReconciler) SetupWithManager(mgr ctrl.Manager) 
 		r.Interval = reconcilationInterval
 	}
 
-	if err := mgr.Add(r.getReconciliationTicker(r.ExternalFirewallTrigger)); err != nil {
+	scheduleChan := make(chan event.GenericEvent)
+	if err := mgr.Add(r.getReconciliationTicker(scheduleChan)); err != nil {
 		return fmt.Errorf("failed to add runnable to manager: %w", err)
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&firewallv1.ClusterwideNetworkPolicy{}).
-		Watches(&source.Kind{Type: &corev1.Service{}}, handler.Funcs{
-			CreateFunc: func(ce event.CreateEvent, rli workqueue.RateLimitingInterface) {
-				r.Log.Info("requesting firewall reconcile due to service creation in shoot cluster")
-				r.ExternalFirewallTrigger <- event.GenericEvent{}
-			},
-			UpdateFunc: func(ue event.UpdateEvent, rli workqueue.RateLimitingInterface) {
-				r.Log.Info("requesting firewall reconcile due to service update in shoot cluster")
-				r.ExternalFirewallTrigger <- event.GenericEvent{}
-			},
-			DeleteFunc: func(de event.DeleteEvent, rli workqueue.RateLimitingInterface) {
-				r.Log.Info("requesting firewall reconcile due to service deletion in shoot cluster")
-				r.ExternalFirewallTrigger <- event.GenericEvent{}
-			},
-		}).
+		Watches(&source.Channel{Source: scheduleChan}, &handler.EnqueueRequestForObject{}).
 		Complete(r)
 }
 
@@ -178,14 +163,14 @@ func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
 //  2. DNS Proxy is started by CWNP controller, and it will not be started until some CWNP resource is created/updated/deleted.
 func (r *ClusterwideNetworkPolicyReconciler) getReconciliationTicker(scheduleChan chan<- event.GenericEvent) manager.RunnableFunc {
 	return func(ctx context.Context) error {
-		e := event.GenericEvent{}
+		e := event.GenericEvent{Object: &firewallv1.ClusterwideNetworkPolicy{}}
 		ticker := time.NewTicker(r.Interval)
 		defer ticker.Stop()
 
 		for {
 			select {
 			case <-ticker.C:
-				r.Log.Info("requesting firewall reconcile due to reconciliation ticker event")
+				r.Log.Info("requesting cwnp reconcile due to reconciliation ticker event")
 				scheduleChan <- e
 			case <-ctx.Done():
 				return nil

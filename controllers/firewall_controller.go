@@ -22,11 +22,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
@@ -52,7 +48,7 @@ type FirewallReconciler struct {
 	FirewallName string
 	Namespace    string
 
-	ExternalReconcileTrigger chan event.GenericEvent
+	ShootWatcherController *ShootWatcherController
 }
 
 const (
@@ -78,10 +74,7 @@ var (
 func (r *FirewallReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&firewallv2.Firewall{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})). // don't trigger a reconcilation for status updates
-		Watches(&source.Channel{Source: r.ExternalReconcileTrigger}, handler.EnqueueRequestsFromMapFunc(func(o client.Object) []reconcile.Request {
-			r.Log.Info("firewall reconcile requested from external controller")
-			return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: r.FirewallName, Namespace: r.Namespace}}}
-		})).
+		Watches(r.ShootWatcherController.GetSource(), r.ShootWatcherController.GetEventHandler(r.FirewallName, r.Namespace)).
 		Complete(r)
 }
 
