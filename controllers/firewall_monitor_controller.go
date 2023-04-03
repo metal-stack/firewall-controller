@@ -118,6 +118,8 @@ func (r *FirewallMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	r.Log.Info(fmt.Sprintf("firewall monitor successfully updated, requeuing in %s", r.Interval.String()), "name", mon.Name, "namespace", mon.Namespace)
 
 	return ctrl.Result{
+		// TODO: the interval can change over the lifetime of a firewall resource
+		// in case the interval has changed nothing happens at the moment
 		RequeueAfter: r.Interval,
 	}, nil
 }
