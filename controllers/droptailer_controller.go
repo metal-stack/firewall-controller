@@ -194,7 +194,7 @@ func (r *DroptailerReconciler) removeAndLinkCert(base, old, new string) error {
 	}
 	oldFilename := path.Join(base, old)
 	if err := os.Remove(oldFilename); err != nil {
-		r.Log.Info("could not remove old file: %s", oldFilename)
+		r.Log.Info("could not remove", "file", oldFilename)
 	}
 	if err := os.Symlink(newFilename, oldFilename); err != nil {
 		return err
