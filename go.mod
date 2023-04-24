@@ -11,7 +11,8 @@ require (
 	github.com/google/go-cmp v0.5.9
 	github.com/google/nftables v0.1.0
 	github.com/ks2211/go-suricata v0.0.0-20200823200910-986ce1470707
-	github.com/metal-stack/firewall-controller-manager v0.1.5
+	github.com/metal-stack/firewall-controller-manager v0.2.0
+	github.com/metal-stack/gardener-extension-provider-metal v0.20.3-0.20230424123445-d4ff73d62076
 	github.com/metal-stack/metal-go v0.22.3
 	github.com/metal-stack/metal-lib v0.11.6
 	github.com/metal-stack/metal-networker v0.33.0
@@ -23,7 +24,7 @@ require (
 	k8s.io/api v0.26.3
 	k8s.io/apiextensions-apiserver v0.26.3
 	k8s.io/apimachinery v0.26.3
-	k8s.io/client-go v0.26.3
+	k8s.io/client-go v11.0.1-0.20190409021438-1a26190bd76a+incompatible
 	k8s.io/utils v0.0.0-20230313181309-38a27ef9d749
 	sigs.k8s.io/controller-runtime v0.14.6
 )
@@ -48,7 +49,6 @@ require (
 	github.com/go-openapi/validate v0.22.1 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/gnostic v0.6.9 // indirect
@@ -60,7 +60,7 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
-	github.com/mattn/go-isatty v0.0.17 // indirect
+	github.com/mattn/go-isatty v0.0.18 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/mdlayher/netlink v1.7.0 // indirect
 	github.com/mdlayher/socket v0.4.0 // indirect
@@ -80,7 +80,7 @@ require (
 	github.com/vishvananda/netns v0.0.4 // indirect
 	go.mongodb.org/mongo-driver v1.11.3 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
-	go.uber.org/multierr v1.10.0 // indirect
+	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/mod v0.9.0 // indirect
 	golang.org/x/net v0.8.0 // indirect
 	golang.org/x/oauth2 v0.6.0 // indirect
@@ -103,3 +103,5 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
+
+replace k8s.io/client-go => k8s.io/client-go v0.26.3
