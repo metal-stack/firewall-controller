@@ -10,7 +10,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -32,7 +31,7 @@ func TestConvert(t *testing.T) {
 		{
 			"np should yield proper cnwp",
 			networking.NetworkPolicy{
-				ObjectMeta: v1.ObjectMeta{
+				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-np",
 				},
 				Spec: networking.NetworkPolicySpec{
@@ -56,7 +55,7 @@ func TestConvert(t *testing.T) {
 				},
 			},
 			&firewallv1.ClusterwideNetworkPolicy{
-				ObjectMeta: v1.ObjectMeta{
+				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-np",
 					Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
 				},
@@ -83,11 +82,11 @@ func TestConvert(t *testing.T) {
 		{
 			"np with pod selector are ignored",
 			networking.NetworkPolicy{
-				ObjectMeta: v1.ObjectMeta{
+				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-np",
 				},
 				Spec: networking.NetworkPolicySpec{
-					PodSelector: v1.LabelSelector{
+					PodSelector: metav1.LabelSelector{
 						MatchLabels: map[string]string{"test": "test"},
 					},
 				},
@@ -98,7 +97,7 @@ func TestConvert(t *testing.T) {
 		{
 			"np with blacklisted name are ignored",
 			networking.NetworkPolicy{
-				ObjectMeta: v1.ObjectMeta{
+				ObjectMeta: metav1.ObjectMeta{
 					Name: "egress-allow-http",
 				},
 				Spec: networking.NetworkPolicySpec{
