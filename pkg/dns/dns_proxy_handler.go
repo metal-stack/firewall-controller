@@ -3,6 +3,7 @@ package dns
 import (
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -109,8 +110,9 @@ func getUpdateCacheFunc(log logr.Logger, cache *DNSCache) func(lookupTime time.T
 	return func(lookupTime time.Time, response *dnsgo.Msg) {
 		if response.Response && response.Rcode == dnsgo.RcodeSuccess {
 			scopedLog := log.WithValues(reqIdLogField, response.Id)
-			log.Info("DEBUG dnsproxyhandler function getUpdateCacheFunc updating DNS cache", "dns response", response)
-			if err := cache.Update(lookupTime, response); err != nil {
+			qname := strings.ToLower(response.Question[0].Name)
+			log.Info("DEBUG dnsproxyhandler function getUpdateCacheFunc updating DNS cache", "queried name", qname, "dns response", response)
+			if _, err := cache.Update(lookupTime, qname, response); err != nil {
 				scopedLog.Error(err, "failed to update DNS cache")
 			}
 		}

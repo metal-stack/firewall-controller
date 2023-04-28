@@ -252,18 +252,19 @@ func (c *DNSCache) loadDataFromDNSServer(fqdns []string) error {
 	if len(fqdns) > maxDNSRedirects+1 {
 		return fmt.Errorf("too many hops, fqdn chain: %s", strings.Join(fqdns, ","))
 	}
+	qname := fqdns[len(fqdns)-1]
 	cl := new(dnsgo.Client)
 	for _, t := range []uint16{dnsgo.TypeA, dnsgo.TypeAAAA} {
 		m := new(dnsgo.Msg)
 		m.Id = dnsgo.Id()
-		m.SetQuestion(fqdns[len(fqdns)-1], t)
+		m.SetQuestion(qname, t)
 		c.log.Info("DEBUG dnscache loadDataFromDNSServer function querying DNS", "message", m)
 		in, _, err := cl.Exchange(m, c.dnsServerAddr)
 		if err != nil {
 			return fmt.Errorf("failed to get DNS data about fqdn %s: %w", fqdns[0], err)
 		}
 		c.log.Info("DEBUG dnscache loadDataFromDNSServer function calling Update function", "answer", in, "fqdns", fqdns)
-		if err = c.Update(time.Now(), in, fqdns); err != nil {
+		if _, err = c.Update(time.Now(), qname, in, fqdns); err != nil {
 			return fmt.Errorf("failed to update DNS data for fqdn %s: %w", fqdns[0], err)
 		}
 	}
@@ -295,9 +296,8 @@ func (c *DNSCache) getSetNameForRegex(regex string) (sets []firewallv1.IPSet) {
 // Update DNS cache.
 // It expects that there was only one question to DNS(majority of cases).
 // So it picks first qname and skips all others(if there is).
-func (c *DNSCache) Update(lookupTime time.Time, msg *dnsgo.Msg, fqdnsfield ...[]string) error {
+func (c *DNSCache) Update(lookupTime time.Time, qname string, msg *dnsgo.Msg, fqdnsfield ...[]string) (bool, error) {
 	c.log.Info("DEBUG dnscache Update function called", "Message", msg, "fqdnsfield", fqdnsfield)
-	qname := strings.ToLower(msg.Question[0].Name)
 
 	fqdns := []string{}
 	if len(fqdnsfield) == 0 {
@@ -312,6 +312,7 @@ func (c *DNSCache) Update(lookupTime time.Time, msg *dnsgo.Msg, fqdnsfield ...[]
 	ipv6 := []net.IP{}
 	minIPv4TTL := uint32(math.MaxUint32)
 	minIPv6TTL := uint32(math.MaxUint32)
+	found := false
 
 	for _, ans := range msg.Answer {
 		c.log.Info("DEBUG dnscache Update function", "considering DNS answer", ans)
@@ -326,19 +327,30 @@ func (c *DNSCache) Update(lookupTime time.Time, msg *dnsgo.Msg, fqdnsfield ...[]
 			if minIPv4TTL > rr.Hdr.Ttl {
 				minIPv4TTL = rr.Hdr.Ttl
 			}
+			found = true
 			c.log.Info("DEBUG dnscache Update function A record found", "IPs", ipv4)
 		case *dnsgo.AAAA:
 			ipv6 = append(ipv6, rr.AAAA)
 			if minIPv6TTL > rr.Hdr.Ttl {
 				minIPv6TTL = rr.Hdr.Ttl
 			}
+			found = true
 			c.log.Info("DEBUG dnscache Update function AAAA record found", "IPs", ipv6)
 		case *dnsgo.CNAME:
-			c.log.Info("DEBUG dnscache Update function CNAME record found. Performing DNS lookup", "CNAME", rr.Target, "fqdns slice", append(fqdns, rr.Target))
-			err := c.loadDataFromDNSServer(append(fqdns, rr.Target))
+			c.log.Info("DEBUG dnscache Update function CNAME record found. Looking for resolution in same DNS reply", "CNAME", rr.Target, "fqdns slice", append(fqdns, rr.Target))
+			resolved, err := c.Update(lookupTime, rr.Target, msg, append(fqdns, rr.Target))
 			if err != nil {
-				return fmt.Errorf("could not look up address for CNAME %s: %w", rr.Target, err)
+				return found, fmt.Errorf("error while trying to resolve CNAME %s within the same DNS reply: %w", rr.Target, err)
 			}
+			if resolved {
+				return true, nil
+			}
+			c.log.Info("DEBUG dnscache Update function CNAME record found, could not resolve in same DNS reply. Performing DNS lookup", "CNAME", rr.Target, "fqdns slice", append(fqdns, rr.Target))
+			err = c.loadDataFromDNSServer(append(fqdns, rr.Target))
+			if err != nil {
+				return true, fmt.Errorf("could not look up address for CNAME %s: %w", rr.Target, err)
+			}
+			return true, nil
 		default:
 			continue
 		}
@@ -348,17 +360,17 @@ func (c *DNSCache) Update(lookupTime time.Time, msg *dnsgo.Msg, fqdnsfield ...[]
 		c.log.Info("DEBUG dnscache Update function Updating DNS cache for", "fqdn", fqdn, "ipv4", ipv4, "ipv6", ipv6)
 		if c.ipv4Enabled && len(ipv4) > 0 {
 			if err := c.updateIPEntry(fqdn, ipv4, lookupTime.Add(time.Duration(minIPv4TTL)), nftables.TypeIPAddr); err != nil {
-				return fmt.Errorf("failed to update IPv4 addresses: %w", err)
+				return false, fmt.Errorf("failed to update IPv4 addresses: %w", err)
 			}
 		}
 		if c.ipv6Enabled && len(ipv6) > 0 {
 			if err := c.updateIPEntry(fqdn, ipv6, lookupTime.Add(time.Duration(minIPv6TTL)), nftables.TypeIP6Addr); err != nil {
-				return fmt.Errorf("failed to update IPv6 addresses: %w", err)
+				return false, fmt.Errorf("failed to update IPv6 addresses: %w", err)
 			}
 		}
 	}
 
-	return nil
+	return found, nil
 }
 
 func (c *DNSCache) updateIPEntry(qname string, ips []net.IP, expirationTime time.Time, dtype nftables.SetDatatype) error {
