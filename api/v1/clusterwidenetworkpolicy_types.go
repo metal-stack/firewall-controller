@@ -1,27 +1,11 @@
-/*
-
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package v1
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"strings"
 
-	"github.com/hashicorp/go-multierror"
 	dnsgo "github.com/miekg/dns"
 	corev1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
@@ -34,7 +18,7 @@ type IPVersion string
 const (
 	// ClusterwideNetworkPolicyNamespace defines the namespace CNWPs are expected.
 	ClusterwideNetworkPolicyNamespace           = "firewall"
-	allowedDNSCharsREGroup                      = "[-a-zA-Z0-9_]"
+	allowedDNSCharsREGroup                      = "[-a-zA-Z0-9_.]"
 	IPv4                              IPVersion = "ip"
 	IPv6                              IPVersion = "ip6"
 )
@@ -193,11 +177,11 @@ func (s FQDNSelector) GetRegex() string {
 	pattern := strings.TrimSpace(s.MatchPattern)
 	pattern = strings.ToLower(dnsgo.Fqdn(pattern))
 
-	// "*" -- match-all allowed chars
-	pattern = strings.ReplaceAll(pattern, "*", allowedDNSCharsREGroup+"*")
-
 	// "." becomes a literal .
 	pattern = strings.ReplaceAll(pattern, ".", "[.]")
+
+	// "*" -- match-all allowed chars
+	pattern = strings.ReplaceAll(pattern, "*", allowedDNSCharsREGroup+"*")
 
 	// Anchor the match to require the whole string to match this expression
 	return "^" + pattern + "$"
@@ -205,67 +189,67 @@ func (s FQDNSelector) GetRegex() string {
 
 // Validate validates the spec of a ClusterwideNetworkPolicy
 func (p *PolicySpec) Validate() error {
-	var errors *multierror.Error
+	var errs []error
 	for _, e := range p.Egress {
-		errors = multierror.Append(errors, validatePorts(e.Ports), validateIPBlocks(e.To))
+		errs = append(errs, validatePorts(e.Ports), validateIPBlocks(e.To))
 	}
 	for _, i := range p.Ingress {
-		errors = multierror.Append(errors, validatePorts(i.Ports), validateIPBlocks(i.From))
+		errs = append(errs, validatePorts(i.Ports), validateIPBlocks(i.From))
 	}
 
-	return errors.ErrorOrNil()
+	return errors.Join(errs...)
 }
 
-func validatePorts(ports []networking.NetworkPolicyPort) *multierror.Error {
-	var errors *multierror.Error
+func validatePorts(ports []networking.NetworkPolicyPort) error {
+	var errs []error
 	for _, p := range ports {
 		if p.Port != nil && p.Port.Type != intstr.Int {
-			errors = multierror.Append(errors, fmt.Errorf("only int ports are supported, but %v given", p.Port))
+			errs = append(errs, fmt.Errorf("only int ports are supported, but %v given", p.Port))
 		}
 
 		if p.Port != nil && (p.Port.IntValue() > 65535 || p.Port.IntValue() <= 0) {
-			errors = multierror.Append(errors, fmt.Errorf("only ports between 0 and 65535 are allowed, but %v given", p.Port))
+			errs = append(errs, fmt.Errorf("only ports between 0 and 65535 are allowed, but %v given", p.Port))
 		}
 
 		if p.Protocol != nil {
 			proto := *p.Protocol
 			if proto != corev1.ProtocolUDP && proto != corev1.ProtocolTCP {
-				errors = multierror.Append(errors, fmt.Errorf("only TCP and UDP are supported as protocol, but %v given", proto))
+				errs = append(errs, fmt.Errorf("only TCP and UDP are supported as protocol, but %v given", proto))
 			}
 		}
 	}
-	return errors
+	return errors.Join(errs...)
 }
 
-func validateIPBlocks(blocks []networking.IPBlock) *multierror.Error {
-	var errors *multierror.Error
+func validateIPBlocks(blocks []networking.IPBlock) error {
+	var errs []error
 	for _, b := range blocks {
 		_, blockNet, err := net.ParseCIDR(b.CIDR)
 		if err != nil {
-			errors = multierror.Append(errors, fmt.Errorf("%v is not a valid IP CIDR", b.CIDR))
+			errs = append(errs, fmt.Errorf("%v is not a valid IP CIDR", b.CIDR))
 			continue
 		}
 
 		for _, e := range b.Except {
 			exceptIP, exceptNet, err := net.ParseCIDR(b.CIDR)
 			if err != nil {
-				errors = multierror.Append(errors, fmt.Errorf("%v is not a valid IP CIDR", e))
+				errs = append(errs, fmt.Errorf("%v is not a valid IP CIDR", e))
 				continue
 			}
 
 			if !blockNet.Contains(exceptIP) {
-				errors = multierror.Append(errors, fmt.Errorf("%v is not contained in the IP CIDR %v", exceptIP, blockNet))
+				errs = append(errs, fmt.Errorf("%v is not contained in the IP CIDR %v", exceptIP, blockNet))
 				continue
 			}
 
 			blockSize, _ := blockNet.Mask.Size()
 			exceptSize, _ := exceptNet.Mask.Size()
 			if exceptSize > blockSize {
-				errors = multierror.Append(errors, fmt.Errorf("netmask size of network to be excluded must be smaller than netmask of the block CIDR"))
+				errs = append(errs, fmt.Errorf("netmask size of network to be excluded must be smaller than netmask of the block CIDR"))
 			}
 		}
 	}
-	return errors
+	return errors.Join(errs...)
 }
 
 func init() {

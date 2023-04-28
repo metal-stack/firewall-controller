@@ -14,7 +14,7 @@ func rateLimitRules(f *Firewall) nftablesRules {
 		if !ok {
 			continue
 		}
-		if n.Networktype == nil || *n.Networktype == mn.Underlay {
+		if n.NetworkType == nil || *n.NetworkType == mn.Underlay {
 			continue
 		}
 		rules = append(rules, fmt.Sprintf(`meta iifname "%s" limit rate over %d mbytes/second counter name drop_ratelimit drop`, fmt.Sprintf("vrf%d", *n.Vrf), l.Rate))

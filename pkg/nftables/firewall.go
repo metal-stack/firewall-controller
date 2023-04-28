@@ -2,16 +2,17 @@ package nftables
 
 import (
 	"embed"
+	"errors"
 	"fmt"
-	"github.com/metal-stack/firewall-controller/pkg/dns"
 	"os"
 	"os/exec"
 	"path/filepath"
 
+	"github.com/metal-stack/firewall-controller/pkg/dns"
+
 	"github.com/metal-stack/firewall-controller/pkg/network"
 
 	"github.com/go-logr/logr"
-	"github.com/hashicorp/go-multierror"
 	"github.com/vishvananda/netlink"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -19,6 +20,7 @@ import (
 	mn "github.com/metal-stack/metal-lib/pkg/net"
 	"github.com/metal-stack/metal-networker/pkg/netconf"
 
+	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 )
 
@@ -43,11 +45,11 @@ type FQDNCache interface {
 type Firewall struct {
 	log logr.Logger
 
-	firewall                   firewallv1.Firewall
+	firewall                   *firewallv2.Firewall
 	clusterwideNetworkPolicies *firewallv1.ClusterwideNetworkPolicyList
 	services                   *corev1.ServiceList
 
-	primaryPrivateNet *firewallv1.FirewallNetwork
+	primaryPrivateNet *firewallv2.FirewallNetwork
 	networkMap        networkMap
 	cache             FQDNCache
 
@@ -56,7 +58,7 @@ type Firewall struct {
 	logAcceptedConnections bool
 }
 
-type networkMap map[string]firewallv1.FirewallNetwork
+type networkMap map[string]firewallv2.FirewallNetwork
 
 type nftablesRules []string
 
@@ -67,27 +69,27 @@ type forwardingRules struct {
 
 // NewDefaultFirewall creates a new default nftables firewall.
 func NewDefaultFirewall() *Firewall {
-	return NewFirewall(firewallv1.Firewall{}, &firewallv1.ClusterwideNetworkPolicyList{}, &corev1.ServiceList{}, nil, logr.Discard())
+	return NewFirewall(&firewallv2.Firewall{}, &firewallv1.ClusterwideNetworkPolicyList{}, &corev1.ServiceList{}, nil, logr.Discard())
 }
 
 // NewFirewall creates a new nftables firewall object based on k8s entities
 func NewFirewall(
-	firewall firewallv1.Firewall,
+	firewall *firewallv2.Firewall,
 	cwnps *firewallv1.ClusterwideNetworkPolicyList,
 	svcs *corev1.ServiceList,
 	cache FQDNCache,
 	log logr.Logger,
 ) *Firewall {
 	networkMap := networkMap{}
-	var primaryPrivateNet *firewallv1.FirewallNetwork
-	for i, n := range firewall.Spec.FirewallNetworks {
-		if n.Networktype == nil {
+	var primaryPrivateNet *firewallv2.FirewallNetwork
+	for i, n := range firewall.Status.FirewallNetworks {
+		if n.NetworkType == nil {
 			continue
 		}
-		if *n.Networktype == mn.PrivatePrimaryShared || *n.Networktype == mn.PrivatePrimaryUnshared {
-			primaryPrivateNet = &firewall.Spec.FirewallNetworks[i]
+		if *n.NetworkType == mn.PrivatePrimaryShared || *n.NetworkType == mn.PrivatePrimaryUnshared {
+			primaryPrivateNet = &firewall.Status.FirewallNetworks[i]
 		}
-		networkMap[*n.Networkid] = n
+		networkMap[*n.NetworkID] = n
 	}
 
 	return &Firewall{
@@ -172,6 +174,7 @@ func (f *Firewall) ReconcileNetconfTables() error {
 	if err != nil || c == nil {
 		return fmt.Errorf("failed to init networker config: %w", err)
 	}
+
 	c.Networks = network.GetNewNetworks(f.firewall, c.Networks)
 
 	configurator, err := netconf.NewConfigurator(netconf.Firewall, *c, f.enableDNS)
@@ -181,6 +184,25 @@ func (f *Firewall) ReconcileNetconfTables() error {
 	configurator.ConfigureNftables()
 
 	return nil
+}
+
+func getConfiguredIPs(networkID string) []string {
+	c, err := netconf.New(network.GetLogger(), network.MetalNetworkerConfig)
+	if err != nil || c == nil {
+		return nil
+	}
+	var ips []string
+	for _, nw := range c.Networks {
+		nw := nw
+		if nw.Networkid == nil || *nw.Networkid != networkID {
+			continue
+		}
+		for _, ip := range nw.Ips {
+			ip := ip
+			ips = append(ips, ip)
+		}
+	}
+	return ips
 }
 
 func (f *Firewall) renderFile(file string) error {
@@ -213,29 +235,39 @@ func (f *Firewall) validate(file string) error {
 }
 
 func (f *Firewall) reconcileIfaceAddresses() error {
-	var errors *multierror.Error
+	var errs []error
 
 	for _, n := range f.networkMap {
-		if n.Networktype == nil {
+		if n.NetworkType == nil || n.NetworkID == nil {
 			continue
 		}
 
-		if *n.Networktype != mn.External {
+		if *n.NetworkType != mn.External {
 			continue
 		}
 
-		wantedIPs := sets.NewString()
+		configureIPs := getConfiguredIPs(*n.NetworkID)
+
+		wantedIPs := sets.NewString(configureIPs...)
 		for _, i := range f.firewall.Spec.EgressRules {
-			if i.NetworkID == *n.Networkid {
+			if i.NetworkID == *n.NetworkID {
 				wantedIPs.Insert(i.IPs...)
 				break
 			}
 		}
 
-		link, _ := netlink.LinkByName(fmt.Sprintf("vlan%d", *n.Vrf))
+		linkName := fmt.Sprintf("vlan%d", *n.Vrf)
+		link, err := netlink.LinkByName(linkName)
+		if err != nil {
+			var notFound netlink.LinkNotFoundError
+			if errors.As(err, &notFound) {
+				f.log.Info("skipping link because not found", "name", linkName)
+			}
+			return fmt.Errorf("unable to detect link by name: %w", err)
+		}
 		addrs, err := netlink.AddrList(link, netlink.FAMILY_V4)
 		if err != nil {
-			errors = multierror.Append(errors, err)
+			errs = append(errs, err)
 			continue
 		}
 
@@ -248,19 +280,19 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 		toRemove := actualIPs.Difference(wantedIPs)
 
 		// do not remove IPs that were initially used during machine allocation!
-		toRemove.Delete(n.Ips...)
+		toRemove.Delete(n.IPs...)
 
 		if f.dryRun {
-			f.log.Info("skipping reconciling ips for", "network", n.Networkid, "adding", toAdd, "removing", toRemove)
+			f.log.Info("skipping reconciling ips for", "network", n.NetworkID, "adding", toAdd, "removing", toRemove)
 			continue
 		}
-		f.log.Info("reconciling ips for", "network", n.Networkid, "adding", toAdd, "removing", toRemove)
+		f.log.Info("reconciling ips for", "network", n.NetworkID, "adding", toAdd, "removing", toRemove)
 
 		for add := range toAdd {
 			addr, _ := netlink.ParseAddr(fmt.Sprintf("%s/32", add))
 			err = netlink.AddrAdd(link, addr)
 			if err != nil {
-				errors = multierror.Append(errors, err)
+				errs = append(errs, err)
 			}
 		}
 
@@ -268,12 +300,12 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 			addr, _ := netlink.ParseAddr(fmt.Sprintf("%s/32", delete))
 			err = netlink.AddrDel(link, addr)
 			if err != nil {
-				errors = multierror.Append(errors, err)
+				errs = append(errs, err)
 			}
 		}
 	}
 
-	return errors.ErrorOrNil()
+	return errors.Join(errs...)
 }
 
 func (f *Firewall) reload() error {

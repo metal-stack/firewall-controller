@@ -2,13 +2,14 @@ package controllers
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -30,7 +31,7 @@ func TestConvert(t *testing.T) {
 		{
 			"np should yield proper cnwp",
 			networking.NetworkPolicy{
-				ObjectMeta: v1.ObjectMeta{
+				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-np",
 				},
 				Spec: networking.NetworkPolicySpec{
@@ -54,7 +55,7 @@ func TestConvert(t *testing.T) {
 				},
 			},
 			&firewallv1.ClusterwideNetworkPolicy{
-				ObjectMeta: v1.ObjectMeta{
+				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-np",
 					Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
 				},
@@ -81,11 +82,11 @@ func TestConvert(t *testing.T) {
 		{
 			"np with pod selector are ignored",
 			networking.NetworkPolicy{
-				ObjectMeta: v1.ObjectMeta{
+				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-np",
 				},
 				Spec: networking.NetworkPolicySpec{
-					PodSelector: v1.LabelSelector{
+					PodSelector: metav1.LabelSelector{
 						MatchLabels: map[string]string{"test": "test"},
 					},
 				},
@@ -96,7 +97,7 @@ func TestConvert(t *testing.T) {
 		{
 			"np with blacklisted name are ignored",
 			networking.NetworkPolicy{
-				ObjectMeta: v1.ObjectMeta{
+				ObjectMeta: metav1.ObjectMeta{
 					Name: "egress-allow-http",
 				},
 				Spec: networking.NetworkPolicySpec{
@@ -138,4 +139,44 @@ func TestConvert(t *testing.T) {
 			}
 		})
 	}
+}
+
+// converts a network-policy object that was used before in a cluster-wide manner to the new CRD
+func convert(np networking.NetworkPolicy) (*firewallv1.ClusterwideNetworkPolicy, error) {
+	cwnp := firewallv1.ClusterwideNetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      np.Name,
+			Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
+		},
+	}
+	newEgresses := []firewallv1.EgressRule{}
+	for _, egress := range np.Spec.Egress {
+		newTos := []networking.IPBlock{}
+		for _, to := range egress.To {
+			if to.NamespaceSelector != nil {
+				return nil, fmt.Errorf("np %v contains a namespace selector and is not applicable for a conversion to a cluster-wide network policy", np.ObjectMeta)
+			}
+			if to.PodSelector != nil {
+				return nil, fmt.Errorf("np %v contains a pod selector and is not applicable for a conversion to a cluster-wide network policy", np.ObjectMeta)
+			}
+			if to.IPBlock == nil {
+				continue
+			}
+			newTos = append(newTos, *to.IPBlock)
+		}
+		if len(newTos) == 0 {
+			continue
+		}
+		newEgresses = append(newEgresses, firewallv1.EgressRule{
+			Ports: egress.Ports,
+			To:    newTos,
+		})
+	}
+	if len(newEgresses) == 0 {
+		return nil, nil
+	}
+	cwnp.Spec = firewallv1.PolicySpec{
+		Egress: newEgresses,
+	}
+	return &cwnp, nil
 }

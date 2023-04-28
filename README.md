@@ -1,53 +1,27 @@
-# Firewall Controller
+# firewall-controller
 
 This controller is installed on a bare-metal firewall in front of several kubernetes worker nodes and responsible to reconcile a `ClusterwideNetworkPolicy` to nftables rules to control access to and from the kubernetes cluster.
 It allows also to control the traffic rate going through, to limit network resources for restricted usage scenarios. Nftable and node metrics are exposed with the `nftables-exporter` and `node-exporter`, the ips are visible as service and endpoint from the kubernetes cluster.
 
-Additional an IDS is managed on the firewall to detect known network anomalies. [suricata](https://suricata-ids.org) is used for this purpose. Right now, only basic statistics about the amount of scanned packets is reported. In a future release, access to all alarms will be provided.
+Additionally, an IDS is managed on the firewall to detect known network anomalies. [suricata](https://suricata-ids.org) is used for this purpose. Right now, only basic statistics about the amount of scanned packets is reported. In a future release, access to all alarms will be provided.
+
+This controller is typically setup through the [firewall-controller-manager](https://github.com/metal-stack/firewall-controller-manager) (FCM), which manages the lifecycle of metal-stack firewalls inside our [Gardener integration](https://docs.metal-stack.io/stable/overview/kubernetes/).
 
 ## Architecture
 
-![Architecture](architecture.svg)
+The firewall-controller is acting on 3 CRDs typically running in your cluster and a provider-managed cluster (in Gardener terms "shoot" and "seed").:
 
-## Automatically generated ingress rules
+| CRD                              | API                          | Resides In | Purpose                                                             |
+| -------------------------------- | ---------------------------- | ---------- | ------------------------------------------------------------------- |
+| `ClusterwideNetworkPolicy`       | `metal-stack.io/v1`          | Shoot      | Controls firewall rules and can be provided by the user             |
+| `Firewall` defined by FCM        | `firewall.metal-stack.io/v2` | Seed       | Defines the firewall including rate limits, controller version, ... |
+| `FirewallMonitor` defined by FCM | `firewall.metal-stack.io/v2` | Shoot      | Used as an overview for the user on the status of the firewall      |
 
-For every `Service` of type `LoadBalancer` in the cluster, the corresponding ingress rules will be automatically generated.
+Note that `clusterwidenetworkpolicy` resources are namespaced and must reside in the `firewall` namespace, otherwise this controller does not reconcile them.
 
-If `loadBalancerSourceRanges` is not specified, incomig traffic to this service will be allowed for any source ip adresses.
+![Architecture](architecture.drawio.svg)
 
-## Configuration
-
-Firewall Controller is configured with 2 CRDs: `firewalls.metal-stack.io` and `clusterwidenetworkpolicies.metal-stack.io`. Both are namespaced and must reside in the `firewall` namespace.
-The `firewalls` CRD is typically written from the [gardener-extension-provider-metal](https://github.com/metal-stack/gardener-extension-provider-metal), the `clusterwidenetworkpolicy` should be provided by the deployment of your application.
-
-Example Firewall CRD:
-
-```yaml
-apiVersion: metal-stack.io/v1
-kind: Firewall
-metadata:
-  namespace: firewall
-  name: firewall
-spec:
-  # Interval of reconcilation if nftables rules and network traffic accounting
-  interval: 10s
-  # Ratelimits specify on which physical interface, which maximum rate of traffic is allowed
-  ratelimits:
-  # LogAcceptedConnections specifies whether accepted connections should be logged by the firewall in addition to dropped/rejected connections
-  logAcceptedConnections: false
-  # The name of the interface visible with ip link show
-  - interface: vrf104009
-    # The maximum rate in MBits/s
-    rate: 10
-  # Internalprefixes defines a list of prefixes where the traffic going to, or comming from is considered internal, e.g. not leaving into external networks
-  # given the archictecture picture above this would be:
-  internalprefixes:
-  - "1.2.3.0/24
-  - "172.17.0.0/16"
-  - "10.0.0.0/8"
-```
-
-Example ClusterwideNetworkPolicy:
+Example `ClusterwideNetworkPolicy`:
 
 ```yaml
 apiVersion: metal-stack.io/v1
@@ -70,14 +44,21 @@ spec:
     - protocol: TCP
       port: 8080
       # Optional, if specified this is the way to specify a port range from port to endPort
-      endPort: 8088 
+      endPort: 8088
 ```
 
-### DNS policies configuration
+## Automatically Generated Ingress Rules
 
-`ClusterwideNetworkPolicy` resource allows you to define DNS based Egress policies as well. They allow you to filter Egress traffic based either on DNS name or by matching names to the provided pattern.
+For every `Service` of type `LoadBalancer` in the cluster, the corresponding ingress rules will be automatically generated.
+
+If `loadBalancerSourceRanges` is not specified, incomig traffic to this service will be allowed for any source ip adresses.
+
+### DNS Policies Configuration
+
+The `ClusterwideNetworkPolicy` resource allows you to define DNS based egress policies as well. They allow you to filter egress traffic based either on DNS name or by matching names to the provided pattern.
 
 To filter by specific domain name you need to provide `matchName` field:
+
 ```yaml
 apiVersion: metal-stack.io/v1
 kind: ClusterwideNetworkPolicy
@@ -96,6 +77,7 @@ spec:
 ```
 
 If you want to filter FQDNs that are matching certain pattern, you can use `matchPattern` field, which supports `*` wildcard. Following example allows traffic to port 80 of all resources in the `.example` top-level domain:
+
 ```yaml
 apiVersion: metal-stack.io/v1
 kind: ClusterwideNetworkPolicy
@@ -113,29 +95,19 @@ spec:
       port: 80
 ```
 
-By default, DNS info is collected from Google DNS (with address 8.8.8.8:53). The preferred DNS server can be changed by specifying the `dnsServerAddress` field in `Firewall` resource:
-```yaml
-apiVersion: metal-stack.io/v1
-kind: Firewall
-metadata:
-  namespace: firewall
-  name: firewall
-spec:
-  ...
-  dnsServerAddress: 8.8.4.4:53
-  ...
-```
+By default, DNS info is collected from Google DNS (with address 8.8.8.8:53). The preferred DNS server can be changed through the `Firewall` resource of the FCM, which is governed by the provider.
 
 ## Status
 
-Once the firewall-controller is running, it will report several statistics to the Firewall CRD Status:
-This can be inspected by running:
+Once the firewall-controller is running, it will report several statistics to the `FirewallMonitor` CRD Status. This can be inspected by running:
 
 ```bash
-kubectl describe -n firewall firewall
+kubectl get -n firewall fwmon
+NAME                               MACHINE ID                             IMAGE                          SIZE            LAST EVENT    AGE
+shoot--prod--seed-firewall-089f9   f4f8b200-deef-11e9-8000-3cecef22f910   firewall-ubuntu-2.0.20221025   n1-medium-x86   Phoned Home   18m
 ```
 
-The output would look like:
+When showing the resource with `-o yaml`, it contains detailed information on traffic counting, package drops and IDS:
 
 ```yaml
 Status:
@@ -216,7 +188,7 @@ Status:
             Packets:  486
 ```
 
-## Prometheus integration
+## Prometheus Integration
 
 There are two exporters running on the firewall to report essential metrics from this machine:
 
@@ -252,7 +224,7 @@ curl node-exporter.firewall.svc.cluster.local:9100/metrics
 
 ## Firewall Logs
 
-It is also possible to tail for the dropped packets with the following command (install stern from [stern](https://github.com/stern/stern) ):
+It is also possible to tail for the dropped packets with the following command (install stern from [stern](https://github.com/stern/stern)):
 
 ```bash
 stern -n firewall drop
@@ -261,7 +233,6 @@ stern -n firewall drop
 The output will look like:
 
 ```json
-
 droptailer-6d556bd988-4g8gp droptailer 2020-06-17 13:23:27 +0000 UTC {"ACTION":"Drop","DPT":"4000","DST":"1.2.3.4","ID":"54321","IN":"vrf104009","LEN":"40","MAC":"ca:41:f9:80:fa:89:aa:bb:0e:62:8c:a6:08:00","OUT":"vlan179","PREC":"0x00","PROTO":"TCP","RES":"0x00","SPT":"38464","SRC":"2.3.4.5","SYN":"","TOS":"0x00","TTL":"236","URGP":"0","WINDOW":"65535","timestamp":"2020-06-17 13:23:27 +0000 UTC"}
 droptailer-6d556bd988-4g8gp droptailer 2020-06-17 13:23:34 +0000 UTC {"ACTION":"Drop","DPT":"2362","DST":"1.2.3.4","ID":"44545","IN":"vrf104009","LEN":"40","MAC":"ca:41:f9:80:fa:89:aa:bb:0e:62:8c:a6:08:00","OUT":"","PREC":"0x00","PROTO":"TCP","RES":"0x00","SPT":"40194","SRC":"2.3.4.5","SYN":"","TOS":"0x00","TTL":"242","URGP":"0","WINDOW":"1024","timestamp":"2020-06-17 13:23:34 +0000 UTC"}
 droptailer-6d556bd988-4g8gp droptailer 2020-06-17 13:23:30 +0000 UTC {"ACTION":"Accept","DPT":"650","DST":"1.2.3.4","ID":"12399","IN":"vrf104009","LEN":"40","MAC":"ca:41:f9:80:fa:89:aa:bb:0e:62:8c:a6:08:00","OUT":"vlan179","PREC":"0x00","PROTO":"TCP","RES":"0x00","SPT":"40194","SRC":"2.3.4.5","SYN":"","TOS":"0x00","TTL":"241","URGP":"0","WINDOW":"1024","timestamp":"2020-06-17 13:23:30 +0000 UTC"}
