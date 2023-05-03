@@ -307,6 +307,9 @@ func (c *DNSCache) Update(lookupTime time.Time, qname string, msg *dnsgo.Msg, fq
 		fqdns = fqdnsfield[0]
 		c.log.Info("DEBUG dnscache Update function called with fqdnsfield parameter", "fqdns", fqdns)
 	}
+	if len(fqdns) > maxDNSRedirects+1 {
+		return true, fmt.Errorf("too many hops, fqdn chain: %s", strings.Join(fqdns, ","))
+	}
 
 	ipv4 := []net.IP{}
 	ipv6 := []net.IP{}
@@ -338,11 +341,11 @@ func (c *DNSCache) Update(lookupTime time.Time, qname string, msg *dnsgo.Msg, fq
 			c.log.Info("DEBUG dnscache Update function AAAA record found", "IPs", ipv6)
 		case *dnsgo.CNAME:
 			c.log.Info("DEBUG dnscache Update function CNAME record found. Looking for resolution in same DNS reply", "CNAME", rr.Target, "fqdns slice", append(fqdns, rr.Target))
-			resolved, err := c.Update(lookupTime, rr.Target, msg, append(fqdns, rr.Target))
+			stop, err := c.Update(lookupTime, rr.Target, msg, append(fqdns, rr.Target))
 			if err != nil {
 				return found, fmt.Errorf("error while trying to resolve CNAME %s within the same DNS reply: %w", rr.Target, err)
 			}
-			if resolved {
+			if stop {
 				return true, nil
 			}
 			c.log.Info("DEBUG dnscache Update function CNAME record found, could not resolve in same DNS reply. Performing DNS lookup", "CNAME", rr.Target, "fqdns slice", append(fqdns, rr.Target))
