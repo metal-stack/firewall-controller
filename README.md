@@ -242,3 +242,5 @@ droptailer-6d556bd988-4g8gp droptailer 2020-06-17 13:23:51 +0000 UTC {"ACTION":"
 ```
 
 You can forward the droptailer logs to any log aggregation infrastructure you have in place.
+
+If enabled in the firewall spec, accepted connections can be logged in addition to dropped connections.
