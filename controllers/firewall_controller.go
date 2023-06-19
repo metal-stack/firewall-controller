@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"reflect"
 	"time"
 
@@ -117,6 +118,11 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	r.Log.Info("reconciling firewall services")
 	if err = r.reconcileFirewallServices(ctx, f); err != nil {
+		errs = append(errs, err)
+	}
+
+	r.Log.Info("reconciling ssh keys")
+	if err := r.reconcileSSHSecret(ctx, f); err != nil {
 		errs = append(errs, err)
 	}
 
@@ -270,6 +276,33 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 	if !reflect.DeepEqual(currentEndpoints.Subsets, endpoints.Subsets) {
 		currentEndpoints.Subsets = endpoints.Subsets
 		return r.ShootClient.Update(ctx, &currentEndpoints)
+	}
+
+	return nil
+}
+
+func (r *FirewallReconciler) reconcileSSHSecret(ctx context.Context, fw *firewallv2.Firewall) error {
+	const (
+		authorizedKeysPath = "/home/metal/.ssh/authorized_keys"
+	)
+
+	sshSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fw.Status.ShootAccess.SSHKeySecretName,
+			Namespace: fw.Status.ShootAccess.Namespace,
+		},
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	err := r.SeedClient.Get(ctx, client.ObjectKeyFromObject(sshSecret), sshSecret)
+	if err != nil {
+		return fmt.Errorf("unable to read ssh secret: %w", err)
+	}
+
+	err = os.WriteFile(authorizedKeysPath, []byte(sshSecret.Data["id_rsa.pub"]), 0600)
+	if err != nil {
+		return fmt.Errorf("unable to write authorized keys file: %w", err)
 	}
 
 	return nil

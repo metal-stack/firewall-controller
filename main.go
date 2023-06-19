@@ -188,8 +188,6 @@ func main() {
 		l.Fatalw("unable to start token updater", "error", err)
 	}
 
-	// TODO: implement ssh key rotation
-
 	shootConfig, err := shootAccessHelper.RESTConfig(ctx)
 	if err != nil {
 		l.Fatalw("unable to create shoot config", "error", err)
