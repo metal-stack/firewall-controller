@@ -293,8 +293,6 @@ func (r *FirewallReconciler) reconcileSSHSecret(ctx context.Context, fw *firewal
 		},
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
-	defer cancel()
 	err := r.SeedClient.Get(ctx, client.ObjectKeyFromObject(sshSecret), sshSecret)
 	if err != nil {
 		return fmt.Errorf("unable to read ssh secret: %w", err)
