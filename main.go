@@ -198,7 +198,10 @@ func main() {
 		MetricsBindAddress: metricsAddr,
 		Port:               9443,
 		Namespace:          seedNamespace,
-		LeaderElection:     false, // leader election does not make sense for this controller, it's always single managed by systemd
+		// we need to disable caches on secrets as otherwise the controller would need list access to secrets
+		// see: https://github.com/kubernetes-sigs/controller-runtime/issues/550
+		ClientDisableCacheFor: []controllerclient.Object{&corev1.Secret{}},
+		LeaderElection:        false, // leader election does not make sense for this controller, it's always single managed by systemd
 	})
 	if err != nil {
 		l.Fatalw("unable to create seed manager", "error", err)
