@@ -157,6 +157,8 @@ func (r *FirewallMonitorReconciler) checkSeedEndpoint(ctx context.Context, mon *
 		return nil
 	}
 
+	r.Log.Info("seed api url is different in firewall monitor annotation, probing seed client update", "current-url", seedConfig.APIPath, "annotation-url", seedURL)
+
 	seed, err := client.New(seedConfig, client.Options{
 		Scheme: apihelper.Scheme(),
 	})
