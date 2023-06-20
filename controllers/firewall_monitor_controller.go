@@ -159,25 +159,31 @@ func (r *FirewallMonitorReconciler) checkSeedEndpoint(ctx context.Context, mon *
 
 	r.Log.Info("seed api url is different in firewall monitor annotation, probing seed client update", "current-url", seedConfig.APIPath, "annotation-url", seedURL)
 
-	seed, err := client.New(seedConfig, client.Options{
+	probeClient := func(c client.Client) error {
+		f := &firewallv2.Firewall{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      mon.Name,
+				Namespace: r.SeedNamespace,
+			},
+		}
+
+		return c.Get(ctx, client.ObjectKeyFromObject(f), f)
+	}
+
+	seedClient, err := client.New(seedConfig, client.Options{
 		Scheme: apihelper.Scheme(),
 	})
 	if err != nil {
 		return fmt.Errorf("unable to create seed client from seed kubeconfig: %w", err)
 	}
 
-	f := &firewallv2.Firewall{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      mon.Name,
-			Namespace: r.SeedNamespace,
-		},
-	}
-	err = seed.Get(ctx, client.ObjectKeyFromObject(f), f)
+	err = probeClient(seedClient)
 	if err == nil {
+		r.Log.Info("current seed client seems to work, not taking any further actions")
 		return nil
 	}
 
-	r.Log.Info("seed api url is not contained in seed kubeconfig and seed client seems not to work, attemping seed client update", "error", err)
+	r.Log.Error(err, "current seed client seems not to work, attemping seed client update")
 
 	kubeconfig := &configv1.Config{}
 	err = runtime.DecodeInto(configlatest.Codec, rawKubeconfig, kubeconfig)
@@ -207,7 +213,7 @@ func (r *FirewallMonitorReconciler) checkSeedEndpoint(ctx context.Context, mon *
 		return fmt.Errorf("unable to create seed client from updated seed kubeconfig: %w", err)
 	}
 
-	err = newSeedClient.Get(ctx, client.ObjectKeyFromObject(f), f)
+	err = probeClient(newSeedClient)
 	if err != nil {
 		return fmt.Errorf("seed client seems broken but seed client with changed api server url also does not appear to work")
 	}
