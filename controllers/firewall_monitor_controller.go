@@ -33,10 +33,10 @@ type FirewallMonitorReconciler struct {
 	Recorder record.EventRecorder
 	Log      logr.Logger
 
-	FirewallName  string
-	Namespace     string
-	SeedNamespace string
+	FirewallName string
+	Namespace    string
 
+	SeedNamespace      string
 	SeedKubeconfigPath string
 
 	IDSEnabled bool
