@@ -267,12 +267,14 @@ func main() {
 	}
 
 	if err = (&controllers.FirewallMonitorReconciler{
-		ShootClient:  shootMgr.GetClient(),
-		Log:          ctrl.Log.WithName("controllers").WithName("FirewallMonitorReconciler"),
-		Recorder:     shootMgr.GetEventRecorderFor("FirewallMonitorController"),
-		IDSEnabled:   enableIDS,
-		FirewallName: firewallName,
-		Namespace:    firewallv2.FirewallShootNamespace,
+		ShootClient:        shootMgr.GetClient(),
+		Log:                ctrl.Log.WithName("controllers").WithName("FirewallMonitorReconciler"),
+		Recorder:           shootMgr.GetEventRecorderFor("FirewallMonitorController"),
+		FirewallName:       firewallName,
+		Namespace:          firewallv2.FirewallShootNamespace,
+		IDSEnabled:         enableIDS,
+		SeedNamespace:      seedNamespace,
+		SeedKubeconfigPath: seedKubeconfigPath,
 	}).SetupWithManager(shootMgr); err != nil {
 		l.Fatalw("unable to create firewall monitor controller", "error", err)
 	}
