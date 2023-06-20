@@ -9,14 +9,13 @@ import (
 	"github.com/go-logr/logr"
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	apihelper "github.com/metal-stack/firewall-controller/api/v1/helper"
 	"github.com/metal-stack/firewall-controller/pkg/collector"
 	"github.com/metal-stack/firewall-controller/pkg/suricata"
 	"github.com/metal-stack/v"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
 	configlatest "k8s.io/client-go/tools/clientcmd/api/latest"
 	configv1 "k8s.io/client-go/tools/clientcmd/api/v1"
@@ -26,20 +25,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
-
-var (
-	scheme = runtime.NewScheme()
-)
-
-func init() {
-	_ = clientgoscheme.AddToScheme(scheme)
-
-	_ = firewallv1.AddToScheme(scheme)
-	_ = firewallv2.AddToScheme(scheme)
-
-	_ = apiextensions.AddToScheme(scheme)
-	// +kubebuilder:scaffold:scheme
-}
 
 // FirewallMonitorReconciler reconciles a firewall monitor object
 type FirewallMonitorReconciler struct {
@@ -160,7 +145,7 @@ func (r *FirewallMonitorReconciler) checkSeedEndpoint(ctx context.Context, mon *
 
 	rawKubeconfig, err := os.ReadFile(r.SeedKubeconfigPath)
 	if err != nil {
-		return fmt.Errorf("unable to read kubeconfig: %w", err)
+		return fmt.Errorf("unable to read seed kubeconfig: %w", err)
 	}
 
 	seedConfig, err := clientcmd.RESTConfigFromKubeConfig(rawKubeconfig)
@@ -173,7 +158,7 @@ func (r *FirewallMonitorReconciler) checkSeedEndpoint(ctx context.Context, mon *
 	}
 
 	seed, err := client.New(seedConfig, client.Options{
-		Scheme: scheme,
+		Scheme: apihelper.Scheme(),
 	})
 	if err != nil {
 		return fmt.Errorf("unable to create seed client from seed kubeconfig: %w", err)
@@ -190,7 +175,7 @@ func (r *FirewallMonitorReconciler) checkSeedEndpoint(ctx context.Context, mon *
 		return nil
 	}
 
-	r.Log.Info("seed api url is not contained in seed kubeconfig and seed client seems not to work", "error", err)
+	r.Log.Info("seed api url is not contained in seed kubeconfig and seed client seems not to work, attemping seed client update", "error", err)
 
 	kubeconfig := &configv1.Config{}
 	err = runtime.DecodeInto(configlatest.Codec, rawKubeconfig, kubeconfig)
@@ -214,7 +199,7 @@ func (r *FirewallMonitorReconciler) checkSeedEndpoint(ctx context.Context, mon *
 	}
 
 	newSeedClient, err := client.New(updatedConfig, client.Options{
-		Scheme: scheme,
+		Scheme: apihelper.Scheme(),
 	})
 	if err != nil {
 		return fmt.Errorf("unable to create seed client from updated seed kubeconfig: %w", err)
@@ -232,6 +217,7 @@ func (r *FirewallMonitorReconciler) checkSeedEndpoint(ctx context.Context, mon *
 
 	r.Log.Info("successfully updating seed client url, restarting controller")
 
+	// not sure if there is a more graceful way to shutdown this controller?
 	os.Exit(0)
 
 	return nil

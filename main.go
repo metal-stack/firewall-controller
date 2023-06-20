@@ -15,12 +15,9 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	corev1 "k8s.io/api/core/v1"
-	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/discovery"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -31,7 +28,7 @@ import (
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	"github.com/metal-stack/firewall-controller-manager/api/v2/helper"
 
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	apihelper "github.com/metal-stack/firewall-controller/api/v1/helper"
 	"github.com/metal-stack/firewall-controller/controllers"
 	"github.com/metal-stack/firewall-controller/pkg/updater"
 	// +kubebuilder:scaffold:imports
@@ -43,18 +40,7 @@ const (
 
 var (
 	setupLog = ctrl.Log.WithName("setup")
-	scheme   = runtime.NewScheme()
 )
-
-func init() {
-	_ = clientgoscheme.AddToScheme(scheme)
-
-	_ = firewallv1.AddToScheme(scheme)
-	_ = firewallv2.AddToScheme(scheme)
-
-	_ = apiextensions.AddToScheme(scheme)
-	// +kubebuilder:scaffold:scheme
-}
 
 func main() {
 	var (
@@ -119,7 +105,7 @@ func main() {
 	}
 
 	seedClient, err := controllerclient.New(seedConfig, controllerclient.Options{
-		Scheme: scheme,
+		Scheme: apihelper.Scheme(),
 	})
 	if err != nil {
 		l.Fatalw("unable to create seed client", "error", err)
@@ -194,7 +180,7 @@ func main() {
 	}
 
 	seedMgr, err := ctrl.NewManager(seedConfig, ctrl.Options{
-		Scheme:             scheme,
+		Scheme:             apihelper.Scheme(),
 		MetricsBindAddress: metricsAddr,
 		Port:               9443,
 		Namespace:          seedNamespace,
@@ -208,7 +194,7 @@ func main() {
 	}
 
 	shootMgr, err := ctrl.NewManager(shootConfig, ctrl.Options{
-		Scheme:             scheme,
+		Scheme:             apihelper.Scheme(),
 		MetricsBindAddress: "0",
 		LeaderElection:     false,
 	})
@@ -216,7 +202,7 @@ func main() {
 		l.Fatalw("unable to create shoot manager", "error", err)
 	}
 
-	shootClient, err := client.New(shootConfig, client.Options{Scheme: scheme})
+	shootClient, err := client.New(shootConfig, client.Options{Scheme: apihelper.Scheme()})
 	if err != nil {
 		l.Fatalw("unable to create shoot client", "error", err)
 	}
@@ -228,7 +214,7 @@ func main() {
 		SeedClient:   seedMgr.GetClient(),
 		ShootClient:  shootClient,
 		Log:          ctrl.Log.WithName("controllers").WithName("Firewall"),
-		Scheme:       scheme,
+		Scheme:       apihelper.Scheme(),
 		Namespace:    seedNamespace,
 		FirewallName: firewallName,
 		Recorder:     shootMgr.GetEventRecorderFor("FirewallController"),
@@ -412,7 +398,7 @@ func controllerMigration(ctx context.Context, log logr.Logger, c client.Client, 
 	}
 
 	seed, err := client.New(seedConfig, client.Options{
-		Scheme: scheme,
+		Scheme: apihelper.Scheme(),
 	})
 	if err != nil {
 		return fmt.Errorf("unable to create seed client from migration secret: %w", err)
