@@ -11,7 +11,7 @@ require (
 	github.com/google/go-cmp v0.5.9
 	github.com/google/nftables v0.1.0
 	github.com/ks2211/go-suricata v0.0.0-20200823200910-986ce1470707
-	github.com/metal-stack/firewall-controller-manager v0.2.2
+	github.com/metal-stack/firewall-controller-manager v0.2.3-0.20230620144431-5175cc6726bb
 	github.com/metal-stack/gardener-extension-provider-metal v0.20.3
 	github.com/metal-stack/metal-go v0.22.6
 	github.com/metal-stack/metal-lib v0.11.10
