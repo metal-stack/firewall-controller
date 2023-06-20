@@ -233,6 +233,7 @@ func main() {
 		FirewallName: firewallName,
 		Recorder:     shootMgr.GetEventRecorderFor("FirewallController"),
 		Updater:      updater,
+		TokenUpdater: accessTokenUpdater,
 	}).SetupWithManager(seedMgr); err != nil {
 		l.Fatalw("unable to create firewall controller", "error", err)
 	}

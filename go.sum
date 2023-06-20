@@ -229,8 +229,8 @@ github.com/mdlayher/netlink v1.7.0 h1:ZNGI4V7i1fJ94DPYtWhI/R85i/Q7ZxnuhUJQcJMood
 github.com/mdlayher/netlink v1.7.0/go.mod h1:nKO5CSjE/DJjVhk/TNp6vCE1ktVxEA8VEh8drhZzxsQ=
 github.com/mdlayher/socket v0.4.0 h1:280wsy40IC9M9q1uPGcLBwXpcTQDtoGwVt+BNoITxIw=
 github.com/mdlayher/socket v0.4.0/go.mod h1:xxFqz5GRCUN3UEOm9CZqEJsAbe1C8OwSK46NlmWuVoc=
-github.com/metal-stack/firewall-controller-manager v0.2.2-0.20230620072053-240088238adf h1:9r71NGn/MT7luBQ58Z+Swe6/6P6wT2ViIg99hVUeO8g=
-github.com/metal-stack/firewall-controller-manager v0.2.2-0.20230620072053-240088238adf/go.mod h1:dROKw29FdXgIEJg+/BX8EcskSqxam4lwqtttwzPNjq0=
+github.com/metal-stack/firewall-controller-manager v0.2.2-0.20230620073833-76490ecddeb6 h1:v9lclllm2bPkQ1z0D4hDLIxS7jD1rdh5IGU3EPqebE0=
+github.com/metal-stack/firewall-controller-manager v0.2.2-0.20230620073833-76490ecddeb6/go.mod h1:dROKw29FdXgIEJg+/BX8EcskSqxam4lwqtttwzPNjq0=
 github.com/metal-stack/gardener-extension-provider-metal v0.20.3 h1:hhNLjACU2vYbZJFx7XuFXEAZXgXKElq6Bb5FFFUJEiQ=
 github.com/metal-stack/gardener-extension-provider-metal v0.20.3/go.mod h1:r0SgbEF3au3pJCMmriA3PNaawUd9h3v8msrMt43rGxI=
 github.com/metal-stack/metal-go v0.22.6-0.20230619121107-88274d9d710f h1:6/qPso/kk18D8Uz4VzYG/oPg5S+iCt5XYB8k2XgIQLQ=

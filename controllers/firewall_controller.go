@@ -24,6 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
+	"github.com/metal-stack/firewall-controller-manager/api/v2/helper"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/pkg/network"
 	"github.com/metal-stack/firewall-controller/pkg/nftables"
@@ -39,7 +40,8 @@ type FirewallReconciler struct {
 	Log      logr.Logger
 	Scheme   *runtime.Scheme
 
-	Updater *updater.Updater
+	Updater      *updater.Updater
+	TokenUpdater *helper.ShootAccessTokenUpdater
 
 	FirewallName string
 	Namespace    string
@@ -102,6 +104,9 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		if err != nil {
 			return ctrl.Result{}, err
 		}
+	}
+	if r.TokenUpdater != nil && f.Status.ShootAccess != nil {
+		r.TokenUpdater.UpdateShootAccess(f.Status.ShootAccess)
 	}
 
 	r.Log.Info("reconciling network settings")
