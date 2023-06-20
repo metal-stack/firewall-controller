@@ -3,16 +3,22 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/go-logr/logr"
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	apihelper "github.com/metal-stack/firewall-controller/api/v1/helper"
 	"github.com/metal-stack/firewall-controller/pkg/collector"
 	"github.com/metal-stack/firewall-controller/pkg/suricata"
 	"github.com/metal-stack/v"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/clientcmd"
+	configlatest "k8s.io/client-go/tools/clientcmd/api/latest"
+	configv1 "k8s.io/client-go/tools/clientcmd/api/v1"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -29,6 +35,9 @@ type FirewallMonitorReconciler struct {
 
 	FirewallName string
 	Namespace    string
+
+	SeedNamespace      string
+	SeedKubeconfigPath string
 
 	IDSEnabled bool
 	Interval   time.Duration
@@ -73,6 +82,10 @@ func (r *FirewallMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	if !mon.GetDeletionTimestamp().IsZero() {
 		return ctrl.Result{}, nil
+	}
+
+	if err := r.checkSeedEndpoint(ctx, mon); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	c := collector.NewNFTablesCollector(&r.Log)
@@ -122,4 +135,99 @@ func (r *FirewallMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		// in case the interval has changed nothing happens at the moment
 		RequeueAfter: r.Interval,
 	}, nil
+}
+
+func (r *FirewallMonitorReconciler) checkSeedEndpoint(ctx context.Context, mon *firewallv2.FirewallMonitor) error {
+	seedURL, ok := mon.Annotations[firewallv2.FirewallSeedURLAnnotation]
+	if !ok {
+		return nil
+	}
+
+	rawKubeconfig, err := os.ReadFile(r.SeedKubeconfigPath)
+	if err != nil {
+		return fmt.Errorf("unable to read seed kubeconfig: %w", err)
+	}
+
+	seedConfig, err := clientcmd.RESTConfigFromKubeConfig(rawKubeconfig)
+	if err != nil {
+		return fmt.Errorf("unable to create rest config from seed kubeconfig: %w", err)
+	}
+
+	if seedConfig.APIPath == seedURL {
+		return nil
+	}
+
+	r.Log.Info("seed api url is different in firewall monitor annotation, testing current seed client", "current-url", seedConfig.APIPath, "annotation-url", seedURL)
+
+	clientTest := func(c client.Client) error {
+		f := &firewallv2.Firewall{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      mon.Name,
+				Namespace: r.SeedNamespace,
+			},
+		}
+
+		return c.Get(ctx, client.ObjectKeyFromObject(f), f)
+	}
+
+	seedClient, err := client.New(seedConfig, client.Options{
+		Scheme: apihelper.Scheme(),
+	})
+	if err != nil {
+		return fmt.Errorf("unable to create seed client from seed kubeconfig: %w", err)
+	}
+
+	err = clientTest(seedClient)
+	if err == nil {
+		r.Log.Info("current seed client seems to work, not taking any further actions")
+		return nil
+	}
+
+	r.Log.Error(err, "current seed client seems not to work, attemping seed client update")
+
+	kubeconfig := &configv1.Config{}
+	err = runtime.DecodeInto(configlatest.Codec, rawKubeconfig, kubeconfig)
+	if err != nil {
+		return fmt.Errorf("unable to decode kubeconfig seed kubeconfig: %w", err)
+	}
+
+	for _, cluster := range kubeconfig.Clusters {
+		cluster := cluster
+		cluster.Cluster.Server = seedURL
+	}
+
+	updatedKubeconfig, err := runtime.Encode(configlatest.Codec, kubeconfig)
+	if err != nil {
+		return fmt.Errorf("unable to encode kubeconfig: %w", err)
+	}
+
+	updatedConfig, err := clientcmd.RESTConfigFromKubeConfig(updatedKubeconfig)
+	if err != nil {
+		return fmt.Errorf("unable to create rest config from bytes: %w", err)
+	}
+
+	newSeedClient, err := client.New(updatedConfig, client.Options{
+		Scheme: apihelper.Scheme(),
+	})
+	if err != nil {
+		return fmt.Errorf("unable to create seed client from updated seed kubeconfig: %w", err)
+	}
+
+	err = clientTest(newSeedClient)
+	if err != nil {
+		return fmt.Errorf("seed client seems broken but seed client with changed api server url also does not appear to work, seed connection lost?")
+	}
+
+	err = os.WriteFile(r.SeedKubeconfigPath, updatedKubeconfig, 0600)
+	if err != nil {
+		return fmt.Errorf("unable to write kubeconfig to destination: %w", err)
+	}
+
+	r.Log.Info("successfully updating seed client url, restarting controller")
+
+	// not sure if there is a more graceful way to shutdown this controller?
+	os.Exit(0)
+
+	return nil
+
 }
