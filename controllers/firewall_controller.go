@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -122,7 +123,7 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	r.Log.Info("reconciling ssh keys")
-	if err := r.reconcileSSHSecret(ctx, f); err != nil {
+	if err := r.reconcileSSHKeys(f); err != nil {
 		errs = append(errs, err)
 	}
 
@@ -281,24 +282,14 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 	return nil
 }
 
-func (r *FirewallReconciler) reconcileSSHSecret(ctx context.Context, fw *firewallv2.Firewall) error {
+func (r *FirewallReconciler) reconcileSSHKeys(fw *firewallv2.Firewall) error {
 	const (
 		authorizedKeysPath = "/home/metal/.ssh/authorized_keys"
 	)
 
-	sshSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fw.Status.ShootAccess.SSHKeySecretName,
-			Namespace: fw.Status.ShootAccess.Namespace,
-		},
-	}
+	content := strings.Join(fw.Spec.SSHPublicKeys, "\n")
 
-	err := r.SeedClient.Get(ctx, client.ObjectKeyFromObject(sshSecret), sshSecret)
-	if err != nil {
-		return fmt.Errorf("unable to read ssh secret: %w", err)
-	}
-
-	err = os.WriteFile(authorizedKeysPath, []byte(sshSecret.Data["id_rsa.pub"]), 0600)
+	err := os.WriteFile(authorizedKeysPath, []byte(content), 0600)
 	if err != nil {
 		return fmt.Errorf("unable to write authorized keys file: %w", err)
 	}
