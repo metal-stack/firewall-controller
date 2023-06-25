@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -22,6 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
+	"github.com/metal-stack/firewall-controller-manager/api/v2/helper"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/pkg/network"
 	"github.com/metal-stack/firewall-controller/pkg/nftables"
@@ -37,7 +40,8 @@ type FirewallReconciler struct {
 	Log      logr.Logger
 	Scheme   *runtime.Scheme
 
-	Updater *updater.Updater
+	Updater      *updater.Updater
+	TokenUpdater *helper.ShootAccessTokenUpdater
 
 	FirewallName string
 	Namespace    string
@@ -101,6 +105,9 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			return ctrl.Result{}, err
 		}
 	}
+	if r.TokenUpdater != nil && f.Status.ShootAccess != nil {
+		r.TokenUpdater.UpdateShootAccess(f.Status.ShootAccess)
+	}
 
 	r.Log.Info("reconciling network settings")
 
@@ -117,6 +124,11 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	r.Log.Info("reconciling firewall services")
 	if err = r.reconcileFirewallServices(ctx, f); err != nil {
+		errs = append(errs, err)
+	}
+
+	r.Log.Info("reconciling ssh keys")
+	if err := r.reconcileSSHKeys(f); err != nil {
 		errs = append(errs, err)
 	}
 
@@ -270,6 +282,21 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 	if !reflect.DeepEqual(currentEndpoints.Subsets, endpoints.Subsets) {
 		currentEndpoints.Subsets = endpoints.Subsets
 		return r.ShootClient.Update(ctx, &currentEndpoints)
+	}
+
+	return nil
+}
+
+func (r *FirewallReconciler) reconcileSSHKeys(fw *firewallv2.Firewall) error {
+	const (
+		authorizedKeysPath = "/home/metal/.ssh/authorized_keys"
+	)
+
+	content := strings.Join(fw.Spec.SSHPublicKeys, "\n")
+
+	err := os.WriteFile(authorizedKeysPath, []byte(content), 0600)
+	if err != nil {
+		return fmt.Errorf("unable to write authorized keys file: %w", err)
 	}
 
 	return nil
