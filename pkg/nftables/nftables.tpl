@@ -35,8 +35,22 @@ table inet firewall {
 	counter drop_total { }
 	counter drop_ratelimit { }
 
+	# create a flowtable for all interfaces
+	flowtable f {
+		hook ingress priority 1; devices = { 
+			{{- range .VrfIDs }}
+			"vlan{{ . }}",
+			"vrf{{ . }},
+			{{- end }}
+		};
+	}
+
 	chain forward {
 		type filter hook forward priority 1; policy drop;
+
+		# offload established connections
+		ip protocol { tcp, udp } flow offload @f
+		ip6 nexthdr { tcp, udp } flow offload @f
 
 		# network traffic accounting for external traffic
 		ip saddr != @internal_prefixes oifname {"vlan{{ .PrivateVrfID }}", "vrf{{ .PrivateVrfID }}"} counter name external_in comment "count external traffic incomming"

@@ -19,6 +19,7 @@ type firewallRenderingData struct {
 	Sets             []dns.RenderIPSet
 	InternalPrefixes string
 	PrivateVrfID     uint
+	VrfIDs           []int64
 }
 
 func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
@@ -48,6 +49,16 @@ func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 	if f.cache.IsInitialized() {
 		sets = f.cache.GetSetsForRendering(f.clusterwideNetworkPolicies.GetFQDNs())
 	}
+
+	var vrfIDs []int64
+	for _, nw := range f.networkMap {
+		nw := nw
+		if nw.Vrf == nil {
+			continue
+		}
+		vrfIDs = append(vrfIDs, *nw.Vrf)
+	}
+
 	return &firewallRenderingData{
 		PrivateVrfID:     uint(*f.primaryPrivateNet.Vrf),
 		InternalPrefixes: strings.Join(f.firewall.Spec.InternalPrefixes, ", "),
@@ -58,6 +69,7 @@ func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 		RateLimitRules: rateLimitRules(f),
 		SnatRules:      snatRules,
 		Sets:           sets,
+		VrfIDs:         vrfIDs,
 	}, nil
 }
 
