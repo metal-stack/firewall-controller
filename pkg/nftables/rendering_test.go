@@ -84,6 +84,33 @@ func TestFirewallRenderingData_renderString(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "flowtable",
+			data: &firewallRenderingData{
+				ForwardingRules: forwardingRules{
+					Egress:  []string{"egress rule"},
+					Ingress: []string{"ingress rule"},
+				},
+				InternalPrefixes: "1.2.3.4",
+				RateLimitRules:   []string{"meta iifname \"eth0\" limit rate over 10 mbytes/second counter name drop_ratelimit drop"},
+				SnatRules:        []string{},
+				PrivateVrfID:     uint(42),
+				Sets: []dns.RenderIPSet{
+					{
+						SetName: "test",
+						IPs:     []string{"10.0.0.1", "10.0.0.2"},
+						Version: dns.IPv4,
+					},
+					{
+						SetName: "test2",
+						IPs:     []string{"2001:db8:85a3::8a2e:370:7334", "2001:db8:85a3::8a2e:370:7335"},
+						Version: dns.IPv6,
+					},
+				},
+				VrfIDs: []int{60, 90, 104009},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		tt := tt
