@@ -107,7 +107,7 @@ func TestFirewallRenderingData_renderString(t *testing.T) {
 						Version: dns.IPv6,
 					},
 				},
-				VrfIDs: []int{60, 90, 104009},
+				VrfIDs: []string{"vlan60", "vrf60", "vlan90", "vrf90", "vlan104009", "vrf104009"},
 			},
 			wantErr: false,
 		},

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
 	"strings"
 	"text/template"
 
@@ -20,7 +19,7 @@ type firewallRenderingData struct {
 	Sets             []dns.RenderIPSet
 	InternalPrefixes string
 	PrivateVrfID     uint
-	VrfIDs           []int
+	VrfIDs           []string
 }
 
 func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
@@ -51,15 +50,15 @@ func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 		sets = f.cache.GetSetsForRendering(f.clusterwideNetworkPolicies.GetFQDNs())
 	}
 
-	var vrfIDs []int
+	var vrfIDs []string
 	for _, nw := range f.networkMap {
 		nw := nw
 		if nw.Vrf == nil {
 			continue
 		}
-		vrfIDs = append(vrfIDs, int(*nw.Vrf))
+		vrfIDs = append(vrfIDs, fmt.Sprintf("vlan%d", *nw.Vrf))
+		vrfIDs = append(vrfIDs, fmt.Sprintf("vrf%d", *nw.Vrf))
 	}
-	sort.Ints(vrfIDs)
 
 	return &firewallRenderingData{
 		PrivateVrfID:     uint(*f.primaryPrivateNet.Vrf),
