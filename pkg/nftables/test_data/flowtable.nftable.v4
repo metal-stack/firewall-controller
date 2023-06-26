@@ -41,7 +41,7 @@ table inet firewall {
 	counter drop_ratelimit { }
 	# create a flowtable for all interfaces
 	flowtable f {
-		hook ingress priority 1; devices = { vlan60, vrf60, vlan90, vrf90, vlan104009, vrf104009 };
+		hook ingress priority 1; devices = { vlan60, vrf60, vlan90, vrf90, vlan104009, vrf104009 }; counter;
 	}
 
 	chain forward {

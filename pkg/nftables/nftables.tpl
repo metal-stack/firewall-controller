@@ -38,7 +38,7 @@ table inet firewall {
 	{{- if gt (len .VrfIDs) 0 }}
 	# create a flowtable for all interfaces
 	flowtable f {
-		hook ingress priority 1; devices = { {{ StringsJoin .VrfIDs ", " }} };
+		hook ingress priority 1; devices = { {{ StringsJoin .VrfIDs ", " }} }; counter;
 	}
 	{{- end }}
 
