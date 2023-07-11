@@ -101,8 +101,13 @@ func clusterwideNetworkPolicyEgressRules(
 			if len(tcpPorts) > 0 {
 				rules = append(rules, assembleDestinationPortRule(rb.base, "tcp", tcpPorts, logAcceptedConnections, comment+" tcp"+rb.comment))
 				if e.TcpMss != nil {
-					tcpmss = append(tcpmss, fmt.Sprintf("%s dport { %s } tcp flags syn tcp option maxseg size set %d", rb.baseout, strings.Join(tcpPorts, ", "), e.TcpMss))
-					tcpmss = append(tcpmss, fmt.Sprintf("%s sport { %s } tcp flags syn tcp option maxseg size set %d", rb.basein, strings.Join(tcpPorts, ", "), e.TcpMss))
+					tcpmss = append(tcpmss, fmt.Sprintf("%s tcp dport { %s } tcp flags syn tcp option maxseg size set %d", rb.baseout, strings.Join(tcpPorts, ", "), e.TcpMss))
+					tcpmss = append(tcpmss, fmt.Sprintf("%s tcp sport { %s } tcp flags syn tcp option maxseg size set %d", rb.basein, strings.Join(tcpPorts, ", "), e.TcpMss))
+				}
+			} else {
+				if e.TcpMss != nil {
+					tcpmss = append(tcpmss, fmt.Sprintf("%s tcp flags syn tcp option maxseg size set %d", rb.baseout, e.TcpMss))
+					tcpmss = append(tcpmss, fmt.Sprintf("%s tcp flags syn tcp option maxseg size set %d", rb.basein, e.TcpMss))
 				}
 			}
 			if len(udpPorts) > 0 {
