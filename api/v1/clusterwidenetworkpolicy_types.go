@@ -121,6 +121,12 @@ type EgressRule struct {
 	// ToFQDNs rules can't contain To rules.
 	// +optional
 	ToFQDNs []FQDNSelector `json:"toFQDNs,omitempty"`
+
+	// Maximum MSS size for outgoing traffic to the egress destination
+	// If specified nftables rules for TCP-MSS clamping will be created.
+	// If none specified no rule will be applied.
+	// +optional
+	TcpMss *uint16 `json:"tcpmss,omitempty"`
 }
 
 // FQDNSelector describes rules for matching DNS names.

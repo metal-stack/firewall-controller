@@ -51,6 +51,11 @@ table inet firewall {
 		{{ . }}
 		{{- end }}
 
+		# TCP-MSS clamping
+		{{- range .ForwardingRules.TcpMss }}
+		{{ . }}
+		{{- end }}
+
 		# state dependent rules
 		ct state established,related counter accept comment "accept established connections"
 		ct state invalid counter drop comment "drop packets with invalid ct state"

@@ -65,6 +65,7 @@ type nftablesRules []string
 type forwardingRules struct {
 	Ingress nftablesRules
 	Egress  nftablesRules
+	TcpMss  nftablesRules
 }
 
 // NewDefaultFirewall creates a new default nftables firewall.

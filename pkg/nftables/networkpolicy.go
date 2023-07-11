@@ -12,6 +12,8 @@ import (
 type ruleBase struct {
 	comment string
 	base    []string
+	baseout []string
+	basein  []string
 }
 
 // clusterwideNetworkPolicyRules generates nftables rules for a clusterwidenetworkpolicy
@@ -19,11 +21,11 @@ func clusterwideNetworkPolicyRules(
 	cache FQDNCache,
 	np firewallv1.ClusterwideNetworkPolicy,
 	logAcceptedConnections bool,
-) (ingress nftablesRules, egress nftablesRules, updated firewallv1.ClusterwideNetworkPolicy) {
+) (ingress nftablesRules, egress nftablesRules, tcpmss nftablesRules, updated firewallv1.ClusterwideNetworkPolicy) {
 	updated = np
 
 	if len(np.Spec.Egress) > 0 {
-		egress, updated = clusterwideNetworkPolicyEgressRules(cache, np, logAcceptedConnections)
+		egress, tcpmss, updated = clusterwideNetworkPolicyEgressRules(cache, np, logAcceptedConnections)
 	}
 	if len(np.Spec.Ingress) > 0 {
 		ingress = append(ingress, clusterwideNetworkPolicyIngressRules(np, logAcceptedConnections)...)
@@ -64,22 +66,29 @@ func clusterwideNetworkPolicyEgressRules(
 	cache FQDNCache,
 	np firewallv1.ClusterwideNetworkPolicy,
 	logAcceptedConnections bool,
-) (rules nftablesRules, updated firewallv1.ClusterwideNetworkPolicy) {
+) (rules nftablesRules, tcpmss nftablesRules, updated firewallv1.ClusterwideNetworkPolicy) {
 	for _, e := range np.Spec.Egress {
 		tcpPorts, udpPorts := calculatePorts(e.Ports)
+
 		ruleBases := []ruleBase{}
 		if len(e.To) > 0 {
 			allow, except := clusterwideNetworkPolicyEgressToRules(e)
 			rb := []string{"ip saddr == @cluster_prefixes"}
+			rbmssout := []string{""}
+			rbmssin := []string{""}
 			if len(except) > 0 {
 				rb = append(rb, fmt.Sprintf("ip daddr != { %s }", strings.Join(except, ", ")))
+				rbmssout = append(rb, fmt.Sprintf("ip daddr != { %s }", strings.Join(except, ", ")))
+				rbmssin = append(rb, fmt.Sprintf("ip saddr != { %s }", strings.Join(except, ", ")))
 			}
 			if len(allow) > 0 {
 				if allow[0] != "0.0.0.0/0" {
 					rb = append(rb, fmt.Sprintf("ip daddr { %s }", strings.Join(allow, ", ")))
+					rbmssout = append(rb, fmt.Sprintf("ip daddr { %s }", strings.Join(allow, ", ")))
+					rbmssin = append(rb, fmt.Sprintf("ip saddr { %s }", strings.Join(allow, ", ")))
 				}
 			}
-			ruleBases = append(ruleBases, ruleBase{base: rb})
+			ruleBases = append(ruleBases, ruleBase{base: rb, baseout: rbmssin, basein: rbmssout})
 		} else if len(e.ToFQDNs) > 0 && cache.IsInitialized() {
 			// Generate allow rules based on DNS selectors
 			rbs, u := clusterwideNetworkPolicyEgressToFQDNRules(cache, np.Status.FQDNState, e)
@@ -91,6 +100,10 @@ func clusterwideNetworkPolicyEgressRules(
 		for _, rb := range ruleBases {
 			if len(tcpPorts) > 0 {
 				rules = append(rules, assembleDestinationPortRule(rb.base, "tcp", tcpPorts, logAcceptedConnections, comment+" tcp"+rb.comment))
+				if e.TcpMss != nil {
+					tcpmss = append(tcpmss, fmt.Sprintf("%s dport { %s } tcp flags syn tcp option maxseg size set %d", rb.baseout, strings.Join(tcpPorts, ", "), e.TcpMss))
+					tcpmss = append(tcpmss, fmt.Sprintf("%s sport { %s } tcp flags syn tcp option maxseg size set %d", rb.basein, strings.Join(tcpPorts, ", "), e.TcpMss))
+				}
 			}
 			if len(udpPorts) > 0 {
 				rules = append(rules, assembleDestinationPortRule(rb.base, "udp", udpPorts, logAcceptedConnections, comment+" udp"+rb.comment))
@@ -98,7 +111,7 @@ func clusterwideNetworkPolicyEgressRules(
 		}
 	}
 
-	return uniqueSorted(rules), np
+	return uniqueSorted(rules), uniqueSorted(tcpmss), np
 }
 
 func clusterwideNetworkPolicyEgressToRules(e firewallv1.EgressRule) (allow, except []string) {

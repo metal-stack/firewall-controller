@@ -90,6 +90,11 @@ spec:
                             type: string
                         type: object
                       type: array
+                    tcpmss:
+                      description: Maximum MSS size for outgoing traffic to the egress
+                        destination If specified nftables rules for TCP-MSS clamping
+                        will be created. If none specified no rule will be applied.
+                      type: integer
                     to:
                       description: List of destinations for outgoing traffic of a
                         cluster for this rule. Items in this list are combined using
