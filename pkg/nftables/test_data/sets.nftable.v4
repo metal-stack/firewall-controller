@@ -54,8 +54,6 @@ table inet firewall {
 		# rate limits
 		meta iifname "eth0" limit rate over 10 mbytes/second counter name drop_ratelimit drop
 
-		# TCP-MSS clamping
-
 		# state dependent rules
 		ct state established,related counter accept comment "accept established connections"
 		ct state invalid counter drop comment "drop packets with invalid ct state"
