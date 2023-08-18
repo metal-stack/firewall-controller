@@ -12,7 +12,6 @@ require (
 	github.com/google/nftables v0.1.0
 	github.com/ks2211/go-suricata v0.0.0-20200823200910-986ce1470707
 	github.com/metal-stack/firewall-controller-manager v0.2.2
-	github.com/metal-stack/gardener-extension-provider-metal v0.20.3
 	github.com/metal-stack/metal-go v0.22.6
 	github.com/metal-stack/metal-lib v0.11.10
 	github.com/metal-stack/metal-networker v0.33.0
@@ -70,6 +69,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
+	github.com/onsi/gomega v1.27.6 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect

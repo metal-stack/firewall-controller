@@ -16,11 +16,11 @@ import (
 
 	"github.com/go-logr/logr"
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
-	"github.com/metal-stack/gardener-extension-provider-metal/pkg/secret"
 
 	"github.com/txn2/txeh"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -141,11 +141,17 @@ func (r *DroptailerReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, nil
 	}
 
-	secret, err := getLatestSecret(ctx, r.ShootClient, firewallv1.ClusterwideNetworkPolicyNamespace, secretName)
-	if err != nil {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
+		},
+	}
+	if err := r.ShootClient.Get(ctx, client.ObjectKeyFromObject(secret), secret); err != nil {
 		return ctrl.Result{}, err
 	}
-	err = r.writeSecret(secret)
+
+	err := r.writeSecret(secret)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -221,16 +227,4 @@ func (r *DroptailerReconciler) writeSecret(secret *corev1.Secret) error {
 		}
 	}
 	return nil
-}
-
-func getLatestSecret(ctx context.Context, c client.Client, namespace string, name string) (*corev1.Secret, error) {
-	secretList := &corev1.SecretList{}
-	if err := c.List(ctx, secretList, client.InNamespace(namespace), client.MatchingLabels{
-		"name":       name,
-		"managed-by": "secrets-manager",
-	}); err != nil {
-		return nil, err
-	}
-
-	return secret.GetLatestIssuedSecret(secretList.Items)
 }
