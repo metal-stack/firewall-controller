@@ -63,6 +63,7 @@ func serviceRules(svc corev1.Service, logAcceptedConnections bool) nftablesRules
 	tcpPorts := []string{}
 	udpPorts := []string{}
 	for _, p := range svc.Spec.Ports {
+		p := p
 		proto := proto(&p.Protocol)
 		if proto == "tcp" {
 			tcpPorts = append(tcpPorts, fmt.Sprint(p.Port))
