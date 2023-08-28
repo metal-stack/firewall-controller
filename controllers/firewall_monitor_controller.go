@@ -14,6 +14,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -55,41 +56,13 @@ func (r *FirewallMonitorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // Reconcile updates the firewall monitor.
 func (r *FirewallMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	mon := &firewallv2.FirewallMonitor{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      r.FirewallName,
-			Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
-		},
-	}
-
-	if err := r.ShootClient.Get(ctx, client.ObjectKeyFromObject(mon), mon); err != nil {
-		if apierrors.IsNotFound(err) {
-			r.Log.Info("resource no longer exists")
-			return ctrl.Result{}, nil
-		}
-
-		return ctrl.Result{}, fmt.Errorf("error retrieving resource: %w", err)
-	}
-
-	if !mon.GetDeletionTimestamp().IsZero() {
-		return ctrl.Result{}, nil
-	}
-
 	c := collector.NewNFTablesCollector(&r.Log)
 	ruleStats := c.CollectRuleStats()
 
-	if mon.ControllerStatus == nil {
-		mon.ControllerStatus = &firewallv2.ControllerStatus{}
-	}
-
-	mon.ControllerStatus.FirewallStats = &firewallv2.FirewallStats{
-		RuleStats: ruleStats,
-	}
 	deviceStats, err := c.CollectDeviceStats()
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	mon.ControllerStatus.FirewallStats.DeviceStats = deviceStats
 
 	idsStats := firewallv2.IDSStatsByDevice{}
 	if r.IDSEnabled {
@@ -106,16 +79,56 @@ func (r *FirewallMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 			}
 		}
 	}
-	mon.ControllerStatus.FirewallStats.IDSStats = idsStats
 
-	mon.ControllerStatus.ControllerVersion = v.Version
-	mon.ControllerStatus.Updated.Time = time.Now()
+	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		mon := &firewallv2.FirewallMonitor{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      r.FirewallName,
+				Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
+			},
+		}
 
-	if err := r.ShootClient.Update(ctx, mon); err != nil {
+		if err := r.ShootClient.Get(ctx, client.ObjectKeyFromObject(mon), mon); err != nil {
+			if apierrors.IsNotFound(err) {
+				r.Log.Info("resource no longer exists")
+				return nil
+			}
+
+			return fmt.Errorf("error retrieving resource: %w", err)
+		}
+
+		if !mon.GetDeletionTimestamp().IsZero() {
+			return nil
+		}
+
+		now := time.Now()
+
+		mon.ControllerStatus = &firewallv2.ControllerStatus{
+			Message: fmt.Sprintf("updated firewall monitor resource at %s", now.String()),
+			FirewallStats: &firewallv2.FirewallStats{
+				RuleStats:   ruleStats,
+				DeviceStats: deviceStats,
+				IDSStats:    idsStats,
+			},
+			ControllerVersion:       v.Version,
+			NftablesExporterVersion: "", // TODO
+			Updated:                 metav1.NewTime(now),
+			Distance:                0,
+			DistanceSupported:       false,
+		}
+
+		err := r.ShootClient.Update(ctx, mon)
+		if err != nil {
+			return err
+		}
+
+		r.Log.Info(fmt.Sprintf("firewall monitor successfully updated, requeuing in %s", r.Interval.String()), "name", mon.Name, "namespace", mon.Namespace)
+
+		return nil
+	})
+	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to update firewall monitor status, err: %w", err)
 	}
-
-	r.Log.Info(fmt.Sprintf("firewall monitor successfully updated, requeuing in %s", r.Interval.String()), "name", mon.Name, "namespace", mon.Namespace)
 
 	return ctrl.Result{
 		// TODO: the interval can change over the lifetime of a firewall resource
