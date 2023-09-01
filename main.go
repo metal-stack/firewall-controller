@@ -299,6 +299,7 @@ func main() {
 		}
 	}()
 
+	l.Infow("set sysctl value", "key", sysctl.NFConntrackMax, "value", sysctl.NFConntrackMaxSetting)
 	err = sysctl.Set(sysctl.NFConntrackMax, sysctl.NFConntrackMaxSetting)
 	if err != nil {
 		l.Errorw("unable to set sysctl", "key", sysctl.NFConntrackMax, "value", sysctl.NFConntrackMaxSetting, "error", err)
