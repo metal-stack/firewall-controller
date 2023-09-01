@@ -33,6 +33,7 @@ import (
 
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/controllers"
+	"github.com/metal-stack/firewall-controller/pkg/sysctl"
 	"github.com/metal-stack/firewall-controller/pkg/updater"
 	// +kubebuilder:scaffold:imports
 )
@@ -297,6 +298,11 @@ func main() {
 			l.Fatalw("problem running shoot controller", "error", err)
 		}
 	}()
+
+	err = sysctl.Tune(l)
+	if err != nil {
+		l.Errorw("unable to tune kernel", "error", err)
+	}
 
 	if err := seedMgr.Start(ctx); err != nil {
 		l.Errorw("problem running seed controller", "error", err)
