@@ -13,17 +13,17 @@ import (
 const (
 	// sysctlBase is the root directory for sysctl values in the proc filesystem
 	sysctlBase = "/proc/sys"
-	// NFConntrackMax defines how many connection track entries can be active at the same time
-	NFConntrackMax = Sysctl("/net/netfilter/nf_conntrack_max")
-	// NFConntrackMaxSetting defines the maximum settable
-	NFConntrackMaxSetting = 4194304
+	// nfConntrackMax defines how many connection track entries can be active at the same time
+	nfConntrackMax = Sysctl("/net/netfilter/nf_conntrack_max")
+	// nfConntrackMaxSetting defines the maximum settable
+	nfConntrackMaxSetting = 4194304
 
 	// moduleBase is the root directory for module specific settings
 	moduleBase = "/sys/module"
-	// NFConntrackHashSize defines the hashsize of the conntrack module
-	NFConntrackHashSize = Module("/nf_conntrack/parameters/hashsize")
-	// NFConntrackHashSizeSetting defines the maximum settable
-	NFConntrackHashSizeSetting = 4194304
+	// nfConntrackHashSize defines the hashsize of the conntrack module
+	nfConntrackHashSize = Module("/nf_conntrack/parameters/hashsize")
+	// nfConntrackHashSizeSetting defines the maximum settable
+	nfConntrackHashSizeSetting = 4194304
 )
 
 type (
@@ -32,26 +32,26 @@ type (
 )
 
 func Tune(log *zap.SugaredLogger) error {
-	log.Infow("set sysctl value", "key", NFConntrackMax, "value", NFConntrackMaxSetting)
-	err := Set(NFConntrackMax, NFConntrackMaxSetting)
+	log.Infow("set sysctl value", "key", nfConntrackMax, "value", nfConntrackMaxSetting)
+	err := Set(nfConntrackMax, nfConntrackMaxSetting)
 	if err != nil {
-		return fmt.Errorf("unable to set value of %q %w", NFConntrackMax, err)
+		return fmt.Errorf("unable to set value of %q %w", nfConntrackMax, err)
 	}
-	conntrackMax, err := Get(NFConntrackMax)
+
+	conntrackMax, err := Get(nfConntrackMax)
 	if err != nil {
-		return fmt.Errorf("unable to get value of %q %w", NFConntrackMax, err)
+		return fmt.Errorf("unable to get value of %q %w", nfConntrackMax, err)
 	}
-	log.Infow("set module value", "key", NFConntrackHashSize, "value", NFConntrackHashSizeSetting)
-	err = SetModule(NFConntrackHashSize, NFConntrackHashSizeSetting)
+
+	log.Infow("set module value", "key", nfConntrackHashSize, "value", nfConntrackHashSizeSetting)
+	err = SetModule(nfConntrackHashSize, nfConntrackHashSizeSetting)
 	if err != nil {
 		return fmt.Errorf("unable to set module parameter %w", err)
 	}
+
+	hashSize, err := GetModule(nfConntrackHashSize)
 	if err != nil {
-		return fmt.Errorf("unable to get value of %q %w", NFConntrackMax, err)
-	}
-	hashSize, err := GetModule(NFConntrackHashSize)
-	if err != nil {
-		return fmt.Errorf("unable to get value of %q %w", NFConntrackMax, err)
+		return fmt.Errorf("unable to get value of %q %w", nfConntrackMax, err)
 	}
 
 	log.Infow("sysctl and module parameters set", "conntrack max", conntrackMax, "hash size", hashSize)
