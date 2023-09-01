@@ -304,6 +304,11 @@ func main() {
 	if err != nil {
 		l.Errorw("unable to set sysctl", "key", sysctl.NFConntrackMax, "value", sysctl.NFConntrackMaxSetting, "error", err)
 	}
+	l.Infow("set module value", "key", sysctl.NFConntrackHashSize, "value", sysctl.NFConntrackHashSizeSetting)
+	err = sysctl.SetModule(sysctl.NFConntrackHashSize, sysctl.NFConntrackHashSizeSetting)
+	if err != nil {
+		l.Errorw("unable to set module", "key", sysctl.NFConntrackHashSize, "value", sysctl.NFConntrackHashSizeSetting, "error", err)
+	}
 
 	if err := seedMgr.Start(ctx); err != nil {
 		l.Errorw("problem running seed controller", "error", err)
