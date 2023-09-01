@@ -15,7 +15,7 @@ const (
 	NFConntrackMaxSetting = 4194304
 )
 
-// GetSysctl returns the value for the specified sysctl setting
+// Get returns the value for the specified sysctl setting
 func Get(sysctl string) (int, error) {
 	data, err := os.ReadFile(path.Join(sysctlBase, sysctl))
 	if err != nil {
@@ -28,7 +28,7 @@ func Get(sysctl string) (int, error) {
 	return val, nil
 }
 
-// SetSysctl modifies the specified sysctl flag to the new value
+// Set modifies the specified sysctl flag to the new value
 func Set(sysctl string, newVal int) error {
 	return os.WriteFile(path.Join(sysctlBase, sysctl), []byte(strconv.Itoa(newVal)), 0600)
 }
