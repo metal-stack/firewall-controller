@@ -299,15 +299,9 @@ func main() {
 		}
 	}()
 
-	l.Infow("set sysctl value", "key", sysctl.NFConntrackMax, "value", sysctl.NFConntrackMaxSetting)
-	err = sysctl.Set(sysctl.NFConntrackMax, sysctl.NFConntrackMaxSetting)
+	err = sysctl.Tune(l)
 	if err != nil {
-		l.Errorw("unable to set sysctl", "key", sysctl.NFConntrackMax, "value", sysctl.NFConntrackMaxSetting, "error", err)
-	}
-	l.Infow("set module value", "key", sysctl.NFConntrackHashSize, "value", sysctl.NFConntrackHashSizeSetting)
-	err = sysctl.SetModule(sysctl.NFConntrackHashSize, sysctl.NFConntrackHashSizeSetting)
-	if err != nil {
-		l.Errorw("unable to set module", "key", sysctl.NFConntrackHashSize, "value", sysctl.NFConntrackHashSizeSetting, "error", err)
+		l.Errorw("unable to tune kernel", "error", err)
 	}
 
 	if err := seedMgr.Start(ctx); err != nil {

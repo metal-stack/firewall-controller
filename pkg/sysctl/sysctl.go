@@ -1,10 +1,13 @@
 package sysctl
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"strconv"
 	"strings"
+
+	"go.uber.org/zap"
 )
 
 const (
@@ -27,6 +30,33 @@ type (
 	Sysctl string
 	Module string
 )
+
+func Tune(log *zap.SugaredLogger) error {
+	log.Infow("set sysctl value", "key", NFConntrackMax, "value", NFConntrackMaxSetting)
+	err := Set(NFConntrackMax, NFConntrackMaxSetting)
+	if err != nil {
+		return fmt.Errorf("unable to set value of %q %w", NFConntrackMax, err)
+	}
+	conntrackMax, err := Get(NFConntrackMax)
+	if err != nil {
+		return fmt.Errorf("unable to get value of %q %w", NFConntrackMax, err)
+	}
+	log.Infow("set module value", "key", NFConntrackHashSize, "value", NFConntrackHashSizeSetting)
+	err = SetModule(NFConntrackHashSize, NFConntrackHashSizeSetting)
+	if err != nil {
+		return fmt.Errorf("unable to set module parameter %w", err)
+	}
+	if err != nil {
+		return fmt.Errorf("unable to get value of %q %w", NFConntrackMax, err)
+	}
+	hashSize, err := GetModule(NFConntrackHashSize)
+	if err != nil {
+		return fmt.Errorf("unable to get value of %q %w", NFConntrackMax, err)
+	}
+
+	log.Infow("sysctl and module parameters set", "conntrack max", conntrackMax, "hash size", hashSize)
+	return nil
+}
 
 // Get returns the value for the specified sysctl setting
 func Get(sysctl Sysctl) (int, error) {
