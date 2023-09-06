@@ -1,16 +1,11 @@
 package v1
 
 import (
-	"errors"
-	"fmt"
-	"net"
 	"strings"
 
 	dnsgo "github.com/miekg/dns"
-	corev1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 type IPVersion string
@@ -185,73 +180,4 @@ func (s FQDNSelector) GetRegex() string {
 
 	// Anchor the match to require the whole string to match this expression
 	return "^" + pattern + "$"
-}
-
-// Validate validates the spec of a ClusterwideNetworkPolicy
-func (p *PolicySpec) Validate() error {
-	var errs []error
-	for _, e := range p.Egress {
-		errs = append(errs, validatePorts(e.Ports), validateIPBlocks(e.To))
-	}
-	for _, i := range p.Ingress {
-		errs = append(errs, validatePorts(i.Ports), validateIPBlocks(i.From))
-	}
-
-	return errors.Join(errs...)
-}
-
-func validatePorts(ports []networking.NetworkPolicyPort) error {
-	var errs []error
-	for _, p := range ports {
-		if p.Port != nil && p.Port.Type != intstr.Int {
-			errs = append(errs, fmt.Errorf("only int ports are supported, but %v given", p.Port))
-		}
-
-		if p.Port != nil && (p.Port.IntValue() > 65535 || p.Port.IntValue() <= 0) {
-			errs = append(errs, fmt.Errorf("only ports between 0 and 65535 are allowed, but %v given", p.Port))
-		}
-
-		if p.Protocol != nil {
-			proto := *p.Protocol
-			if proto != corev1.ProtocolUDP && proto != corev1.ProtocolTCP {
-				errs = append(errs, fmt.Errorf("only TCP and UDP are supported as protocol, but %v given", proto))
-			}
-		}
-	}
-	return errors.Join(errs...)
-}
-
-func validateIPBlocks(blocks []networking.IPBlock) error {
-	var errs []error
-	for _, b := range blocks {
-		_, blockNet, err := net.ParseCIDR(b.CIDR)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("%v is not a valid IP CIDR", b.CIDR))
-			continue
-		}
-
-		for _, e := range b.Except {
-			exceptIP, exceptNet, err := net.ParseCIDR(b.CIDR)
-			if err != nil {
-				errs = append(errs, fmt.Errorf("%v is not a valid IP CIDR", e))
-				continue
-			}
-
-			if !blockNet.Contains(exceptIP) {
-				errs = append(errs, fmt.Errorf("%v is not contained in the IP CIDR %v", exceptIP, blockNet))
-				continue
-			}
-
-			blockSize, _ := blockNet.Mask.Size()
-			exceptSize, _ := exceptNet.Mask.Size()
-			if exceptSize > blockSize {
-				errs = append(errs, fmt.Errorf("netmask size of network to be excluded must be smaller than netmask of the block CIDR"))
-			}
-		}
-	}
-	return errors.Join(errs...)
-}
-
-func init() {
-	SchemeBuilder.Register(&ClusterwideNetworkPolicy{}, &ClusterwideNetworkPolicyList{})
 }

@@ -11,8 +11,6 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 
 	corev1 "k8s.io/api/core/v1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
@@ -33,6 +31,7 @@ import (
 
 	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
 	"github.com/metal-stack/firewall-controller/controllers"
+	"github.com/metal-stack/firewall-controller/pkg/logger"
 	"github.com/metal-stack/firewall-controller/pkg/sysctl"
 	"github.com/metal-stack/firewall-controller/pkg/updater"
 	// +kubebuilder:scaffold:imports
@@ -94,7 +93,7 @@ func main() {
 		return
 	}
 
-	l, err := newZapLogger(logLevel)
+	l, err := logger.NewZapLogger(logLevel)
 	if err != nil {
 		setupLog.Error(err, "unable to parse log level")
 		os.Exit(1)
@@ -259,14 +258,6 @@ func main() {
 		l.Fatalw("unable to create clusterwidenetworkpolicy controller", "error", err)
 	}
 
-	if err = (&controllers.ClusterwideNetworkPolicyValidationReconciler{
-		ShootClient: shootMgr.GetClient(),
-		Log:         ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicyValidation"),
-		Recorder:    shootMgr.GetEventRecorderFor("FirewallController"),
-	}).SetupWithManager(shootMgr); err != nil {
-		l.Fatalw("unable to create clusterwidenetworkpolicyvalidation controller", "error", err)
-	}
-
 	if err = (&controllers.FirewallMonitorReconciler{
 		ShootClient:  shootMgr.GetClient(),
 		Log:          ctrl.Log.WithName("controllers").WithName("FirewallMonitorReconciler"),
@@ -308,25 +299,6 @@ func main() {
 		l.Errorw("problem running seed controller", "error", err)
 		panic(err)
 	}
-}
-
-func newZapLogger(levelString string) (*zap.SugaredLogger, error) {
-	level, err := zap.ParseAtomicLevel(levelString)
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse log level: %w", err)
-	}
-
-	cfg := zap.NewProductionConfig()
-	cfg.Level = level
-	cfg.EncoderConfig.TimeKey = "timestamp"
-	cfg.EncoderConfig.EncodeTime = zapcore.RFC3339TimeEncoder
-
-	l, err := cfg.Build()
-	if err != nil {
-		return nil, fmt.Errorf("can't initialize zap logger: %w", err)
-	}
-
-	return l.Sugar(), nil
 }
 
 func isFirewallV2GVKPresent(config *rest.Config) error {
