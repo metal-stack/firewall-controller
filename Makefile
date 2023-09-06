@@ -8,7 +8,7 @@ LOCALBIN ?= $(shell pwd)/bin
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 
-all: firewall-controller
+all: firewall-controller firewall-controller-webhook
 
 # Build firewall-controller binary
 firewall-controller: generate fmt vet
@@ -23,6 +23,19 @@ firewall-controller: generate fmt vet
 		-o bin/firewall-controller main.go
 	strip bin/firewall-controller
 	sha256sum bin/firewall-controller > bin/firewall-controller.sha256
+
+firewall-controller-webhook: generate fmt vet
+	CGO_ENABLED=0 go build \
+		-tags netgo \
+		-trimpath \
+		-ldflags \
+			"-X 'github.com/metal-stack/v.Version=$(VERSION)' \
+			-X 'github.com/metal-stack/v.Revision=$(GITVERSION)' \
+			-X 'github.com/metal-stack/v.GitSHA1=$(SHA)' \
+			-X 'github.com/metal-stack/v.BuildDate=$(BUILDDATE)'" \
+		-o bin/firewall-controller-webhook cmd/webhook/cmd.go
+	strip bin/firewall-controller-webhook
+	sha256sum bin/firewall-controller-webhook > bin/firewall-controller-webhook.sha256
 
 $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
@@ -52,7 +65,8 @@ deploy: manifests
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
-	$(CONTROLLER_GEN) crd rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) crd rbac:roleName=manager-role paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) +webhook paths="./..." +output:dir=config/webhooks
 
 # Run go fmt against code
 fmt:
