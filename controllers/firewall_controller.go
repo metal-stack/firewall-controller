@@ -139,9 +139,11 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	r.recordFirewallEvent(f, corev1.EventTypeNormal, "Reconciled", "nftables rules and statistics successfully")
 
-	r.Log.Info("successfully reconciled firewall")
+	r.Log.Info("successfully reconciled firewall, requeueing in 3 minutes")
 
-	return ctrl.Result{}, nil
+	return ctrl.Result{
+		RequeueAfter: 3 * time.Minute,
+	}, nil
 }
 
 type firewallService struct {
