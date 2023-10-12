@@ -25,16 +25,15 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	controllerclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	"github.com/metal-stack/firewall-controller-manager/api/v2/helper"
 
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
-	"github.com/metal-stack/firewall-controller/controllers"
-	"github.com/metal-stack/firewall-controller/pkg/sysctl"
-	"github.com/metal-stack/firewall-controller/pkg/updater"
+	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
+	"github.com/metal-stack/firewall-controller/v2/controllers"
+	"github.com/metal-stack/firewall-controller/v2/pkg/sysctl"
+	"github.com/metal-stack/firewall-controller/v2/pkg/updater"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -217,7 +216,7 @@ func main() {
 		l.Fatalw("unable to create shoot manager", "error", err)
 	}
 
-	shootClient, err := client.New(shootConfig, client.Options{Scheme: scheme})
+	shootClient, err := controllerclient.New(shootConfig, controllerclient.Options{Scheme: scheme})
 	if err != nil {
 		l.Fatalw("unable to create shoot client", "error", err)
 	}
@@ -351,9 +350,9 @@ func isFirewallV2GVKPresent(config *rest.Config) error {
 	return fmt.Errorf("client cannot find firewall v2 resource on server side, assuming that this firewall was provisioned with shoot client in the past")
 }
 
-func findResponsibleFirewall(ctx context.Context, seed client.Client, firewallName, seedNamespace string) (*firewallv2.Firewall, error) {
+func findResponsibleFirewall(ctx context.Context, seed controllerclient.Client, firewallName, seedNamespace string) (*firewallv2.Firewall, error) {
 	fwList := &firewallv2.FirewallList{}
-	err := seed.List(ctx, fwList, &client.ListOptions{
+	err := seed.List(ctx, fwList, &controllerclient.ListOptions{
 		Namespace: seedNamespace,
 	})
 	if err != nil {
@@ -391,7 +390,7 @@ func getSeedNamespace(rawKubeconfig []byte) (string, error) {
 	return "", fmt.Errorf("unable to figure out seed namespace from kubeconfig")
 }
 
-func controllerMigration(ctx context.Context, log logr.Logger, c client.Client, firewallName, seedNamespace string) error {
+func controllerMigration(ctx context.Context, log logr.Logger, c controllerclient.Client, firewallName, seedNamespace string) error {
 	// changing from existing shoot kubeconfig from deployments before firewall-controller-manager
 	// to seed kubeconfig by trying to use an offered migration secret in the shoot's firewall namespace.
 
@@ -401,7 +400,7 @@ func controllerMigration(ctx context.Context, log logr.Logger, c client.Client, 
 			Namespace: firewallv2.FirewallShootNamespace,
 		},
 	}
-	err := c.Get(ctx, client.ObjectKeyFromObject(migrationSecret), migrationSecret)
+	err := c.Get(ctx, controllerclient.ObjectKeyFromObject(migrationSecret), migrationSecret)
 	if err != nil {
 		return fmt.Errorf("no migration secret found, cannot run with shoot client: %w", err)
 	}
@@ -415,7 +414,7 @@ func controllerMigration(ctx context.Context, log logr.Logger, c client.Client, 
 		return fmt.Errorf("unable to create rest config from migration secret: %w", err)
 	}
 
-	seed, err := client.New(seedConfig, client.Options{
+	seed, err := controllerclient.New(seedConfig, controllerclient.Options{
 		Scheme: scheme,
 	})
 	if err != nil {

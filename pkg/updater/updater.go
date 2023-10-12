@@ -6,7 +6,7 @@ import (
 
 	"github.com/go-logr/logr"
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
 )

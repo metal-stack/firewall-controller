@@ -6,7 +6,7 @@ import (
 
 	networkingv1 "k8s.io/api/networking/v1"
 
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 )
 
 type ruleBase struct {

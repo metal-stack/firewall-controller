@@ -18,7 +18,7 @@ import (
 	dnsgo "github.com/miekg/dns"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 )
 
 type IPVersion string

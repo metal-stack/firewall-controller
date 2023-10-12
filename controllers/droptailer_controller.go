@@ -15,7 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/go-logr/logr"
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 
 	"github.com/txn2/txeh"
 	corev1 "k8s.io/api/core/v1"

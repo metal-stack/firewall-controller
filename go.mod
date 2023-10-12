@@ -1,4 +1,4 @@
-module github.com/metal-stack/firewall-controller
+module github.com/metal-stack/firewall-controller/v2
 
 go 1.21
 

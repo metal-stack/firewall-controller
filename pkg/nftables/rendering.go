@@ -8,7 +8,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/metal-stack/firewall-controller/pkg/dns"
+	"github.com/metal-stack/firewall-controller/v2/pkg/dns"
 )
 
 // firewallRenderingData holds the data available in the nftables template

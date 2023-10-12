@@ -11,7 +11,7 @@ import (
 	networking "k8s.io/api/networking/v1"
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 )
 
 func TestSnatRules(t *testing.T) {
