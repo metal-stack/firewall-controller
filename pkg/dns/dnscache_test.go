@@ -5,7 +5,7 @@ import (
 
 	"github.com/go-logr/logr"
 
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 )
 
 func Test_GetSetsForFQDN(t *testing.T) {

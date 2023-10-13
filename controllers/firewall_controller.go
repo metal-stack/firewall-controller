@@ -25,10 +25,10 @@ import (
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	"github.com/metal-stack/firewall-controller-manager/api/v2/helper"
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
-	"github.com/metal-stack/firewall-controller/pkg/network"
-	"github.com/metal-stack/firewall-controller/pkg/nftables"
-	"github.com/metal-stack/firewall-controller/pkg/updater"
+	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
+	"github.com/metal-stack/firewall-controller/v2/pkg/network"
+	"github.com/metal-stack/firewall-controller/v2/pkg/nftables"
+	"github.com/metal-stack/firewall-controller/v2/pkg/updater"
 )
 
 // FirewallReconciler reconciles a Firewall object

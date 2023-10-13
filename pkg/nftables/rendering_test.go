@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/metal-stack/firewall-controller/pkg/dns"
+	"github.com/metal-stack/firewall-controller/v2/pkg/dns"
 )
 
 func TestFirewallRenderingData_renderString(t *testing.T) {

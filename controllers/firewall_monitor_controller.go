@@ -7,9 +7,9 @@ import (
 
 	"github.com/go-logr/logr"
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
-	"github.com/metal-stack/firewall-controller/pkg/collector"
-	"github.com/metal-stack/firewall-controller/pkg/suricata"
+	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
+	"github.com/metal-stack/firewall-controller/v2/pkg/collector"
+	"github.com/metal-stack/firewall-controller/v2/pkg/suricata"
 	"github.com/metal-stack/v"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

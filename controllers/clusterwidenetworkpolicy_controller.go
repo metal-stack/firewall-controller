@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/metal-stack/firewall-controller/pkg/dns"
-	"github.com/metal-stack/firewall-controller/pkg/nftables"
+	"github.com/metal-stack/firewall-controller/v2/pkg/dns"
+	"github.com/metal-stack/firewall-controller/v2/pkg/nftables"
 
 	"github.com/go-logr/logr"
 
@@ -21,7 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 )
 
 // ClusterwideNetworkPolicyReconciler reconciles a ClusterwideNetworkPolicy object

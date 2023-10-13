@@ -3,16 +3,17 @@ package dns
 import (
 	"context"
 	"fmt"
-	"github.com/metal-stack/metal-networker/pkg/netconf"
 	"net"
 	"strconv"
 
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	"github.com/metal-stack/metal-networker/pkg/netconf"
+
+	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 
 	"github.com/go-logr/logr"
 	dnsgo "github.com/miekg/dns"
 
-	"github.com/metal-stack/firewall-controller/pkg/network"
+	"github.com/metal-stack/firewall-controller/v2/pkg/network"
 )
 
 const (
