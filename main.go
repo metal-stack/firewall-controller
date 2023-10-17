@@ -9,21 +9,16 @@ import (
 
 	"github.com/metal-stack/v"
 
-	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
 	corev1 "k8s.io/api/core/v1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/yaml"
-	"k8s.io/client-go/discovery"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
 	controllerclient "sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -135,40 +130,9 @@ func main() {
 		l.Fatalw("unable to find seed namespace from kubeconfig", "error", err)
 	}
 
-	err = isFirewallV2GVKPresent(seedConfig) // only works for shoots, not for seeds because extension-provider deploys crds immediately into seeds
-	if err != nil {
-		l.Info(err.Error())
-
-		err = controllerMigration(ctx, setupLog, seedClient, firewallName, seedNamespace)
-		if err != nil {
-			l.Fatalw("unable to migrate firewall-controller", "error", err)
-		}
-
-		l.Info("controller migrated, restarting controller")
-		os.Exit(0)
-
-		return
-	}
-
 	fw, err := findResponsibleFirewall(ctx, seedClient, firewallName, seedNamespace)
 	if err != nil {
-		l.Errorw("unable to find firewall resource to be responsible for", "error", err)
-
-		if kubeconfigPath == seedKubeconfigPath {
-			os.Exit(1)
-		}
-
-		l.Info("controller is potentially still running with shoot kubeconfig, attempting migration")
-
-		err = controllerMigration(ctx, setupLog, seedClient, firewallName, seedNamespace)
-		if err != nil {
-			l.Fatalw("unable to migrate firewall-controller", "error", err)
-		}
-
-		l.Info("controller migrated, restarting controller")
-		os.Exit(0)
-
-		return
+		l.Fatalw("unable to find firewall resource to be responsible for", "error", err)
 	}
 
 	l.Infow("found firewall resource to be responsible for", "firewall-name", firewallName, "namespace", seedNamespace)
@@ -328,28 +292,6 @@ func newZapLogger(levelString string) (*zap.SugaredLogger, error) {
 	return l.Sugar(), nil
 }
 
-func isFirewallV2GVKPresent(config *rest.Config) error {
-	discoveryClient := discovery.NewDiscoveryClientForConfigOrDie(config)
-
-	resources, err := discoveryClient.ServerResourcesForGroupVersion(firewallv2.GroupVersion.String())
-	if err != nil {
-		return err
-	}
-
-	found := false
-	for _, r := range resources.APIResources {
-		if r.Kind == "Firewall" {
-			found = true
-			break
-		}
-	}
-	if found {
-		return nil
-	}
-
-	return fmt.Errorf("client cannot find firewall v2 resource on server side, assuming that this firewall was provisioned with shoot client in the past")
-}
-
 func findResponsibleFirewall(ctx context.Context, seed controllerclient.Client, firewallName, seedNamespace string) (*firewallv2.Firewall, error) {
 	fwList := &firewallv2.FirewallList{}
 	err := seed.List(ctx, fwList, &controllerclient.ListOptions{
@@ -388,55 +330,4 @@ func getSeedNamespace(rawKubeconfig []byte) (string, error) {
 	}
 
 	return "", fmt.Errorf("unable to figure out seed namespace from kubeconfig")
-}
-
-func controllerMigration(ctx context.Context, log logr.Logger, c controllerclient.Client, firewallName, seedNamespace string) error {
-	// changing from existing shoot kubeconfig from deployments before firewall-controller-manager
-	// to seed kubeconfig by trying to use an offered migration secret in the shoot's firewall namespace.
-
-	migrationSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      firewallv2.FirewallControllerMigrationSecretName,
-			Namespace: firewallv2.FirewallShootNamespace,
-		},
-	}
-	err := c.Get(ctx, controllerclient.ObjectKeyFromObject(migrationSecret), migrationSecret)
-	if err != nil {
-		return fmt.Errorf("no migration secret found, cannot run with shoot client: %w", err)
-	}
-
-	log.Info("found migration secret, attempting to exchange kubeconfig from original provisioning process")
-
-	kubeconfig := migrationSecret.Data["kubeconfig"]
-
-	seedConfig, err := clientcmd.RESTConfigFromKubeConfig(kubeconfig)
-	if err != nil {
-		return fmt.Errorf("unable to create rest config from migration secret: %w", err)
-	}
-
-	seed, err := controllerclient.New(seedConfig, controllerclient.Options{
-		Scheme: scheme,
-	})
-	if err != nil {
-		return fmt.Errorf("unable to create seed client from migration secret: %w", err)
-	}
-
-	err = isFirewallV2GVKPresent(seedConfig)
-	if err != nil {
-		return fmt.Errorf("in client created from migration secret, firewall v2 is still not present: %w", err)
-	}
-
-	_, err = findResponsibleFirewall(ctx, seed, firewallName, seedNamespace)
-	if err != nil {
-		return fmt.Errorf("in client created from migration secret, firewall no responsible firewall was found: %w", err)
-	}
-
-	log.Info("possible to start up with client from migration secret, exchanging original kubeconfig")
-
-	err = os.WriteFile(seedKubeconfigPath, kubeconfig, 0600)
-	if err != nil {
-		return fmt.Errorf("unable to write kubeconfig to destination: %w", err)
-	}
-
-	return nil // not reachable, but satisfies the compiler
 }
