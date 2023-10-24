@@ -33,6 +33,12 @@ type FirewallMonitorReconciler struct {
 
 	IDSEnabled bool
 	Interval   time.Duration
+
+	seedUpdated metav1.Time
+}
+
+func (r *FirewallMonitorReconciler) SeedUpdated() {
+	r.seedUpdated = metav1.NewTime(time.Now())
 }
 
 // SetupWithManager configures this controller to watch for the CRDs in a specific namespace
@@ -115,6 +121,10 @@ func (r *FirewallMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 			Updated:                 metav1.NewTime(now),
 			Distance:                0,
 			DistanceSupported:       false,
+		}
+
+		if !r.seedUpdated.IsZero() {
+			mon.ControllerStatus.SeedUpdated = r.seedUpdated
 		}
 
 		err := r.ShootClient.Update(ctx, mon)

@@ -47,6 +47,8 @@ type FirewallReconciler struct {
 	Namespace    string
 
 	recordFirewallEvent func(f *firewallv2.Firewall, eventtype, reason, message string)
+
+	SeedUpdatedFunc func()
 }
 
 const (
@@ -138,6 +140,8 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	r.recordFirewallEvent(f, corev1.EventTypeNormal, "Reconciled", "nftables rules and statistics successfully")
+
+	r.SeedUpdatedFunc()
 
 	r.Log.Info("successfully reconciled firewall, requeueing in 3 minutes")
 

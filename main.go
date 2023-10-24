@@ -187,17 +187,27 @@ func main() {
 
 	updater := updater.New(ctrl.Log.WithName("updater"), shootMgr.GetEventRecorderFor("FirewallController"))
 
+	fwmReconciler := &controllers.FirewallMonitorReconciler{
+		ShootClient:  shootMgr.GetClient(),
+		Log:          ctrl.Log.WithName("controllers").WithName("FirewallMonitorReconciler"),
+		Recorder:     shootMgr.GetEventRecorderFor("FirewallMonitorController"),
+		IDSEnabled:   enableIDS,
+		FirewallName: firewallName,
+		Namespace:    firewallv2.FirewallShootNamespace,
+	}
+
 	// Firewall Reconciler
 	if err = (&controllers.FirewallReconciler{
-		SeedClient:   seedMgr.GetClient(),
-		ShootClient:  shootClient,
-		Log:          ctrl.Log.WithName("controllers").WithName("Firewall"),
-		Scheme:       scheme,
-		Namespace:    seedNamespace,
-		FirewallName: firewallName,
-		Recorder:     shootMgr.GetEventRecorderFor("FirewallController"),
-		Updater:      updater,
-		TokenUpdater: accessTokenUpdater,
+		SeedClient:      seedMgr.GetClient(),
+		ShootClient:     shootClient,
+		Log:             ctrl.Log.WithName("controllers").WithName("Firewall"),
+		Scheme:          scheme,
+		Namespace:       seedNamespace,
+		FirewallName:    firewallName,
+		Recorder:        shootMgr.GetEventRecorderFor("FirewallController"),
+		Updater:         updater,
+		SeedUpdatedFunc: fwmReconciler.SeedUpdated,
+		TokenUpdater:    accessTokenUpdater,
 	}).SetupWithManager(seedMgr); err != nil {
 		l.Fatalw("unable to create firewall controller", "error", err)
 	}
@@ -230,14 +240,8 @@ func main() {
 		l.Fatalw("unable to create clusterwidenetworkpolicyvalidation controller", "error", err)
 	}
 
-	if err = (&controllers.FirewallMonitorReconciler{
-		ShootClient:  shootMgr.GetClient(),
-		Log:          ctrl.Log.WithName("controllers").WithName("FirewallMonitorReconciler"),
-		Recorder:     shootMgr.GetEventRecorderFor("FirewallMonitorController"),
-		IDSEnabled:   enableIDS,
-		FirewallName: firewallName,
-		Namespace:    firewallv2.FirewallShootNamespace,
-	}).SetupWithManager(shootMgr); err != nil {
+	// FirewallMonitorReconciler
+	if err = (fwmReconciler).SetupWithManager(shootMgr); err != nil {
 		l.Fatalw("unable to create firewall monitor controller", "error", err)
 	}
 
