@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/netip"
 	"time"
@@ -15,6 +16,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/record"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -36,7 +38,8 @@ type ClusterwideNetworkPolicyReconciler struct {
 	FirewallName  string
 	SeedNamespace string
 
-	Log logr.Logger
+	Log      logr.Logger
+	Recorder record.EventRecorder
 
 	Interval time.Duration
 	DnsProxy *dns.DNSProxy
@@ -98,32 +101,40 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ct
 	// FIXME refactor to func and add test, remove illegal rules from further processing
 	// report as event in case rule is not allowed
 	if len(f.Spec.AllowedExternalNetworks) > 0 {
-		var (
-			externalBuilder netipx.IPSetBuilder
-		)
-		for _, externalNetwork := range f.Spec.AllowedExternalNetworks {
-			parsedExternal, err := netip.ParsePrefix(externalNetwork)
-			if err != nil {
-				return ctrl.Result{}, fmt.Errorf("failed to parse prefix: %w", err)
-			}
-			externalBuilder.AddPrefix(parsedExternal)
-		}
-		externalSet, err := externalBuilder.IPSet()
-		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to create ipset: %w", err)
-		}
+		validCWNPs := make([]firewallv1.ClusterwideNetworkPolicy, 0, len(cwnps.Items))
+		forbiddenCWNPs := make([]firewallv1.ClusterwideNetworkPolicy, 0)
 
+		externalSet, err := buildAllowedNetworksIPSet(f.Spec.AllowedExternalNetworks)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 		for _, cwnp := range cwnps.Items {
-			for _, egress := range cwnp.Spec.Egress {
-				for _, to := range egress.To {
-					parsedTo, err := netip.ParsePrefix(to.CIDR)
-					if err != nil {
-						return ctrl.Result{}, fmt.Errorf("failed to parse to address: %w", err)
-					}
-					if !externalSet.ContainsPrefix(parsedTo) {
-						return ctrl.Result{}, fmt.Errorf("the specified of %q to address:%q is outside of the allowed network range:%q, ignoring", cwnp.Name, parsedTo.String(), f.Spec.AllowedExternalNetworks)
-					}
+			err := validateCWNPEgressTargetPrefix(cwnp, externalSet)
+			if err != nil {
+				r.Recorder.Event(
+					&cwnp,
+					corev1.EventTypeWarning,
+					"ForbiddenCIDR",
+					err.Error(), // TODO: eventually move error message context to here
+				)
+				forbiddenCWNPs = append(forbiddenCWNPs, cwnp)
+			} else {
+				validCWNPs = append(validCWNPs, cwnp)
+			}
+		}
+		if len(cwnps.Items) != len(validCWNPs) {
+			cwnps.Items = validCWNPs
+			var errs []error
+			for _, cwnp := range forbiddenCWNPs {
+				err := r.ShootClient.Delete(ctx, &cwnp)
+				if err != nil {
+					errs = append(errs, err)
 				}
+			}
+			if len(errs) > 0 {
+				// TODO: should we acutally fail when single cwnps that won't be applied anyways cannot be deleted?
+				// Alternatively just log / record event / retry reconcile?
+				return ctrl.Result{}, fmt.Errorf("failed to delete all forbidden CWNPs: %w", errors.Join(errs...))
 			}
 		}
 	}
@@ -217,4 +228,58 @@ func (r *ClusterwideNetworkPolicyReconciler) getReconciliationTicker(scheduleCha
 			}
 		}
 	}
+}
+
+func buildAllowedNetworksIPSet(allowedNetworks []string) (*netipx.IPSet, error) {
+	var externalBuilder netipx.IPSetBuilder
+
+	for _, externalNetwork := range allowedNetworks {
+		parsedExternal, err := netip.ParsePrefix(externalNetwork)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse prefix: %w", err)
+		}
+		externalBuilder.AddPrefix(parsedExternal)
+	}
+	externalSet, err := externalBuilder.IPSet()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create ipset: %w", err)
+	}
+	return externalSet, nil
+}
+
+func validateCWNPEgressTargetPrefix(cwnp firewallv1.ClusterwideNetworkPolicy, externalSet *netipx.IPSet) error {
+	var allowed string
+	for i, r := range externalSet.Ranges() {
+		if i > 0 {
+			allowed += ","
+		}
+		if p, ok := r.Prefix(); ok {
+			allowed += p.String()
+		} else {
+			allowed += r.String()
+		}
+	}
+	for _, egress := range cwnp.Spec.Egress {
+		for _, to := range egress.To {
+			parsedTo, err := netip.ParsePrefix(to.CIDR)
+			if err != nil {
+				return fmt.Errorf("failed to parse to address: %w", err)
+			}
+			if !externalSet.ContainsPrefix(parsedTo) {
+				var allowedNetworksStr string
+				for i, r := range externalSet.Ranges() {
+					if i > 0 {
+						allowedNetworksStr += ","
+					}
+					if p, ok := r.Prefix(); ok {
+						allowedNetworksStr += p.String()
+					} else {
+						allowedNetworksStr += r.String()
+					}
+				}
+				return fmt.Errorf("the specified of %q to address:%q is outside of the allowed network range:%q, ignoring", cwnp.Name, parsedTo.String(), allowedNetworksStr)
+			}
+		}
+	}
+	return nil
 }
