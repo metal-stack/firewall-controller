@@ -11,7 +11,7 @@ require (
 	github.com/google/go-cmp v0.6.0
 	github.com/google/nftables v0.1.1-0.20230115205135-9aa6fdf5a28c
 	github.com/ks2211/go-suricata v0.0.0-20200823200910-986ce1470707
-	github.com/metal-stack/firewall-controller-manager v0.3.0
+	github.com/metal-stack/firewall-controller-manager v0.3.2-0.20231120133642-3b80ac4c421a
 	github.com/metal-stack/metal-go v0.24.3
 	github.com/metal-stack/metal-lib v0.13.5
 	github.com/metal-stack/metal-networker v0.33.0
@@ -20,6 +20,7 @@ require (
 	github.com/txn2/txeh v1.5.3
 	github.com/vishvananda/netlink v1.2.1-beta.2
 	go.uber.org/zap v1.26.0
+	go4.org/netipx v0.0.0-20230728180743-ad4cb58a6516
 	k8s.io/api v0.26.3
 	k8s.io/apiextensions-apiserver v0.26.3
 	k8s.io/apimachinery v0.27.4

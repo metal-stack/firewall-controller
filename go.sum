@@ -233,8 +233,8 @@ github.com/mdlayher/netlink v1.7.2 h1:/UtM3ofJap7Vl4QWCPDGXY8d3GIY2UGSDbK+QWmY8/
 github.com/mdlayher/netlink v1.7.2/go.mod h1:xraEF7uJbxLhc5fpHL4cPe221LI2bdttWlU+ZGLfQSw=
 github.com/mdlayher/socket v0.4.1 h1:eM9y2/jlbs1M615oshPQOHZzj6R6wMT7bX5NPiQvn2U=
 github.com/mdlayher/socket v0.4.1/go.mod h1:cAqeGjoufqdxWkD7DkpyS+wcefOtmu5OQ8KuoJGIReA=
-github.com/metal-stack/firewall-controller-manager v0.3.0 h1:sBCL7iiG17ZO/1TREv2RYiMdX5VddSc92snR8OKcAF8=
-github.com/metal-stack/firewall-controller-manager v0.3.0/go.mod h1:KjLZv/BatucZM9DQtBLN04wBGjvxEJRV1C+xDkCWwIE=
+github.com/metal-stack/firewall-controller-manager v0.3.2-0.20231120133642-3b80ac4c421a h1:4hFnQ8UTZCDf/+I8qlMP/TeMPC7hXgh6Ww9S+bILUec=
+github.com/metal-stack/firewall-controller-manager v0.3.2-0.20231120133642-3b80ac4c421a/go.mod h1:KjLZv/BatucZM9DQtBLN04wBGjvxEJRV1C+xDkCWwIE=
 github.com/metal-stack/metal-go v0.24.3 h1:z7btLKyhzyv/0mFhsxJE6+c0MXlYTfcUWKIL50gNx2M=
 github.com/metal-stack/metal-go v0.24.3/go.mod h1:jNJ0dWIBRwKeJoP+RGqTyE5qLsdZFISFrNHU5m3IDwA=
 github.com/metal-stack/metal-hammer v0.11.5 h1:bW4mkcBG8J1O7f71bXIrqVPL7uHZ4FZDF90hF69dn2U=
@@ -376,6 +376,8 @@ go.uber.org/multierr v1.11.0/go.mod h1:20+QtiLqy0Nd6FdQB9TLXag12DsQkrbs3htMFfDN8
 go.uber.org/zap v1.24.0/go.mod h1:2kMP+WWQ8aoFoedH3T2sq6iJ2yDWpHbP0f6MQbS9Gkg=
 go.uber.org/zap v1.26.0 h1:sI7k6L95XOKS281NhVKOFCUNIvv9e0w4BF8N3u+tCRo=
 go.uber.org/zap v1.26.0/go.mod h1:dtElttAiwGvoJ/vj4IwHBS/gXsEu/pZ50mUIRWuG0so=
+go4.org/netipx v0.0.0-20230728180743-ad4cb58a6516 h1:X66ZEoMN2SuaoI/dfZVYobB6E5zjZyyHUMWlCA7MgGE=
+go4.org/netipx v0.0.0-20230728180743-ad4cb58a6516/go.mod h1:TQvodOM+hJTioNQJilmLXu08JNb8i+ccq418+KWu1/Y=
 golang.org/x/crypto v0.0.0-20180904163835-0709b304e793/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
 golang.org/x/crypto v0.0.0-20190422162423-af44ce270edf/go.mod h1:WFFai1msRO1wXaEeE5yQxYXgSfI8pQAWXbQop6sCtWE=

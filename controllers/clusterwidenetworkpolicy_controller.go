@@ -3,7 +3,10 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"time"
+
+	"go4.org/netipx"
 
 	"github.com/metal-stack/firewall-controller/v2/pkg/dns"
 	"github.com/metal-stack/firewall-controller/v2/pkg/nftables"
@@ -91,6 +94,40 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ct
 	if err := r.ShootClient.List(ctx, &services); err != nil {
 		return ctrl.Result{}, err
 	}
+
+	// FIXME refactor to func and add test, remove illegal rules from further processing
+	// report as event in case rule is not allowed
+	if len(f.Spec.AllowedExternalNetworks) > 0 {
+		var (
+			externalBuilder netipx.IPSetBuilder
+		)
+		for _, externalNetwork := range f.Spec.AllowedExternalNetworks {
+			parsedExternal, err := netip.ParsePrefix(externalNetwork)
+			if err != nil {
+				return ctrl.Result{}, fmt.Errorf("failed to parse prefix: %w", err)
+			}
+			externalBuilder.AddPrefix(parsedExternal)
+		}
+		externalSet, err := externalBuilder.IPSet()
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to create ipset: %w", err)
+		}
+
+		for _, cwnp := range cwnps.Items {
+			for _, egress := range cwnp.Spec.Egress {
+				for _, to := range egress.To {
+					parsedTo, err := netip.ParsePrefix(to.CIDR)
+					if err != nil {
+						return ctrl.Result{}, fmt.Errorf("failed to parse to address: %w", err)
+					}
+					if !externalSet.ContainsPrefix(parsedTo) {
+						return ctrl.Result{}, fmt.Errorf("the specified of %q to address:%q is outside of the allowed network range:%q, ignoring", cwnp.Name, parsedTo.String(), f.Spec.AllowedExternalNetworks)
+					}
+				}
+			}
+		}
+	}
+
 	nftablesFirewall := nftables.NewFirewall(f, &cwnps, &services, r.DnsProxy, r.Log)
 	if err := r.manageDNSProxy(ctx, f, cwnps, nftablesFirewall); err != nil {
 		return ctrl.Result{}, err
