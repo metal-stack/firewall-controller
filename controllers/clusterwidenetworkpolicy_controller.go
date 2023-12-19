@@ -109,6 +109,7 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ct
 			return ctrl.Result{}, err
 		}
 		for _, cwnp := range cwnps.Items {
+			cwnp := cwnp
 			err := validateCWNPEgressTargetPrefix(cwnp, externalSet)
 			if err != nil {
 				r.Recorder.Event(
@@ -126,6 +127,7 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ct
 			cwnps.Items = validCWNPs
 			var errs []error
 			for _, cwnp := range forbiddenCWNPs {
+				cwnp := cwnp
 				err := r.ShootClient.Delete(ctx, &cwnp)
 				if err != nil {
 					errs = append(errs, err)
