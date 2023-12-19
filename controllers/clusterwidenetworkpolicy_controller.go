@@ -98,48 +98,11 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ct
 		return ctrl.Result{}, err
 	}
 
-	// FIXME refactor to func and add test, remove illegal rules from further processing
-	// report as event in case rule is not allowed
-	if len(f.Spec.AllowedExternalNetworks) > 0 {
-		validCWNPs := make([]firewallv1.ClusterwideNetworkPolicy, 0, len(cwnps.Items))
-		forbiddenCWNPs := make([]firewallv1.ClusterwideNetworkPolicy, 0)
-
-		externalSet, err := buildAllowedNetworksIPSet(f.Spec.AllowedExternalNetworks)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-		for _, cwnp := range cwnps.Items {
-			cwnp := cwnp
-			err := validateCWNPEgressTargetPrefix(cwnp, externalSet)
-			if err != nil {
-				r.Recorder.Event(
-					&cwnp,
-					corev1.EventTypeWarning,
-					"ForbiddenCIDR",
-					err.Error(), // TODO: eventually move error message context to here
-				)
-				forbiddenCWNPs = append(forbiddenCWNPs, cwnp)
-			} else {
-				validCWNPs = append(validCWNPs, cwnp)
-			}
-		}
-		if len(cwnps.Items) != len(validCWNPs) {
-			cwnps.Items = validCWNPs
-			var errs []error
-			for _, cwnp := range forbiddenCWNPs {
-				cwnp := cwnp
-				err := r.ShootClient.Delete(ctx, &cwnp)
-				if err != nil {
-					errs = append(errs, err)
-				}
-			}
-			if len(errs) > 0 {
-				// TODO: should we acutally fail when single cwnps that won't be applied anyways cannot be deleted?
-				// Alternatively just log / record event / retry reconcile?
-				return ctrl.Result{}, fmt.Errorf("failed to delete all forbidden CWNPs: %w", errors.Join(errs...))
-			}
-		}
+	validCwnps, err := r.allowedCWNPsOrDelete(ctx, cwnps.Items, f.Spec.AllowedExternalNetworks)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
+	cwnps.Items = validCwnps
 
 	nftablesFirewall := nftables.NewFirewall(f, &cwnps, &services, r.DnsProxy, r.Log)
 	if err := r.manageDNSProxy(ctx, f, cwnps, nftablesFirewall); err != nil {
@@ -232,6 +195,49 @@ func (r *ClusterwideNetworkPolicyReconciler) getReconciliationTicker(scheduleCha
 	}
 }
 
+func (r *ClusterwideNetworkPolicyReconciler) allowedCWNPsOrDelete(ctx context.Context, cwnps []firewallv1.ClusterwideNetworkPolicy, allowedNetworks []string) ([]firewallv1.ClusterwideNetworkPolicy, error) {
+	// FIXME refactor to func and add test, remove illegal rules from further processing
+	// report as event in case rule is not allowed
+	if len(allowedNetworks) == 0 {
+		return cwnps, nil
+	}
+	validCWNPs := make([]firewallv1.ClusterwideNetworkPolicy, 0, len(cwnps))
+	forbiddenCWNPs := make([]firewallv1.ClusterwideNetworkPolicy, 0)
+
+	externalSet, err := buildAllowedNetworksIPSet(allowedNetworks)
+	if err != nil {
+		return nil, err
+	}
+	for _, cwnp := range cwnps {
+		cwnp := cwnp
+		ok, err := r.validateCWNPEgressTargetPrefix(cwnp, externalSet)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			forbiddenCWNPs = append(forbiddenCWNPs, cwnp)
+		} else {
+			validCWNPs = append(validCWNPs, cwnp)
+		}
+	}
+	if len(cwnps) != len(validCWNPs) {
+		var errs []error
+		for _, cwnp := range forbiddenCWNPs {
+			cwnp := cwnp
+			err := r.ShootClient.Delete(ctx, &cwnp)
+			if err != nil {
+				errs = append(errs, err)
+			}
+		}
+		if len(errs) > 0 {
+			// TODO: should we acutally fail when single cwnps that won't be applied anyways cannot be deleted?
+			// Alternatively just log / record event / retry reconcile?
+			return nil, fmt.Errorf("failed to delete all forbidden CWNPs: %w", errors.Join(errs...))
+		}
+	}
+	return validCWNPs, nil
+}
+
 func buildAllowedNetworksIPSet(allowedNetworks []string) (*netipx.IPSet, error) {
 	var externalBuilder netipx.IPSetBuilder
 
@@ -249,7 +255,7 @@ func buildAllowedNetworksIPSet(allowedNetworks []string) (*netipx.IPSet, error) 
 	return externalSet, nil
 }
 
-func validateCWNPEgressTargetPrefix(cwnp firewallv1.ClusterwideNetworkPolicy, externalSet *netipx.IPSet) error {
+func (r *ClusterwideNetworkPolicyReconciler) validateCWNPEgressTargetPrefix(cwnp firewallv1.ClusterwideNetworkPolicy, externalSet *netipx.IPSet) (bool, error) {
 	var allowed string
 	for i, r := range externalSet.Ranges() {
 		if i > 0 {
@@ -265,7 +271,7 @@ func validateCWNPEgressTargetPrefix(cwnp firewallv1.ClusterwideNetworkPolicy, ex
 		for _, to := range egress.To {
 			parsedTo, err := netip.ParsePrefix(to.CIDR)
 			if err != nil {
-				return fmt.Errorf("failed to parse to address: %w", err)
+				return true, fmt.Errorf("failed to parse to address: %w", err)
 			}
 			if !externalSet.ContainsPrefix(parsedTo) {
 				var allowedNetworksStr string
@@ -279,9 +285,15 @@ func validateCWNPEgressTargetPrefix(cwnp firewallv1.ClusterwideNetworkPolicy, ex
 						allowedNetworksStr += r.String()
 					}
 				}
-				return fmt.Errorf("the specified of %q to address:%q is outside of the allowed network range:%q, ignoring", cwnp.Name, parsedTo.String(), allowedNetworksStr)
+				r.Recorder.Event(
+					&cwnp,
+					corev1.EventTypeWarning,
+					"ForbiddenCIDR",
+					fmt.Sprintf("the specified of %q to address:%q is outside of the allowed network range:%q, ignoring", cwnp.Name, parsedTo.String(), allowedNetworksStr),
+				)
+				return false, nil
 			}
 		}
 	}
-	return nil
+	return true, nil
 }
