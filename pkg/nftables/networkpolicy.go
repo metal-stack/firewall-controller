@@ -82,7 +82,7 @@ func clusterwideNetworkPolicyEgressRules(
 			ruleBases = append(ruleBases, ruleBase{base: rb})
 		} else if len(e.ToFQDNs) > 0 && cache.IsInitialized() {
 			// Generate allow rules based on DNS selectors
-			rbs, u := clusterwideNetworkPolicyEgressToFQDNRules(cache, np.Status.FQDNState, e)
+			rbs, u := clusterwideNetworkPolicyEgressToFQDNRules(cache, e)
 			np.Status.FQDNState = u
 			ruleBases = append(ruleBases, rbs...)
 		}
@@ -112,12 +112,9 @@ func clusterwideNetworkPolicyEgressToRules(e firewallv1.EgressRule) (allow, exce
 
 func clusterwideNetworkPolicyEgressToFQDNRules(
 	cache FQDNCache,
-	fqdnState firewallv1.FQDNState,
 	e firewallv1.EgressRule,
 ) (rules []ruleBase, updatedState firewallv1.FQDNState) {
-	if fqdnState == nil {
-		fqdnState = firewallv1.FQDNState{}
-	}
+	fqdnState := firewallv1.FQDNState{}
 
 	for _, fqdn := range e.ToFQDNs {
 		fqdnName := fqdn.MatchName
