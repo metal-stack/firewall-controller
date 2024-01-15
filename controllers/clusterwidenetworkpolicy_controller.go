@@ -98,7 +98,7 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ct
 		return ctrl.Result{}, err
 	}
 
-	validCwnps, err := r.allowedCWNPsOrDelete(ctx, cwnps.Items, f.Spec.AllowedNetworks)
+	validCwnps, err := r.allowedCWNPsOrDelete(ctx, cwnps.Items, f.Spec.NetworkAccessType, f.Spec.AllowedNetworks)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -195,9 +195,15 @@ func (r *ClusterwideNetworkPolicyReconciler) getReconciliationTicker(scheduleCha
 	}
 }
 
-func (r *ClusterwideNetworkPolicyReconciler) allowedCWNPsOrDelete(ctx context.Context, cwnps []firewallv1.ClusterwideNetworkPolicy, allowedNetworks firewallv2.AllowedNetworks) ([]firewallv1.ClusterwideNetworkPolicy, error) {
+func (r *ClusterwideNetworkPolicyReconciler) allowedCWNPsOrDelete(ctx context.Context, cwnps []firewallv1.ClusterwideNetworkPolicy, accessType firewallv2.NetworkAccessType, allowedNetworks firewallv2.AllowedNetworks) ([]firewallv1.ClusterwideNetworkPolicy, error) {
 	// FIXME refactor to func and add test, remove illegal rules from further processing
 	// report as event in case rule is not allowed
+
+	// what to do, if accesstype is baseline but there are allowedNetworks given?
+	if accessType == firewallv2.NetworkAccessBaseline {
+		return cwnps, nil
+	}
+
 	validCWNPs := make([]firewallv1.ClusterwideNetworkPolicy, 0, len(cwnps))
 	forbiddenCWNPs := make([]firewallv1.ClusterwideNetworkPolicy, 0)
 
@@ -205,12 +211,25 @@ func (r *ClusterwideNetworkPolicyReconciler) allowedCWNPsOrDelete(ctx context.Co
 	if err != nil {
 		return nil, err
 	}
+
+	ingressSet, err := buildAllowedNetworksIPSet(allowedNetworks.Ingress)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, cwnp := range cwnps {
 		cwnp := cwnp
-		ok, err := r.validateCWNPEgressTargetPrefix(cwnp, egressSet)
+		oke, err := r.validateCWNPEgressTargetPrefix(cwnp, egressSet)
 		if err != nil {
 			return nil, err
 		}
+		oki, err := r.validateCWNPIngressTargetPrefix(cwnp, ingressSet)
+		if err != nil {
+			return nil, err
+		}
+		// the CWNP is ok if both ingress/egress match with the allowed networks
+		ok := oki && oke
+
 		if !ok {
 			forbiddenCWNPs = append(forbiddenCWNPs, cwnp)
 		} else {
@@ -253,17 +272,6 @@ func buildAllowedNetworksIPSet(allowedNetworks []string) (*netipx.IPSet, error) 
 }
 
 func (r *ClusterwideNetworkPolicyReconciler) validateCWNPEgressTargetPrefix(cwnp firewallv1.ClusterwideNetworkPolicy, externalSet *netipx.IPSet) (bool, error) {
-	var allowed string
-	for i, r := range externalSet.Ranges() {
-		if i > 0 {
-			allowed += ","
-		}
-		if p, ok := r.Prefix(); ok {
-			allowed += p.String()
-		} else {
-			allowed += r.String()
-		}
-	}
 	for _, egress := range cwnp.Spec.Egress {
 		for _, to := range egress.To {
 			parsedTo, err := netip.ParsePrefix(to.CIDR)
@@ -271,17 +279,7 @@ func (r *ClusterwideNetworkPolicyReconciler) validateCWNPEgressTargetPrefix(cwnp
 				return true, fmt.Errorf("failed to parse to address: %w", err)
 			}
 			if !externalSet.ContainsPrefix(parsedTo) {
-				var allowedNetworksStr string
-				for i, r := range externalSet.Ranges() {
-					if i > 0 {
-						allowedNetworksStr += ","
-					}
-					if p, ok := r.Prefix(); ok {
-						allowedNetworksStr += p.String()
-					} else {
-						allowedNetworksStr += r.String()
-					}
-				}
+				allowedNetworksStr := networkSetAsString(externalSet)
 				r.Recorder.Event(
 					&cwnp,
 					corev1.EventTypeWarning,
@@ -293,4 +291,41 @@ func (r *ClusterwideNetworkPolicyReconciler) validateCWNPEgressTargetPrefix(cwnp
 		}
 	}
 	return true, nil
+}
+
+func (r *ClusterwideNetworkPolicyReconciler) validateCWNPIngressTargetPrefix(cwnp firewallv1.ClusterwideNetworkPolicy, externalSet *netipx.IPSet) (bool, error) {
+	for _, ingress := range cwnp.Spec.Ingress {
+		for _, from := range ingress.From {
+			parsedTo, err := netip.ParsePrefix(from.CIDR)
+			if err != nil {
+				return true, fmt.Errorf("failed to parse to address: %w", err)
+			}
+			if !externalSet.ContainsPrefix(parsedTo) {
+				allowedNetworksStr := networkSetAsString(externalSet)
+				r.Recorder.Event(
+					&cwnp,
+					corev1.EventTypeWarning,
+					"ForbiddenCIDR",
+					fmt.Sprintf("the specified of %q to address:%q is outside of the allowed network range:%q, ignoring", cwnp.Name, parsedTo.String(), allowedNetworksStr),
+				)
+				return false, nil
+			}
+		}
+	}
+	return true, nil
+}
+
+func networkSetAsString(externalSet *netipx.IPSet) string {
+	var allowedNetworksStr string
+	for i, r := range externalSet.Ranges() {
+		if i > 0 {
+			allowedNetworksStr += ","
+		}
+		if p, ok := r.Prefix(); ok {
+			allowedNetworksStr += p.String()
+		} else {
+			allowedNetworksStr += r.String()
+		}
+	}
+	return allowedNetworksStr
 }
