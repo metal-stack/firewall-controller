@@ -46,6 +46,8 @@ func serviceRules(svc corev1.Service, logAcceptedConnections bool) nftablesRules
 		}
 	}
 
+	// if to is not contained in one of the allowedNetworks.Ingress, filter this to address out and log an event
+
 	// avoid empty rules
 	if len(from) == 0 && len(to) == 0 {
 		return nil
