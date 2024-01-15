@@ -98,7 +98,7 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ct
 		return ctrl.Result{}, err
 	}
 
-	validCwnps, err := r.allowedCWNPsOrDelete(ctx, cwnps.Items, f.Spec.AllowedExternalNetworks)
+	validCwnps, err := r.allowedCWNPsOrDelete(ctx, cwnps.Items, f.Spec.AllowedNetworks)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -195,22 +195,19 @@ func (r *ClusterwideNetworkPolicyReconciler) getReconciliationTicker(scheduleCha
 	}
 }
 
-func (r *ClusterwideNetworkPolicyReconciler) allowedCWNPsOrDelete(ctx context.Context, cwnps []firewallv1.ClusterwideNetworkPolicy, allowedNetworks []string) ([]firewallv1.ClusterwideNetworkPolicy, error) {
+func (r *ClusterwideNetworkPolicyReconciler) allowedCWNPsOrDelete(ctx context.Context, cwnps []firewallv1.ClusterwideNetworkPolicy, allowedNetworks firewallv2.AllowedNetworks) ([]firewallv1.ClusterwideNetworkPolicy, error) {
 	// FIXME refactor to func and add test, remove illegal rules from further processing
 	// report as event in case rule is not allowed
-	if len(allowedNetworks) == 0 {
-		return cwnps, nil
-	}
 	validCWNPs := make([]firewallv1.ClusterwideNetworkPolicy, 0, len(cwnps))
 	forbiddenCWNPs := make([]firewallv1.ClusterwideNetworkPolicy, 0)
 
-	externalSet, err := buildAllowedNetworksIPSet(allowedNetworks)
+	egressSet, err := buildAllowedNetworksIPSet(allowedNetworks.Egress)
 	if err != nil {
 		return nil, err
 	}
 	for _, cwnp := range cwnps {
 		cwnp := cwnp
-		ok, err := r.validateCWNPEgressTargetPrefix(cwnp, externalSet)
+		ok, err := r.validateCWNPEgressTargetPrefix(cwnp, egressSet)
 		if err != nil {
 			return nil, err
 		}
