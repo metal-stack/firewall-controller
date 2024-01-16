@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/netip"
 	"time"
 
 	"go4.org/netipx"
 
 	"github.com/metal-stack/firewall-controller/v2/pkg/dns"
+	"github.com/metal-stack/firewall-controller/v2/pkg/helper"
 	"github.com/metal-stack/firewall-controller/v2/pkg/nftables"
 
 	"github.com/go-logr/logr"
@@ -104,7 +104,7 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ct
 	}
 	cwnps.Items = validCwnps
 
-	nftablesFirewall := nftables.NewFirewall(f, &cwnps, &services, r.DnsProxy, r.Log)
+	nftablesFirewall := nftables.NewFirewall(f, &cwnps, &services, r.DnsProxy, r.Log, r.Recorder)
 	if err := r.manageDNSProxy(ctx, f, cwnps, nftablesFirewall); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -207,12 +207,12 @@ func (r *ClusterwideNetworkPolicyReconciler) allowedCWNPsOrDelete(ctx context.Co
 	validCWNPs := make([]firewallv1.ClusterwideNetworkPolicy, 0, len(cwnps))
 	forbiddenCWNPs := make([]firewallv1.ClusterwideNetworkPolicy, 0)
 
-	egressSet, err := buildAllowedNetworksIPSet(allowedNetworks.Egress)
+	egressSet, err := helper.BuildNetworksIPSet(allowedNetworks.Egress)
 	if err != nil {
 		return nil, err
 	}
 
-	ingressSet, err := buildAllowedNetworksIPSet(allowedNetworks.Ingress)
+	ingressSet, err := helper.BuildNetworksIPSet(allowedNetworks.Ingress)
 	if err != nil {
 		return nil, err
 	}
@@ -254,39 +254,11 @@ func (r *ClusterwideNetworkPolicyReconciler) allowedCWNPsOrDelete(ctx context.Co
 	return validCWNPs, nil
 }
 
-func buildAllowedNetworksIPSet(allowedNetworks []string) (*netipx.IPSet, error) {
-	var externalBuilder netipx.IPSetBuilder
-
-	for _, externalNetwork := range allowedNetworks {
-		parsedExternal, err := netip.ParsePrefix(externalNetwork)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse prefix: %w", err)
-		}
-		externalBuilder.AddPrefix(parsedExternal)
-	}
-	externalSet, err := externalBuilder.IPSet()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create ipset: %w", err)
-	}
-	return externalSet, nil
-}
-
 func (r *ClusterwideNetworkPolicyReconciler) validateCWNPEgressTargetPrefix(cwnp firewallv1.ClusterwideNetworkPolicy, externalSet *netipx.IPSet) (bool, error) {
 	for _, egress := range cwnp.Spec.Egress {
 		for _, to := range egress.To {
-			parsedTo, err := netip.ParsePrefix(to.CIDR)
-			if err != nil {
-				return true, fmt.Errorf("failed to parse to address: %w", err)
-			}
-			if !externalSet.ContainsPrefix(parsedTo) {
-				allowedNetworksStr := networkSetAsString(externalSet)
-				r.Recorder.Event(
-					&cwnp,
-					corev1.EventTypeWarning,
-					"ForbiddenCIDR",
-					fmt.Sprintf("the specified of %q to address:%q is outside of the allowed network range:%q, ignoring", cwnp.Name, parsedTo.String(), allowedNetworksStr),
-				)
-				return false, nil
+			if ok, err := helper.ValidateCIDR(cwnp.Name, &cwnp, to.CIDR, externalSet, r.Recorder); !ok {
+				return false, err
 			}
 		}
 	}
@@ -296,36 +268,10 @@ func (r *ClusterwideNetworkPolicyReconciler) validateCWNPEgressTargetPrefix(cwnp
 func (r *ClusterwideNetworkPolicyReconciler) validateCWNPIngressTargetPrefix(cwnp firewallv1.ClusterwideNetworkPolicy, externalSet *netipx.IPSet) (bool, error) {
 	for _, ingress := range cwnp.Spec.Ingress {
 		for _, from := range ingress.From {
-			parsedTo, err := netip.ParsePrefix(from.CIDR)
-			if err != nil {
-				return true, fmt.Errorf("failed to parse to address: %w", err)
-			}
-			if !externalSet.ContainsPrefix(parsedTo) {
-				allowedNetworksStr := networkSetAsString(externalSet)
-				r.Recorder.Event(
-					&cwnp,
-					corev1.EventTypeWarning,
-					"ForbiddenCIDR",
-					fmt.Sprintf("the specified of %q to address:%q is outside of the allowed network range:%q, ignoring", cwnp.Name, parsedTo.String(), allowedNetworksStr),
-				)
-				return false, nil
+			if ok, err := helper.ValidateCIDR(cwnp.Name, &cwnp, from.CIDR, externalSet, r.Recorder); !ok {
+				return false, err
 			}
 		}
 	}
 	return true, nil
-}
-
-func networkSetAsString(externalSet *netipx.IPSet) string {
-	var allowedNetworksStr string
-	for i, r := range externalSet.Ranges() {
-		if i > 0 {
-			allowedNetworksStr += ","
-		}
-		if p, ok := r.Prefix(); ok {
-			allowedNetworksStr += p.String()
-		} else {
-			allowedNetworksStr += r.String()
-		}
-	}
-	return allowedNetworksStr
 }
