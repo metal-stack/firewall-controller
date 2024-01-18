@@ -213,7 +213,7 @@ func TestValidateCIDR(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			rec := mockRecorder{evType: corev1.EventTypeWarning, evReason: forbiddenCIDR}
 
-			got, err := ValidateCIDR(tt.args.name, tt.args.o, tt.args.cidr, tt.args.ipset, &rec)
+			got, err := ValidateCIDR(tt.args.o, tt.args.cidr, tt.args.ipset, &rec)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ValidateCIDR() error = %v, wantErr %v", err, tt.wantErr)
 				return

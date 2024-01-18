@@ -83,7 +83,7 @@ func appendServiceIP(to []string, svc corev1.Service, allowed *netipx.IPSet, ip 
 	if ip != "" && isIP(ip) {
 		if allowed != nil {
 			// if there is an allowed-ipset restriction, we check if the given IP is contained in this set
-			if ok, _ := helper.ValidateCIDR(svc.Name, &svc, ip+"/32", allowed, recorder); ok {
+			if ok, _ := helper.ValidateCIDR(&svc, ip+"/32", allowed, recorder); ok {
 				to = append(to, ip)
 			}
 		} else {

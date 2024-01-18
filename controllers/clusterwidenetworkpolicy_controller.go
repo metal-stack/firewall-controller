@@ -257,7 +257,7 @@ func (r *ClusterwideNetworkPolicyReconciler) allowedCWNPsOrDelete(ctx context.Co
 func (r *ClusterwideNetworkPolicyReconciler) validateCWNPEgressTargetPrefix(cwnp firewallv1.ClusterwideNetworkPolicy, externalSet *netipx.IPSet) (bool, error) {
 	for _, egress := range cwnp.Spec.Egress {
 		for _, to := range egress.To {
-			if ok, err := helper.ValidateCIDR(cwnp.Name, &cwnp, to.CIDR, externalSet, r.Recorder); !ok {
+			if ok, err := helper.ValidateCIDR(&cwnp, to.CIDR, externalSet, r.Recorder); !ok {
 				return false, err
 			}
 		}
@@ -268,7 +268,7 @@ func (r *ClusterwideNetworkPolicyReconciler) validateCWNPEgressTargetPrefix(cwnp
 func (r *ClusterwideNetworkPolicyReconciler) validateCWNPIngressTargetPrefix(cwnp firewallv1.ClusterwideNetworkPolicy, externalSet *netipx.IPSet) (bool, error) {
 	for _, ingress := range cwnp.Spec.Ingress {
 		for _, from := range ingress.From {
-			if ok, err := helper.ValidateCIDR(cwnp.Name, &cwnp, from.CIDR, externalSet, r.Recorder); !ok {
+			if ok, err := helper.ValidateCIDR(&cwnp, from.CIDR, externalSet, r.Recorder); !ok {
 				return false, err
 			}
 		}

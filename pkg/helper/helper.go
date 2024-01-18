@@ -49,7 +49,7 @@ func NetworkSetAsString(externalSet *netipx.IPSet) string {
 	return allowedNetworksStr
 }
 
-func ValidateCIDR(name string, o runtime.Object, cidr string, ipset *netipx.IPSet, rec record.EventRecorder) (bool, error) {
+func ValidateCIDR(o runtime.Object, cidr string, ipset *netipx.IPSet, rec record.EventRecorder) (bool, error) {
 	parsedTo, err := netip.ParsePrefix(cidr)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse to address: %w", err)
@@ -61,8 +61,8 @@ func ValidateCIDR(name string, o runtime.Object, cidr string, ipset *netipx.IPSe
 				o,
 				corev1.EventTypeWarning,
 				forbiddenCIDR,
-				"the specified of %q to address:%q is outside of the allowed network range:%q, ignoring",
-				name, parsedTo.String(), allowedNetworksStr)
+				"address:%q is outside of the allowed network range:%q, ignoring",
+				parsedTo.String(), allowedNetworksStr)
 		}
 		return false, nil
 	}
