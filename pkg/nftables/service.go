@@ -5,7 +5,10 @@ import (
 	"net"
 	"strings"
 
+	"github.com/metal-stack/firewall-controller/v2/pkg/helper"
+	"go4.org/netipx"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/record"
 )
 
 func isCIDR(cidr string) bool {
@@ -19,7 +22,7 @@ func isIP(ip string) bool {
 }
 
 // serviceRules generates nftables rules base on a k8s service definition
-func serviceRules(svc corev1.Service, logAcceptedConnections bool) nftablesRules {
+func serviceRules(svc corev1.Service, allowed *netipx.IPSet, logAcceptedConnections bool, recorder record.EventRecorder) nftablesRules {
 	if svc.Spec.Type != corev1.ServiceTypeLoadBalancer && svc.Spec.Type != corev1.ServiceTypeNodePort {
 		return nil
 	}
@@ -34,19 +37,11 @@ func serviceRules(svc corev1.Service, logAcceptedConnections bool) nftablesRules
 	from = append(from, svc.Spec.LoadBalancerSourceRanges...)
 	to := []string{}
 	if svc.Spec.Type == corev1.ServiceTypeLoadBalancer {
-		if svc.Spec.LoadBalancerIP != "" {
-			if isIP(svc.Spec.LoadBalancerIP) {
-				to = append(to, svc.Spec.LoadBalancerIP)
-			}
-		}
+		to = appendServiceIP(to, svc, allowed, svc.Spec.LoadBalancerIP, recorder)
 		for _, e := range svc.Status.LoadBalancer.Ingress {
-			if isIP(e.IP) {
-				to = append(to, e.IP)
-			}
+			to = appendServiceIP(to, svc, allowed, e.IP, recorder)
 		}
 	}
-
-	// if to is not contained in one of the allowedNetworks.Ingress, filter this to address out and log an event
 
 	// avoid empty rules
 	if len(from) == 0 && len(to) == 0 {
@@ -82,4 +77,18 @@ func serviceRules(svc corev1.Service, logAcceptedConnections bool) nftablesRules
 		rules = append(rules, assembleDestinationPortRule(ruleBase, "udp", udpPorts, logAcceptedConnections, comment))
 	}
 	return uniqueSorted(rules)
+}
+
+func appendServiceIP(to []string, svc corev1.Service, allowed *netipx.IPSet, ip string, recorder record.EventRecorder) []string {
+	if ip != "" && isIP(ip) {
+		if allowed != nil {
+			// if there is an allowed-ipset restriction, we check if the given IP is contained in this set
+			if ok, _ := helper.ValidateCIDR(&svc, ip+"/32", allowed, recorder); ok {
+				to = append(to, ip)
+			}
+		} else {
+			to = append(to, ip)
+		}
+	}
+	return to
 }
