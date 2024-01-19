@@ -163,7 +163,6 @@ func (mr *mockRecorder) AnnotatedEventf(object runtime.Object, annotations map[s
 
 func TestValidateCIDR(t *testing.T) {
 	type args struct {
-		name  string
 		o     runtime.Object
 		cidr  string
 		ipset *netipx.IPSet
