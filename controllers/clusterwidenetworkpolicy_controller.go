@@ -200,7 +200,7 @@ func (r *ClusterwideNetworkPolicyReconciler) allowedCWNPsOrDelete(ctx context.Co
 	// report as event in case rule is not allowed
 
 	// what to do, if accesstype is baseline but there are allowedNetworks given?
-	if accessType == firewallv2.NetworkAccessBaseline {
+	if accessType != firewallv2.NetworkAccessRestricted {
 		return cwnps, nil
 	}
 
