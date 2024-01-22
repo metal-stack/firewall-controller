@@ -186,7 +186,7 @@ func (f *Firewall) ReconcileNetconfTables() error {
 	if err != nil {
 		return fmt.Errorf("failed to init networker configurator: %w", err)
 	}
-	configurator.ConfigureNftables()
+	configurator.ConfigureNftables(netconf.ForwardPolicyAccept)
 
 	return nil
 }
