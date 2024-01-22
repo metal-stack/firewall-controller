@@ -14,7 +14,7 @@ require (
 	github.com/metal-stack/firewall-controller-manager v0.3.2-0.20240115082359-d2ad341a4113
 	github.com/metal-stack/metal-go v0.24.3
 	github.com/metal-stack/metal-lib v0.13.5
-	github.com/metal-stack/metal-networker v0.33.1-0.20240122140354-df52bd9b79c8
+	github.com/metal-stack/metal-networker v0.33.1-0.20240122150602-99b8a185b9f4
 	github.com/metal-stack/v v1.0.3
 	github.com/miekg/dns v1.1.55
 	github.com/txn2/txeh v1.5.3
