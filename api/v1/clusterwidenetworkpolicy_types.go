@@ -67,12 +67,23 @@ type PolicySpec struct {
 
 type FQDNState map[string][]IPSet
 
+type PolicyDeploymentState string
+
+const (
+	PolicyDeploymentStateDeployed = PolicyDeploymentState("deployed")
+	PolicyDeploymentStateIgnored  = PolicyDeploymentState("ignored")
+)
+
 // PolicyStatus defines the observed state for CWNP resource
 type PolicyStatus struct {
 	// FQDNState stores mapping from FQDN rules to nftables sets used for a firewall rule.
 	// Key is either MatchName or MatchPattern
 	// +optional
 	FQDNState FQDNState `json:"fqdn_state,omitempty"`
+
+	State PolicyDeploymentState `json:"state"`
+
+	Message string `json:"message,omitempty"`
 }
 
 // IngressRule describes a particular set of traffic that is allowed to the cluster.
