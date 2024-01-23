@@ -2,10 +2,9 @@ package network
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
-
-	"go.uber.org/zap"
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	"github.com/metal-stack/metal-go/api/models"
@@ -17,18 +16,16 @@ const (
 	frrConfig            = "/etc/frr/frr.conf"
 )
 
-var logger *zap.SugaredLogger
+var logger *slog.Logger
 
 func init() {
-	l, err := zap.NewProduction()
-	if err != nil {
-		panic(err)
-	}
+	jsonHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{})
+	l := slog.New(jsonHandler)
 
-	logger = l.Sugar()
+	logger = l.WithGroup("networker")
 }
 
-func GetLogger() *zap.SugaredLogger {
+func GetLogger() *slog.Logger {
 	return logger
 }
 
