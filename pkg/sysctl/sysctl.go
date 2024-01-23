@@ -2,12 +2,11 @@ package sysctl
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path"
 	"strconv"
 	"strings"
-
-	"go.uber.org/zap"
 )
 
 const (
@@ -31,8 +30,8 @@ type (
 	Module string
 )
 
-func Tune(log *zap.SugaredLogger) error {
-	log.Infow("set sysctl value", "key", nfConntrackMax, "value", nfConntrackMaxSetting)
+func Tune(log *slog.Logger) error {
+	log.Info("set sysctl value", "key", nfConntrackMax, "value", nfConntrackMaxSetting)
 	err := Set(nfConntrackMax, nfConntrackMaxSetting)
 	if err != nil {
 		return fmt.Errorf("unable to set value of %q %w", nfConntrackMax, err)
@@ -43,7 +42,7 @@ func Tune(log *zap.SugaredLogger) error {
 		return fmt.Errorf("unable to get value of %q %w", nfConntrackMax, err)
 	}
 
-	log.Infow("set module value", "key", nfConntrackHashSize, "value", nfConntrackHashSizeSetting)
+	log.Info("set module value", "key", nfConntrackHashSize, "value", nfConntrackHashSizeSetting)
 	err = SetModule(nfConntrackHashSize, nfConntrackHashSizeSetting)
 	if err != nil {
 		return fmt.Errorf("unable to set module parameter %w", err)
@@ -54,7 +53,7 @@ func Tune(log *zap.SugaredLogger) error {
 		return fmt.Errorf("unable to get value of %q %w", nfConntrackMax, err)
 	}
 
-	log.Infow("sysctl and module parameters set", "conntrack max", conntrackMax, "hash size", hashSize)
+	log.Info("sysctl and module parameters set", "conntrack max", conntrackMax, "hash size", hashSize)
 	return nil
 }
 

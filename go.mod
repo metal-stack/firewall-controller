@@ -5,8 +5,7 @@ go 1.21
 require (
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/fatih/color v1.15.0
-	github.com/go-logr/logr v1.2.4
-	github.com/go-logr/zapr v1.2.4
+	github.com/go-logr/logr v1.4.1
 	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/nftables v0.1.1-0.20230115205135-9aa6fdf5a28c
