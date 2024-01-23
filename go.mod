@@ -6,7 +6,6 @@ require (
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/fatih/color v1.16.0
 	github.com/go-logr/logr v1.4.1
-	github.com/go-logr/zapr v1.2.4
 	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/nftables v0.1.1-0.20230115205135-9aa6fdf5a28c
@@ -14,12 +13,11 @@ require (
 	github.com/metal-stack/firewall-controller-manager v0.3.2-0.20240115082359-d2ad341a4113
 	github.com/metal-stack/metal-go v0.26.2
 	github.com/metal-stack/metal-lib v0.14.3
-	github.com/metal-stack/metal-networker v0.40.0
+	github.com/metal-stack/metal-networker v0.41.0
 	github.com/metal-stack/v v1.0.3
 	github.com/miekg/dns v1.1.56
 	github.com/txn2/txeh v1.5.3
 	github.com/vishvananda/netlink v1.2.1-beta.2
-	go.uber.org/zap v1.26.0
 	go4.org/netipx v0.0.0-20230824141953-6213f710f925
 	k8s.io/api v0.26.3
 	k8s.io/apiextensions-apiserver v0.26.3
@@ -78,7 +76,6 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/vishvananda/netns v0.0.4 // indirect
 	go.mongodb.org/mongo-driver v1.13.1 // indirect
-	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/net v0.20.0 // indirect
 	golang.org/x/oauth2 v0.16.0 // indirect

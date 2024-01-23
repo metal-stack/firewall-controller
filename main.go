@@ -4,14 +4,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
 
 	"github.com/metal-stack/v"
 
-	"github.com/go-logr/zapr"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
+	"github.com/go-logr/logr"
 
 	corev1 "k8s.io/api/core/v1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
@@ -88,73 +87,84 @@ func main() {
 		return
 	}
 
-	l, err := newZapLogger(logLevel)
-	if err != nil {
-		setupLog.Error(err, "unable to parse log level")
-		os.Exit(1)
-	}
-	ctrl.SetLogger(zapr.NewLogger(l.Desugar()))
+	jsonHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{})
+	l := slog.New(jsonHandler)
 
-	l.Infow("using kubeconfig path", "path", kubeconfigPath)
+	ctrl.SetLogger(logr.FromSlogHandler(jsonHandler))
+
+	l.Info("using kubeconfig path", "path", kubeconfigPath)
 
 	var (
 		ctx        = ctrl.SetupSignalHandler()
 		seedConfig = ctrl.GetConfigOrDie()
 	)
 
+	// FIXME validation and controller start should be refactored into own func which returns error
+	// instead Fatalw or Error and panic here.
+	var err error
 	if firewallName == "" {
 		firewallName, err = os.Hostname()
 		if err != nil {
-			l.Fatalw("unable to default firewall name flag to hostname", "error", err)
+			l.Error("unable to default firewall name flag to hostname", "error", err)
+			panic(err)
 		}
 	}
 
 	if kubeconfigPath == "" {
-		l.Fatalw("kubeconfig path is empty, aborting")
+		l.Error("kubeconfig path is empty, aborting")
+		panic(err)
 	}
 
 	seedClient, err := controllerclient.New(seedConfig, controllerclient.Options{
 		Scheme: scheme,
 	})
 	if err != nil {
-		l.Fatalw("unable to create seed client", "error", err)
+		l.Error("unable to create seed client", "error", err)
+		panic(err)
 	}
 
 	rawKubeconfig, err := os.ReadFile(kubeconfigPath)
 	if err != nil {
-		l.Fatalw("unable to read kubeconfig", "path", kubeconfigPath, "error", err)
+		l.Error("unable to read kubeconfig", "path", kubeconfigPath, "error", err)
+		panic(err)
 	}
 
 	seedNamespace, err := getSeedNamespace(rawKubeconfig)
 	if err != nil {
-		l.Fatalw("unable to find seed namespace from kubeconfig", "error", err)
+		l.Error("unable to find seed namespace from kubeconfig", "error", err)
+		panic(err)
 	}
 
 	fw, err := findResponsibleFirewall(ctx, seedClient, firewallName, seedNamespace)
 	if err != nil {
-		l.Fatalw("unable to find firewall resource to be responsible for", "error", err)
+		l.Error("unable to find firewall resource to be responsible for", "error", err)
+		panic(err)
 	}
 
-	l.Infow("found firewall resource to be responsible for", "firewall-name", firewallName, "namespace", seedNamespace)
+	l.Info("found firewall resource to be responsible for", "firewall-name", firewallName, "namespace", seedNamespace)
 
 	shootAccessHelper := helper.NewShootAccessHelper(seedClient, fw.Status.ShootAccess)
 	if err != nil {
-		l.Fatalw("unable to construct shoot access helper", "error", err)
+		l.Error("unable to construct shoot access helper", "error", err)
+		panic(err)
 	}
 
 	accessTokenUpdater, err := helper.NewShootAccessTokenUpdater(shootAccessHelper, "/etc/firewall-controller")
 	if err != nil {
-		l.Fatalw("unable to create shoot access token updater", "error", err)
+		l.Error("unable to create shoot access token updater", "error", err)
+		panic(err)
 	}
 
 	err = accessTokenUpdater.UpdateContinuously(ctrl.Log.WithName("token-updater"), ctx)
 	if err != nil {
-		l.Fatalw("unable to start token updater", "error", err)
+		l.Error("unable to start token updater", "error", err)
+		panic(err)
 	}
 
 	shootConfig, err := shootAccessHelper.RESTConfig(ctx)
 	if err != nil {
-		l.Fatalw("unable to create shoot config", "error", err)
+		l.Error("unable to create shoot config", "error", err)
+		panic(err)
 	}
 
 	seedMgr, err := ctrl.NewManager(seedConfig, ctrl.Options{
@@ -168,7 +178,8 @@ func main() {
 		LeaderElection:        false, // leader election does not make sense for this controller, it's always single managed by systemd
 	})
 	if err != nil {
-		l.Fatalw("unable to create seed manager", "error", err)
+		l.Error("unable to create seed manager", "error", err)
+		panic(err)
 	}
 
 	shootMgr, err := ctrl.NewManager(shootConfig, ctrl.Options{
@@ -177,12 +188,14 @@ func main() {
 		LeaderElection:     false,
 	})
 	if err != nil {
-		l.Fatalw("unable to create shoot manager", "error", err)
+		l.Error("unable to create shoot manager", "error", err)
+		panic(err)
 	}
 
 	shootClient, err := controllerclient.New(shootConfig, controllerclient.Options{Scheme: scheme})
 	if err != nil {
-		l.Fatalw("unable to create shoot client", "error", err)
+		l.Error("unable to create shoot client", "error", err)
+		panic(err)
 	}
 
 	updater := updater.New(ctrl.Log.WithName("updater"), shootMgr.GetEventRecorderFor("FirewallController"))
@@ -209,7 +222,8 @@ func main() {
 		SeedUpdatedFunc: fwmReconciler.SeedUpdated,
 		TokenUpdater:    accessTokenUpdater,
 	}).SetupWithManager(seedMgr); err != nil {
-		l.Fatalw("unable to create firewall controller", "error", err)
+		l.Error("unable to create firewall controller", "error", err)
+		panic(err)
 	}
 
 	// Droptailer Reconciler
@@ -218,7 +232,8 @@ func main() {
 		Log:         ctrl.Log.WithName("controllers").WithName("Droptailer"),
 		HostsFile:   hostsFile,
 	}).SetupWithManager(shootMgr); err != nil {
-		l.Fatalw("unable to create droptailer controller", "error", err)
+		l.Error("unable to create droptailer controller", "error", err)
+		panic(err)
 	}
 
 	// ClusterwideNetworkPolicy Reconciler
@@ -230,7 +245,8 @@ func main() {
 		FirewallName:  firewallName,
 		SeedNamespace: seedNamespace,
 	}).SetupWithManager(shootMgr); err != nil {
-		l.Fatalw("unable to create clusterwidenetworkpolicy controller", "error", err)
+		l.Error("unable to create clusterwidenetworkpolicy controller", "error", err)
+		panic(err)
 	}
 
 	if err = (&controllers.ClusterwideNetworkPolicyValidationReconciler{
@@ -238,12 +254,14 @@ func main() {
 		Log:         ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicyValidation"),
 		Recorder:    shootMgr.GetEventRecorderFor("FirewallController"),
 	}).SetupWithManager(shootMgr); err != nil {
-		l.Fatalw("unable to create clusterwidenetworkpolicyvalidation controller", "error", err)
+		l.Error("unable to create clusterwidenetworkpolicyvalidation controller", "error", err)
+		panic(err)
 	}
 
 	// FirewallMonitorReconciler
 	if err = (fwmReconciler).SetupWithManager(shootMgr); err != nil {
-		l.Fatalw("unable to create firewall monitor controller", "error", err)
+		l.Error("unable to create firewall monitor controller", "error", err)
+		panic(err)
 	}
 
 	// +kubebuilder:scaffold:builder
@@ -257,44 +275,27 @@ func main() {
 	defer cancel()
 	err = updater.Run(updaterCtx, fw)
 	if err != nil {
-		l.Fatalw("unable to update firewall components", "error", err)
+		l.Error("unable to update firewall components", "error", err)
+		panic(err)
 	}
 
 	go func() {
-		l.Infow("starting shoot controller", "version", v.V)
+		l.Info("starting shoot controller", "version", v.V)
 		if err := shootMgr.Start(ctx); err != nil {
-			l.Fatalw("problem running shoot controller", "error", err)
+			l.Error("problem running shoot controller", "error", err)
+			panic(err)
 		}
 	}()
 
 	err = sysctl.Tune(l)
 	if err != nil {
-		l.Errorw("unable to tune kernel", "error", err)
+		l.Error("unable to tune kernel", "error", err)
 	}
 
 	if err := seedMgr.Start(ctx); err != nil {
-		l.Errorw("problem running seed controller", "error", err)
+		l.Error("problem running seed controller", "error", err)
 		panic(err)
 	}
-}
-
-func newZapLogger(levelString string) (*zap.SugaredLogger, error) {
-	level, err := zap.ParseAtomicLevel(levelString)
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse log level: %w", err)
-	}
-
-	cfg := zap.NewProductionConfig()
-	cfg.Level = level
-	cfg.EncoderConfig.TimeKey = "timestamp"
-	cfg.EncoderConfig.EncodeTime = zapcore.RFC3339TimeEncoder
-
-	l, err := cfg.Build()
-	if err != nil {
-		return nil, fmt.Errorf("can't initialize zap logger: %w", err)
-	}
-
-	return l.Sugar(), nil
 }
 
 func findResponsibleFirewall(ctx context.Context, seed controllerclient.Client, firewallName, seedNamespace string) (*firewallv2.Firewall, error) {
