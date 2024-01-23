@@ -282,6 +282,7 @@ func main() {
 		l.Info("starting shoot controller", "version", v.V)
 		if err := shootMgr.Start(ctx); err != nil {
 			l.Error("problem running shoot controller", "error", err)
+			panic(err)
 		}
 	}()
 
