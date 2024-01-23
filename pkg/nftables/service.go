@@ -2,7 +2,7 @@ package nftables
 
 import (
 	"fmt"
-	"net"
+	"net/netip"
 	"strings"
 
 	"github.com/metal-stack/firewall-controller/v2/pkg/helper"
@@ -11,16 +11,6 @@ import (
 	"k8s.io/client-go/tools/record"
 )
 
-func isCIDR(cidr string) bool {
-	_, _, err := net.ParseCIDR(cidr)
-	return err != nil
-}
-
-func isIP(ip string) bool {
-	i := net.ParseIP(ip)
-	return i != nil
-}
-
 // serviceRules generates nftables rules base on a k8s service definition
 func serviceRules(svc corev1.Service, allowed *netipx.IPSet, logAcceptedConnections bool, recorder record.EventRecorder) nftablesRules {
 	if svc.Spec.Type != corev1.ServiceTypeLoadBalancer && svc.Spec.Type != corev1.ServiceTypeNodePort {
@@ -28,12 +18,6 @@ func serviceRules(svc corev1.Service, allowed *netipx.IPSet, logAcceptedConnecti
 	}
 
 	from := []string{}
-	for _, lbsr := range svc.Spec.LoadBalancerSourceRanges {
-		if !isCIDR(lbsr) && !isIP(lbsr) {
-			continue
-		}
-	}
-
 	from = append(from, svc.Spec.LoadBalancerSourceRanges...)
 	to := []string{}
 	if svc.Spec.Type == corev1.ServiceTypeLoadBalancer {
@@ -80,15 +64,17 @@ func serviceRules(svc corev1.Service, allowed *netipx.IPSet, logAcceptedConnecti
 }
 
 func appendServiceIP(to []string, svc corev1.Service, allowed *netipx.IPSet, ip string, recorder record.EventRecorder) []string {
-	if ip != "" && isIP(ip) {
-		if allowed != nil {
-			// if there is an allowed-ipset restriction, we check if the given IP is contained in this set
-			if ok, _ := helper.ValidateCIDR(&svc, ip+"/32", allowed, recorder); ok {
-				to = append(to, ip)
-			}
-		} else {
-			to = append(to, ip)
-		}
+	_, err := netip.ParseAddr(ip)
+	if err != nil {
+		return to
+	}
+	if allowed == nil {
+		return append(to, ip)
+	}
+
+	// if there is an allowed-ipset restriction, we check if the given IP is contained in this set
+	if ok, _ := helper.ValidateCIDR(&svc, ip+"/32", allowed, recorder); ok {
+		to = append(to, ip)
 	}
 	return to
 }
