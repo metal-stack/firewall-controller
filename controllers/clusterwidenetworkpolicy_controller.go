@@ -239,11 +239,8 @@ func (r *ClusterwideNetworkPolicyReconciler) allowedCWNPs(ctx context.Context, c
 }
 
 func (r *ClusterwideNetworkPolicyReconciler) updateCWNPState(ctx context.Context, cwnp firewallv1.ClusterwideNetworkPolicy, state firewallv1.PolicyDeploymentState, msg string) error {
-	cStatus := cwnp.Status
-	cStatus.Message = msg
-	cStatus.State = state
-
-	cwnp.Status = cStatus
+	cwnp.Status.Message = msg
+	cwnp.Status.State = state
 
 	if err := r.ShootClient.Status().Update(ctx, &cwnp); err != nil {
 		return fmt.Errorf("failed to update status of CWNP %q to %q: %w", cwnp.Name, state, err)
