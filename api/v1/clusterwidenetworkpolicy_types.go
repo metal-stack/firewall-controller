@@ -83,7 +83,7 @@ type PolicyStatus struct {
 	// +optional
 	FQDNState FQDNState `json:"fqdn_state,omitempty"`
 
-	State PolicyDeploymentState `json:"state"`
+	State PolicyDeploymentState `json:"state,omitempty"`
 
 	Message string `json:"message,omitempty"`
 }
