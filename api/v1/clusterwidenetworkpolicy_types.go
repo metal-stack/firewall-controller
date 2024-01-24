@@ -27,6 +27,8 @@ const (
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:shortName=cwnp
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.state"
+// +kubebuilder:printcolumn:name="Message",type="string",JSONPath=".status.message"
 type ClusterwideNetworkPolicy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

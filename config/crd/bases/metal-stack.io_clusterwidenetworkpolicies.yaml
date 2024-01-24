@@ -16,7 +16,14 @@ spec:
     singular: clusterwidenetworkpolicy
   scope: Namespaced
   versions:
-  - name: v1
+  - additionalPrinterColumns:
+    - jsonPath: .status.state
+      name: Status
+      type: string
+    - jsonPath: .status.message
+      name: Message
+      type: string
+    name: v1
     schema:
       openAPIV3Schema:
         description: ClusterwideNetworkPolicy contains the desired state for a cluster
