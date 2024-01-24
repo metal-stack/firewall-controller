@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -98,7 +97,7 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ct
 		return ctrl.Result{}, err
 	}
 
-	validCwnps, err := r.allowedCWNPsOrDelete(ctx, cwnps.Items, f.Spec.NetworkAccessType, f.Spec.AllowedNetworks)
+	validCwnps, err := r.allowedCWNPs(ctx, cwnps.Items, f.Spec.NetworkAccessType, f.Spec.AllowedNetworks)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -116,8 +115,8 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ct
 	if updated {
 		for _, i := range cwnps.Items {
 			o := i
-			if err := r.ShootClient.Status().Update(ctx, &o); err != nil {
-				return ctrl.Result{}, fmt.Errorf("failed to updated CWNP status: %w", err)
+			if err := r.updateCWNPState(ctx, o, firewallv1.PolicyDeploymentStateDeployed, ""); err != nil {
+				return ctrl.Result{}, err
 			}
 		}
 	}
@@ -195,17 +194,14 @@ func (r *ClusterwideNetworkPolicyReconciler) getReconciliationTicker(scheduleCha
 	}
 }
 
-func (r *ClusterwideNetworkPolicyReconciler) allowedCWNPsOrDelete(ctx context.Context, cwnps []firewallv1.ClusterwideNetworkPolicy, accessType firewallv2.NetworkAccessType, allowedNetworks firewallv2.AllowedNetworks) ([]firewallv1.ClusterwideNetworkPolicy, error) {
-	// FIXME refactor to func and add test, remove illegal rules from further processing
-	// report as event in case rule is not allowed
+func (r *ClusterwideNetworkPolicyReconciler) allowedCWNPs(ctx context.Context, cwnps []firewallv1.ClusterwideNetworkPolicy, accessType firewallv2.NetworkAccessType, allowedNetworks firewallv2.AllowedNetworks) ([]firewallv1.ClusterwideNetworkPolicy, error) {
+	// FIXME add test, report as event in case rule is not allowed
 
-	// what to do, if accesstype is baseline but there are allowedNetworks given?
 	if accessType != firewallv2.NetworkAccessForbidden {
 		return cwnps, nil
 	}
 
 	validCWNPs := make([]firewallv1.ClusterwideNetworkPolicy, 0, len(cwnps))
-	forbiddenCWNPs := make([]firewallv1.ClusterwideNetworkPolicy, 0)
 
 	egressSet, err := helper.BuildNetworksIPSet(allowedNetworks.Egress)
 	if err != nil {
@@ -227,37 +223,39 @@ func (r *ClusterwideNetworkPolicyReconciler) allowedCWNPsOrDelete(ctx context.Co
 		if err != nil {
 			return nil, err
 		}
-		// the CWNP is ok if both ingress/egress match with the allowed networks
-		ok := oki && oke
 
-		if !ok {
-			forbiddenCWNPs = append(forbiddenCWNPs, cwnp)
-		} else {
-			validCWNPs = append(validCWNPs, cwnp)
-		}
-	}
-	if len(cwnps) != len(validCWNPs) {
-		var errs []error
-		for _, cwnp := range forbiddenCWNPs {
-			cwnp := cwnp
-			err := r.ShootClient.Delete(ctx, &cwnp)
-			if err != nil {
-				errs = append(errs, err)
+		if !oki || !oke {
+			// at least one of ingress and/or egress is not in the allowed network set
+			if err := r.updateCWNPState(ctx, cwnp, firewallv1.PolicyDeploymentStateIgnored, "ingress/egress does not match allowed networks"); err != nil {
+				return nil, err
 			}
+			continue
 		}
-		if len(errs) > 0 {
-			// TODO: should we acutally fail when single cwnps that won't be applied anyways cannot be deleted?
-			// Alternatively just log / record event / retry reconcile?
-			return nil, fmt.Errorf("failed to delete all forbidden CWNPs: %w", errors.Join(errs...))
-		}
+
+		validCWNPs = append(validCWNPs, cwnp)
+
 	}
 	return validCWNPs, nil
 }
 
-func (r *ClusterwideNetworkPolicyReconciler) validateCWNPEgressTargetPrefix(cwnp firewallv1.ClusterwideNetworkPolicy, externalSet *netipx.IPSet) (bool, error) {
+func (r *ClusterwideNetworkPolicyReconciler) updateCWNPState(ctx context.Context, cwnp firewallv1.ClusterwideNetworkPolicy, state firewallv1.PolicyDeploymentState, msg string) error {
+	cStatus := cwnp.Status
+	if cStatus.State == state && cStatus.Message == msg {
+		// state is already has the required values
+		return nil
+	}
+	cStatus.Message = msg
+	cStatus.State = state
+	if err := r.ShootClient.Status().Update(ctx, &cwnp); err != nil {
+		return fmt.Errorf("failed to update status of CWNP %q to %q: %w", cwnp.Name, state, err)
+	}
+	return nil
+}
+
+func (r *ClusterwideNetworkPolicyReconciler) validateCWNPEgressTargetPrefix(cwnp firewallv1.ClusterwideNetworkPolicy, ipSet *netipx.IPSet) (bool, error) {
 	for _, egress := range cwnp.Spec.Egress {
 		for _, to := range egress.To {
-			if ok, err := helper.ValidateCIDR(&cwnp, to.CIDR, externalSet, r.Recorder); !ok {
+			if ok, err := helper.ValidateCIDR(&cwnp, to.CIDR, ipSet, r.Recorder); !ok {
 				return false, err
 			}
 		}
@@ -265,10 +263,10 @@ func (r *ClusterwideNetworkPolicyReconciler) validateCWNPEgressTargetPrefix(cwnp
 	return true, nil
 }
 
-func (r *ClusterwideNetworkPolicyReconciler) validateCWNPIngressTargetPrefix(cwnp firewallv1.ClusterwideNetworkPolicy, externalSet *netipx.IPSet) (bool, error) {
+func (r *ClusterwideNetworkPolicyReconciler) validateCWNPIngressTargetPrefix(cwnp firewallv1.ClusterwideNetworkPolicy, ipSet *netipx.IPSet) (bool, error) {
 	for _, ingress := range cwnp.Spec.Ingress {
 		for _, from := range ingress.From {
-			if ok, err := helper.ValidateCIDR(&cwnp, from.CIDR, externalSet, r.Recorder); !ok {
+			if ok, err := helper.ValidateCIDR(&cwnp, from.CIDR, ipSet, r.Recorder); !ok {
 				return false, err
 			}
 		}
