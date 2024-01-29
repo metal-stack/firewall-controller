@@ -195,7 +195,6 @@ func (r *ClusterwideNetworkPolicyReconciler) getReconciliationTicker(scheduleCha
 }
 
 func (r *ClusterwideNetworkPolicyReconciler) allowedCWNPs(ctx context.Context, cwnps []firewallv1.ClusterwideNetworkPolicy, accessType firewallv2.NetworkAccessType, allowedNetworks firewallv2.AllowedNetworks) ([]firewallv1.ClusterwideNetworkPolicy, error) {
-	// FIXME add test, report as event in case rule is not allowed
 
 	if accessType != firewallv2.NetworkAccessForbidden {
 		return cwnps, nil
