@@ -87,7 +87,7 @@ type PolicyStatus struct {
 	FQDNState FQDNState `json:"fqdn_state,omitempty"`
 	// State of the CWNP, can be either deployed or ignored
 	State PolicyDeploymentState `json:"state,omitempty"`
-	// Message describe why the state changed
+	// Message describes why the state changed
 	Message string `json:"message,omitempty"`
 }
 
