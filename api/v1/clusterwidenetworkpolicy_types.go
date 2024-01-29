@@ -69,11 +69,14 @@ type PolicySpec struct {
 
 type FQDNState map[string][]IPSet
 
+// PolicyDeploymentState describes the state of a CWNP deployment
 type PolicyDeploymentState string
 
 const (
+	// PolicyDeploymentStateDeployed the CWNP was deployed to a native nftable rule
 	PolicyDeploymentStateDeployed = PolicyDeploymentState("deployed")
-	PolicyDeploymentStateIgnored  = PolicyDeploymentState("ignored")
+	// PolicyDeploymentStateIgnored the CWNP was not deployed to a native nftable rule because it is outside of allowed networks
+	PolicyDeploymentStateIgnored = PolicyDeploymentState("ignored")
 )
 
 // PolicyStatus defines the observed state for CWNP resource
@@ -82,9 +85,9 @@ type PolicyStatus struct {
 	// Key is either MatchName or MatchPattern
 	// +optional
 	FQDNState FQDNState `json:"fqdn_state,omitempty"`
-
+	// State of the CWNP, can be either deployed or ignored
 	State PolicyDeploymentState `json:"state,omitempty"`
-
+	// Message describe why the state changed
 	Message string `json:"message,omitempty"`
 }
 

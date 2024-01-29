@@ -259,8 +259,10 @@ spec:
                   sets used for a firewall rule. Key is either MatchName or MatchPattern
                 type: object
               message:
+                description: Message describe why the state changed
                 type: string
               state:
+                description: State of the CWNP, can be either deployed or ignored
                 type: string
             type: object
         type: object
