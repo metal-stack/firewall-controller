@@ -86,7 +86,8 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		if apierrors.IsNotFound(err) {
 			r.Log.Info("flushing k8s firewall rules")
 
-			defaultFw := nftables.NewDefaultFirewall()
+			defaultFw := nftables.NewFirewall(&firewallv2.Firewall{}, &firewallv1.ClusterwideNetworkPolicyList{}, &corev1.ServiceList{}, nil, logr.Discard(), r.Recorder)
+
 			flushErr := defaultFw.Flush()
 			if flushErr != nil {
 				r.Log.Error(flushErr, "error flushing k8s firewall rules")
