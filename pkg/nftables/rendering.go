@@ -8,7 +8,6 @@ import (
 	"strings"
 	"text/template"
 
-	v2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	"github.com/metal-stack/firewall-controller/v2/pkg/dns"
 	"github.com/metal-stack/firewall-controller/v2/pkg/helper"
 	"go4.org/netipx"
@@ -39,7 +38,7 @@ func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 	}
 
 	var serviceAllowedSet *netipx.IPSet
-	if f.firewall.Spec.NetworkAccessType == v2.NetworkAccessForbidden {
+	if len(f.firewall.Spec.AllowedNetworks.Ingress) > 0 {
 		// the ips for services are only checked if the accesstype is forbidden
 		a, err := helper.BuildNetworksIPSet(f.firewall.Spec.AllowedNetworks.Ingress)
 		if err != nil {

@@ -70,11 +70,6 @@ type forwardingRules struct {
 	Egress  nftablesRules
 }
 
-// NewDefaultFirewall creates a new default nftables firewall.
-func NewDefaultFirewall() *Firewall {
-	return NewFirewall(&firewallv2.Firewall{}, &firewallv1.ClusterwideNetworkPolicyList{}, &corev1.ServiceList{}, nil, logr.Discard(), nil)
-}
-
 // NewFirewall creates a new nftables firewall object based on k8s entities
 func NewFirewall(
 	firewall *firewallv2.Firewall,

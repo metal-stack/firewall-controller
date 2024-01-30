@@ -10,7 +10,7 @@ require (
 	github.com/google/go-cmp v0.6.0
 	github.com/google/nftables v0.1.1-0.20230115205135-9aa6fdf5a28c
 	github.com/ks2211/go-suricata v0.0.0-20200823200910-986ce1470707
-	github.com/metal-stack/firewall-controller-manager v0.3.2-0.20240115082359-d2ad341a4113
+	github.com/metal-stack/firewall-controller-manager v0.3.2
 	github.com/metal-stack/metal-go v0.26.2
 	github.com/metal-stack/metal-lib v0.14.3
 	github.com/metal-stack/metal-networker v0.41.0

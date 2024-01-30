@@ -97,7 +97,7 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ct
 		return ctrl.Result{}, err
 	}
 
-	validCwnps, err := r.allowedCWNPs(ctx, cwnps.Items, f.Spec.NetworkAccessType, f.Spec.AllowedNetworks)
+	validCwnps, err := r.allowedCWNPs(ctx, cwnps.Items, f.Spec.AllowedNetworks)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -194,9 +194,8 @@ func (r *ClusterwideNetworkPolicyReconciler) getReconciliationTicker(scheduleCha
 	}
 }
 
-func (r *ClusterwideNetworkPolicyReconciler) allowedCWNPs(ctx context.Context, cwnps []firewallv1.ClusterwideNetworkPolicy, accessType firewallv2.NetworkAccessType, allowedNetworks firewallv2.AllowedNetworks) ([]firewallv1.ClusterwideNetworkPolicy, error) {
-
-	if accessType != firewallv2.NetworkAccessForbidden {
+func (r *ClusterwideNetworkPolicyReconciler) allowedCWNPs(ctx context.Context, cwnps []firewallv1.ClusterwideNetworkPolicy, allowedNetworks firewallv2.AllowedNetworks) ([]firewallv1.ClusterwideNetworkPolicy, error) {
+	if len(allowedNetworks.Egress) == 0 && len(allowedNetworks.Ingress) == 0 {
 		return cwnps, nil
 	}
 
@@ -232,8 +231,8 @@ func (r *ClusterwideNetworkPolicyReconciler) allowedCWNPs(ctx context.Context, c
 		}
 
 		validCWNPs = append(validCWNPs, cwnp)
-
 	}
+
 	return validCWNPs, nil
 }
 
