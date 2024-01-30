@@ -241,6 +241,7 @@ func main() {
 		SeedClient:    seedMgr.GetClient(),
 		ShootClient:   shootMgr.GetClient(),
 		Log:           ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicy"),
+		Recorder:      shootMgr.GetEventRecorderFor("FirewallController"),
 		FirewallName:  firewallName,
 		SeedNamespace: seedNamespace,
 	}).SetupWithManager(shootMgr); err != nil {

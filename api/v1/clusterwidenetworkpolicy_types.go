@@ -27,6 +27,8 @@ const (
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:shortName=cwnp
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.state"
+// +kubebuilder:printcolumn:name="Message",type="string",JSONPath=".status.message"
 type ClusterwideNetworkPolicy struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -67,12 +69,26 @@ type PolicySpec struct {
 
 type FQDNState map[string][]IPSet
 
+// PolicyDeploymentState describes the state of a CWNP deployment
+type PolicyDeploymentState string
+
+const (
+	// PolicyDeploymentStateDeployed the CWNP was deployed to a native nftable rule
+	PolicyDeploymentStateDeployed = PolicyDeploymentState("deployed")
+	// PolicyDeploymentStateIgnored the CWNP was not deployed to a native nftable rule because it is outside of allowed networks
+	PolicyDeploymentStateIgnored = PolicyDeploymentState("ignored")
+)
+
 // PolicyStatus defines the observed state for CWNP resource
 type PolicyStatus struct {
 	// FQDNState stores mapping from FQDN rules to nftables sets used for a firewall rule.
 	// Key is either MatchName or MatchPattern
 	// +optional
 	FQDNState FQDNState `json:"fqdn_state,omitempty"`
+	// State of the CWNP, can be either deployed or ignored
+	State PolicyDeploymentState `json:"state,omitempty"`
+	// Message describes why the state changed
+	Message string `json:"message,omitempty"`
 }
 
 // IngressRule describes a particular set of traffic that is allowed to the cluster.

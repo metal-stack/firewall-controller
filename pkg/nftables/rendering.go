@@ -9,6 +9,8 @@ import (
 	"text/template"
 
 	"github.com/metal-stack/firewall-controller/v2/pkg/dns"
+	"github.com/metal-stack/firewall-controller/v2/pkg/helper"
+	"go4.org/netipx"
 )
 
 // firewallRenderingData holds the data available in the nftables template
@@ -35,8 +37,18 @@ func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 		f.clusterwideNetworkPolicies.Items[ind] = u
 	}
 
+	var serviceAllowedSet *netipx.IPSet
+	if len(f.firewall.Spec.AllowedNetworks.Ingress) > 0 {
+		// the ips for services are only checked if the accesstype is forbidden
+		a, err := helper.BuildNetworksIPSet(f.firewall.Spec.AllowedNetworks.Ingress)
+		if err != nil {
+			return nil, err
+		}
+		serviceAllowedSet = a
+	}
+
 	for _, svc := range f.services.Items {
-		ingress = append(ingress, serviceRules(svc, f.logAcceptedConnections)...)
+		ingress = append(ingress, serviceRules(svc, serviceAllowedSet, f.logAcceptedConnections, f.recorder)...)
 	}
 
 	snatRules, err := snatRules(f)

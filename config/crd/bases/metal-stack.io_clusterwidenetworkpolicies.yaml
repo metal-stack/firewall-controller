@@ -16,7 +16,14 @@ spec:
     singular: clusterwidenetworkpolicy
   scope: Namespaced
   versions:
-  - name: v1
+  - additionalPrinterColumns:
+    - jsonPath: .status.state
+      name: Status
+      type: string
+    - jsonPath: .status.message
+      name: Message
+      type: string
+    name: v1
     schema:
       openAPIV3Schema:
         description: ClusterwideNetworkPolicy contains the desired state for a cluster
@@ -251,6 +258,12 @@ spec:
                 description: FQDNState stores mapping from FQDN rules to nftables
                   sets used for a firewall rule. Key is either MatchName or MatchPattern
                 type: object
+              message:
+                description: Message describes why the state changed
+                type: string
+              state:
+                description: State of the CWNP, can be either deployed or ignored
+                type: string
             type: object
         type: object
     served: true
