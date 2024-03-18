@@ -26,8 +26,10 @@ func TestClusterwideNetworkPolicyRules(t *testing.T) {
 	type want struct {
 		ingress   nftablesRules
 		egress    nftablesRules
+		tcpmss    nftablesRules
 		ingressAL nftablesRules
 		egressAL  nftablesRules
+		tcpmssAL  nftablesRules
 	}
 
 	tests := []struct {
@@ -98,6 +100,7 @@ func TestClusterwideNetworkPolicyRules(t *testing.T) {
 					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } tcp dport { 53, 443-448 } counter accept comment "accept traffic for np  tcp"`,
 					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } udp dport { 53 } counter accept comment "accept traffic for np  udp"`,
 				},
+				tcpmss: nftablesRules{},
 				ingressAL: nftablesRules{
 					`ip saddr != { 1.1.0.1 } ip saddr { 1.1.0.0/24 } tcp dport { 80, 443-448 } log prefix "nftables-firewall-accepted: " limit rate 10/second`,
 					`ip saddr != { 1.1.0.1 } ip saddr { 1.1.0.0/24 } tcp dport { 80, 443-448 } counter accept comment "accept traffic for k8s network policy  tcp"`,
@@ -108,26 +111,33 @@ func TestClusterwideNetworkPolicyRules(t *testing.T) {
 					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } udp dport { 53 } log prefix "nftables-firewall-accepted: " limit rate 10/second`,
 					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } udp dport { 53 } counter accept comment "accept traffic for np  udp"`,
 				},
+				tcpmssAL: nftablesRules{},
 			},
 		},
 	}
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			ingress, egress, _ := clusterwideNetworkPolicyRules(nil, tt.input, false)
+			ingress, egress, tcpmss, _ := clusterwideNetworkPolicyRules(nil, tt.input, false)
 			if !cmp.Equal(ingress, tt.want.ingress) {
 				t.Errorf("clusterwideNetworkPolicyRules() ingress diff: %v", cmp.Diff(ingress, tt.want.ingress))
 			}
 			if !cmp.Equal(egress, tt.want.egress) {
 				t.Errorf("clusterwideNetworkPolicyRules() egress diff: %v", cmp.Diff(egress, tt.want.egress))
 			}
+			if !cmp.Equal(tcpmss, tt.want.tcpmss) {
+				t.Errorf("clusterwideNetworkPolicyRules() tcpmss diff: %v", cmp.Diff(tcpmss, tt.want.tcpmss))
+			}
 
-			ingressAL, egressAL, _ := clusterwideNetworkPolicyRules(nil, tt.input, true)
+			ingressAL, egressAL, tcpmssAL, _ := clusterwideNetworkPolicyRules(nil, tt.input, true)
 			if !cmp.Equal(ingressAL, tt.want.ingressAL) {
 				t.Errorf("clusterwideNetworkPolicyRules() ingress with accessLog diff: %v", cmp.Diff(ingressAL, tt.want.ingressAL))
 			}
 			if !cmp.Equal(egressAL, tt.want.egressAL) {
 				t.Errorf("clusterwideNetworkPolicyRules() egress with accessLog diff: %v", cmp.Diff(egressAL, tt.want.egressAL))
+			}
+			if !cmp.Equal(tcpmssAL, tt.want.tcpmssAL) {
+				t.Errorf("clusterwideNetworkPolicyRules() tcpmss with accessLog diff: %v", cmp.Diff(egressAL, tt.want.egressAL))
 			}
 		})
 	}
@@ -139,7 +149,9 @@ func TestClusterwideNetworkPolicyEgressRules(t *testing.T) {
 
 	type want struct {
 		egress   nftablesRules
+		tcpmss   nftablesRules
 		egressAL nftablesRules
+		tcpmssAL nftablesRules
 	}
 
 	tests := []struct {
@@ -183,12 +195,14 @@ func TestClusterwideNetworkPolicyEgressRules(t *testing.T) {
 					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } tcp dport { 53 } counter accept comment "accept traffic for np  tcp"`,
 					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } udp dport { 53 } counter accept comment "accept traffic for np  udp"`,
 				},
+				tcpmss: nftablesRules{},
 				egressAL: nftablesRules{
 					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } tcp dport { 53 } log prefix "nftables-firewall-accepted: " limit rate 10/second`,
 					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } tcp dport { 53 } counter accept comment "accept traffic for np  tcp"`,
 					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } udp dport { 53 } log prefix "nftables-firewall-accepted: " limit rate 10/second`,
 					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } udp dport { 53 } counter accept comment "accept traffic for np  udp"`,
 				},
+				tcpmssAL: nftablesRules{},
 			},
 		},
 		{
@@ -240,6 +254,7 @@ func TestClusterwideNetworkPolicyEgressRules(t *testing.T) {
 					`ip saddr == @cluster_prefixes ip6 daddr @test2 tcp dport { 53 } counter accept comment "accept traffic for np  tcp, fqdn: *.test.com"`,
 					`ip saddr == @cluster_prefixes ip6 daddr @test2 udp dport { 53 } counter accept comment "accept traffic for np  udp, fqdn: *.test.com"`,
 				},
+				tcpmss: nftablesRules{},
 			},
 		},
 	}
@@ -253,16 +268,22 @@ func TestClusterwideNetworkPolicyEgressRules(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.record(fqdnCache)
 			if len(tt.want.egress) > 0 {
-				egress, _ := clusterwideNetworkPolicyEgressRules(fqdnCache, tt.input, false)
+				egress, tcpmss, _ := clusterwideNetworkPolicyEgressRules(fqdnCache, tt.input, false)
 				if !cmp.Equal(egress, tt.want.egress) {
 					t.Errorf("clusterwideNetworkPolicyEgressRules() diff: %v", cmp.Diff(egress, tt.want.egress))
+				}
+				if !cmp.Equal(tcpmss, tt.want.tcpmss) {
+					t.Errorf("clusterwideNetworkPolicyEgressRules() diff: %v", cmp.Diff(tcpmss, tt.want.tcpmss))
 				}
 			}
 
 			if len(tt.want.egressAL) > 0 {
-				egressAL, _ := clusterwideNetworkPolicyEgressRules(fqdnCache, tt.input, true)
+				egressAL, tcpmssAL, _ := clusterwideNetworkPolicyEgressRules(fqdnCache, tt.input, true)
 				if !cmp.Equal(egressAL, tt.want.egressAL) {
 					t.Errorf("clusterwideNetworkPolicyEgressRules() with accessLog diff: %v", cmp.Diff(egressAL, tt.want.egressAL))
+				}
+				if !cmp.Equal(tcpmssAL, tt.want.tcpmssAL) {
+					t.Errorf("clusterwideNetworkPolicyEgressRules() with accessLog diff: %v", cmp.Diff(tcpmssAL, tt.want.tcpmssAL))
 				}
 			}
 		})

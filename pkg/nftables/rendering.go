@@ -24,16 +24,17 @@ type firewallRenderingData struct {
 }
 
 func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
-	ingress, egress := nftablesRules{}, nftablesRules{}
+	ingress, egress, tcpmss := nftablesRules{}, nftablesRules{}, nftablesRules{}
 	for ind, np := range f.clusterwideNetworkPolicies.Items {
 		err := np.Spec.Validate()
 		if err != nil {
 			continue
 		}
 
-		i, e, u := clusterwideNetworkPolicyRules(f.cache, np, f.logAcceptedConnections)
+		i, e, t, u := clusterwideNetworkPolicyRules(f.cache, np, f.logAcceptedConnections)
 		ingress = append(ingress, i...)
 		egress = append(egress, e...)
+		tcpmss = append(tcpmss, t...)
 		f.clusterwideNetworkPolicies.Items[ind] = u
 	}
 
@@ -66,6 +67,7 @@ func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 		ForwardingRules: forwardingRules{
 			Ingress: ingress,
 			Egress:  egress,
+			TcpMss:  tcpmss,
 		},
 		RateLimitRules: rateLimitRules(f),
 		SnatRules:      snatRules,
