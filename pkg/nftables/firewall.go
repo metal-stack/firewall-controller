@@ -8,20 +8,21 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/metal-stack/firewall-controller/pkg/dns"
+	"github.com/metal-stack/firewall-controller/v2/pkg/dns"
 
-	"github.com/metal-stack/firewall-controller/pkg/network"
+	"github.com/metal-stack/firewall-controller/v2/pkg/network"
 
 	"github.com/go-logr/logr"
 	"github.com/vishvananda/netlink"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/tools/record"
 
 	mn "github.com/metal-stack/metal-lib/pkg/net"
 	"github.com/metal-stack/metal-networker/pkg/netconf"
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 )
 
 const (
@@ -45,6 +46,8 @@ type FQDNCache interface {
 type Firewall struct {
 	log logr.Logger
 
+	recorder record.EventRecorder
+
 	firewall                   *firewallv2.Firewall
 	clusterwideNetworkPolicies *firewallv1.ClusterwideNetworkPolicyList
 	services                   *corev1.ServiceList
@@ -67,11 +70,6 @@ type forwardingRules struct {
 	Egress  nftablesRules
 }
 
-// NewDefaultFirewall creates a new default nftables firewall.
-func NewDefaultFirewall() *Firewall {
-	return NewFirewall(&firewallv2.Firewall{}, &firewallv1.ClusterwideNetworkPolicyList{}, &corev1.ServiceList{}, nil, logr.Discard())
-}
-
 // NewFirewall creates a new nftables firewall object based on k8s entities
 func NewFirewall(
 	firewall *firewallv2.Firewall,
@@ -79,6 +77,7 @@ func NewFirewall(
 	svcs *corev1.ServiceList,
 	cache FQDNCache,
 	log logr.Logger,
+	recorder record.EventRecorder,
 ) *Firewall {
 	networkMap := networkMap{}
 	var primaryPrivateNet *firewallv2.FirewallNetwork
@@ -103,6 +102,7 @@ func NewFirewall(
 		cache:                      cache,
 		enableDNS:                  len(cwnps.GetFQDNs()) > 0,
 		log:                        log,
+		recorder:                   recorder,
 	}
 }
 
@@ -181,7 +181,7 @@ func (f *Firewall) ReconcileNetconfTables() error {
 	if err != nil {
 		return fmt.Errorf("failed to init networker configurator: %w", err)
 	}
-	configurator.ConfigureNftables()
+	configurator.ConfigureNftables(netconf.ForwardPolicyAccept)
 
 	return nil
 }

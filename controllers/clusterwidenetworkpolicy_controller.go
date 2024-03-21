@@ -5,13 +5,17 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/metal-stack/firewall-controller/pkg/dns"
-	"github.com/metal-stack/firewall-controller/pkg/nftables"
+	"go4.org/netipx"
+
+	"github.com/metal-stack/firewall-controller/v2/pkg/dns"
+	"github.com/metal-stack/firewall-controller/v2/pkg/helper"
+	"github.com/metal-stack/firewall-controller/v2/pkg/nftables"
 
 	"github.com/go-logr/logr"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/record"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -21,7 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 )
 
 // ClusterwideNetworkPolicyReconciler reconciles a ClusterwideNetworkPolicy object
@@ -33,7 +37,8 @@ type ClusterwideNetworkPolicyReconciler struct {
 	FirewallName  string
 	SeedNamespace string
 
-	Log logr.Logger
+	Log      logr.Logger
+	Recorder record.EventRecorder
 
 	Interval time.Duration
 	DnsProxy *dns.DNSProxy
@@ -91,7 +96,14 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ct
 	if err := r.ShootClient.List(ctx, &services); err != nil {
 		return ctrl.Result{}, err
 	}
-	nftablesFirewall := nftables.NewFirewall(f, &cwnps, &services, r.DnsProxy, r.Log)
+
+	validCwnps, err := r.allowedCWNPs(ctx, cwnps.Items, f.Spec.AllowedNetworks)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	cwnps.Items = validCwnps
+
+	nftablesFirewall := nftables.NewFirewall(f, &cwnps, &services, r.DnsProxy, r.Log, r.Recorder)
 	if err := r.manageDNSProxy(ctx, f, cwnps, nftablesFirewall); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -103,8 +115,8 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ct
 	if updated {
 		for _, i := range cwnps.Items {
 			o := i
-			if err := r.ShootClient.Status().Update(ctx, &o); err != nil {
-				return ctrl.Result{}, fmt.Errorf("failed to updated CWNP status: %w", err)
+			if err := r.updateCWNPState(ctx, o, firewallv1.PolicyDeploymentStateDeployed, ""); err != nil {
+				return ctrl.Result{}, err
 			}
 		}
 	}
@@ -180,4 +192,83 @@ func (r *ClusterwideNetworkPolicyReconciler) getReconciliationTicker(scheduleCha
 			}
 		}
 	}
+}
+
+func (r *ClusterwideNetworkPolicyReconciler) allowedCWNPs(ctx context.Context, cwnps []firewallv1.ClusterwideNetworkPolicy, allowedNetworks firewallv2.AllowedNetworks) ([]firewallv1.ClusterwideNetworkPolicy, error) {
+	if len(allowedNetworks.Egress) == 0 && len(allowedNetworks.Ingress) == 0 {
+		return cwnps, nil
+	}
+
+	validCWNPs := make([]firewallv1.ClusterwideNetworkPolicy, 0, len(cwnps))
+
+	egressSet, err := helper.BuildNetworksIPSet(allowedNetworks.Egress)
+	if err != nil {
+		return nil, err
+	}
+
+	ingressSet, err := helper.BuildNetworksIPSet(allowedNetworks.Ingress)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, cwnp := range cwnps {
+		cwnp := cwnp
+		oke, err := r.validateCWNPEgressTargetPrefix(cwnp, egressSet)
+		if err != nil {
+			return nil, err
+		}
+		oki, err := r.validateCWNPIngressTargetPrefix(cwnp, ingressSet)
+		if err != nil {
+			return nil, err
+		}
+
+		if !oki || !oke {
+			// at least one of ingress and/or egress is not in the allowed network set
+			if err := r.updateCWNPState(ctx, cwnp, firewallv1.PolicyDeploymentStateIgnored, "ingress/egress does not match allowed networks"); err != nil {
+				return nil, err
+			}
+			continue
+		}
+
+		validCWNPs = append(validCWNPs, cwnp)
+	}
+
+	return validCWNPs, nil
+}
+
+func (r *ClusterwideNetworkPolicyReconciler) updateCWNPState(ctx context.Context, cwnp firewallv1.ClusterwideNetworkPolicy, state firewallv1.PolicyDeploymentState, msg string) error {
+	// do nothing if message and state already have the desired values
+	if cwnp.Status.Message == msg && cwnp.Status.State == state {
+		return nil
+	}
+
+	cwnp.Status.Message = msg
+	cwnp.Status.State = state
+
+	if err := r.ShootClient.Status().Update(ctx, &cwnp); err != nil {
+		return fmt.Errorf("failed to update status of CWNP %q to %q: %w", cwnp.Name, state, err)
+	}
+	return nil
+}
+
+func (r *ClusterwideNetworkPolicyReconciler) validateCWNPEgressTargetPrefix(cwnp firewallv1.ClusterwideNetworkPolicy, ipSet *netipx.IPSet) (bool, error) {
+	for _, egress := range cwnp.Spec.Egress {
+		for _, to := range egress.To {
+			if ok, err := helper.ValidateCIDR(&cwnp, to.CIDR, ipSet, r.Recorder); !ok {
+				return false, err
+			}
+		}
+	}
+	return true, nil
+}
+
+func (r *ClusterwideNetworkPolicyReconciler) validateCWNPIngressTargetPrefix(cwnp firewallv1.ClusterwideNetworkPolicy, ipSet *netipx.IPSet) (bool, error) {
+	for _, ingress := range cwnp.Spec.Ingress {
+		for _, from := range ingress.From {
+			if ok, err := helper.ValidateCIDR(&cwnp, from.CIDR, ipSet, r.Recorder); !ok {
+				return false, err
+			}
+		}
+	}
+	return true, nil
 }

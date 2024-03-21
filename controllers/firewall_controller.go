@@ -25,10 +25,10 @@ import (
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	"github.com/metal-stack/firewall-controller-manager/api/v2/helper"
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
-	"github.com/metal-stack/firewall-controller/pkg/network"
-	"github.com/metal-stack/firewall-controller/pkg/nftables"
-	"github.com/metal-stack/firewall-controller/pkg/updater"
+	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
+	"github.com/metal-stack/firewall-controller/v2/pkg/network"
+	"github.com/metal-stack/firewall-controller/v2/pkg/nftables"
+	"github.com/metal-stack/firewall-controller/v2/pkg/updater"
 )
 
 // FirewallReconciler reconciles a Firewall object
@@ -47,6 +47,8 @@ type FirewallReconciler struct {
 	Namespace    string
 
 	recordFirewallEvent func(f *firewallv2.Firewall, eventtype, reason, message string)
+
+	SeedUpdatedFunc func()
 }
 
 const (
@@ -84,7 +86,8 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		if apierrors.IsNotFound(err) {
 			r.Log.Info("flushing k8s firewall rules")
 
-			defaultFw := nftables.NewDefaultFirewall()
+			defaultFw := nftables.NewFirewall(&firewallv2.Firewall{}, &firewallv1.ClusterwideNetworkPolicyList{}, &corev1.ServiceList{}, nil, logr.Discard(), r.Recorder)
+
 			flushErr := defaultFw.Flush()
 			if flushErr != nil {
 				r.Log.Error(flushErr, "error flushing k8s firewall rules")
@@ -139,9 +142,13 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	r.recordFirewallEvent(f, corev1.EventTypeNormal, "Reconciled", "nftables rules and statistics successfully")
 
-	r.Log.Info("successfully reconciled firewall")
+	r.SeedUpdatedFunc()
 
-	return ctrl.Result{}, nil
+	r.Log.Info("successfully reconciled firewall, requeueing in 3 minutes")
+
+	return ctrl.Result{
+		RequeueAfter: 3 * time.Minute,
+	}, nil
 }
 
 type firewallService struct {

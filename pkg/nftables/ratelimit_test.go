@@ -8,7 +8,7 @@ import (
 	mn "github.com/metal-stack/metal-lib/pkg/net"
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
-	firewallv1 "github.com/metal-stack/firewall-controller/api/v1"
+	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 )
 
 func TestRateLimitRules(t *testing.T) {
@@ -81,7 +81,7 @@ func TestRateLimitRules(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			f := NewFirewall(&firewallv2.Firewall{Spec: tt.input.Spec, Status: tt.input.Status}, &firewallv1.ClusterwideNetworkPolicyList{}, nil, nil, logr.Discard())
+			f := NewFirewall(&firewallv2.Firewall{Spec: tt.input.Spec, Status: tt.input.Status}, &firewallv1.ClusterwideNetworkPolicyList{}, nil, nil, logr.Discard(), nil)
 			got := rateLimitRules(f)
 			if !cmp.Equal(got, tt.want) {
 				t.Errorf("rateLimitRules() diff: %v", cmp.Diff(got, tt.want))
