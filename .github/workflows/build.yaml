@@ -39,14 +39,14 @@ jobs:
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v0
 
-    - name: Set up Go 1.21
+    - name: Set up Go 1.22
       uses: actions/setup-go@v5
       with:
-        go-version: '1.21'
+        go-version: '1.22'
         cache: false
 
     - name: Lint
-      uses: golangci/golangci-lint-action@v3
+      uses: golangci/golangci-lint-action@v4
       with:
         args: --build-tags integration -p bugs -p unused --timeout=3m
 
@@ -92,10 +92,10 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Go 1.21
+    - name: Set up Go 1.22
       uses: actions/setup-go@v5
       with:
-        go-version: '1.21'
+        go-version: '1.22'
         cache: false
 
     - name: Run tests
