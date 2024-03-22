@@ -36,8 +36,11 @@ type DNSProxy struct {
 	handler DNSHandler
 }
 
-func NewDNSProxy(port *uint, log logr.Logger) (*DNSProxy, error) {
-	cache := newDNSCache(true, false, log.WithName("DNS cache"))
+func NewDNSProxy(dns string, port *uint, log logr.Logger) (*DNSProxy, error) {
+	if dns == "" {
+		dns = defaultDNSServerAddr
+	}
+	cache := newDNSCache(dns, true, false, log.WithName("DNS cache"))
 	handler := NewDNSProxyHandler(log, cache)
 
 	host, err := getHost()

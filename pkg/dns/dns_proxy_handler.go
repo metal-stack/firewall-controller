@@ -38,7 +38,7 @@ func NewDNSProxyHandler(log logr.Logger, cache *DNSCache) *DNSProxyHandler {
 		log:           log.WithName("DNS handler"),
 		udpClient:     udpClient,
 		tcpClient:     tcpClient,
-		dnsServerAddr: defaultDNSServerAddr,
+		dnsServerAddr: cache.dnsServerAddr,
 		updateCache:   getUpdateCacheFunc(log, cache),
 	}
 }
