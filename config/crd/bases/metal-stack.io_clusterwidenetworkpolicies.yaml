@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.13.0
+    controller-gen.kubebuilder.io/version: v0.14.0
   name: clusterwidenetworkpolicies.metal-stack.io
 spec:
   group: metal-stack.io
@@ -30,14 +30,19 @@ spec:
           wide network policy to be applied.
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
@@ -45,81 +50,82 @@ spec:
             description: PolicySpec defines the rules to create for ingress and egress
             properties:
               description:
-                description: Description is a free form string, it can be used by
-                  the creator of the rule to store human-readable explanation of the
-                  purpose of this rule. Rules cannot be identified by comment.
+                description: |-
+                  Description is a free form string, it can be used by the creator of
+                  the rule to store human-readable explanation of the purpose of this
+                  rule. Rules cannot be identified by comment.
                 type: string
               egress:
-                description: List of egress rules to be applied. Outgoing traffic
-                  is allowed if there is a ClusterwideNetworkPolicy that allows it.
+                description: |-
+                  List of egress rules to be applied. Outgoing traffic is
+                  allowed if there is a ClusterwideNetworkPolicy that allows it.
                   Clusters are isolated by default.
                 items:
-                  description: EgressRule describes a particular set of traffic that
-                    is allowed out of the cluster The traffic must match both ports
-                    and to.
+                  description: |-
+                    EgressRule describes a particular set of traffic that is allowed out of the cluster
+                    The traffic must match both ports and to.
                   properties:
                     ports:
-                      description: List of destination ports for outgoing traffic.
-                        Each item in this list is combined using a logical OR. If
-                        this field is empty or missing, this rule matches all ports
-                        (traffic not restricted by port). If this field is present
-                        and contains at least one item, then this rule allows traffic
-                        only if the traffic matches at least one port in the list.
+                      description: |-
+                        List of destination ports for outgoing traffic.
+                        Each item in this list is combined using a logical OR. If this field is
+                        empty or missing, this rule matches all ports (traffic not restricted by port).
+                        If this field is present and contains at least one item, then this rule allows
+                        traffic only if the traffic matches at least one port in the list.
                       items:
                         description: NetworkPolicyPort describes a port to allow traffic
                           on
                         properties:
                           endPort:
-                            description: If set, indicates that the range of ports
-                              from port to endPort, inclusive, should be allowed by
-                              the policy. This field cannot be defined if the port
-                              field is not defined or if the port field is defined
-                              as a named (string) port. The endPort must be equal
-                              or greater than port.
+                            description: |-
+                              If set, indicates that the range of ports from port to endPort, inclusive,
+                              should be allowed by the policy. This field cannot be defined if the port field
+                              is not defined or if the port field is defined as a named (string) port.
+                              The endPort must be equal or greater than port.
                             format: int32
                             type: integer
                           port:
                             anyOf:
                             - type: integer
                             - type: string
-                            description: The port on the given protocol. This can
-                              either be a numerical or named port on a pod. If this
-                              field is not provided, this matches all port names and
-                              numbers. If present, only traffic on the specified protocol
-                              AND port will be matched.
+                            description: |-
+                              The port on the given protocol. This can either be a numerical or named
+                              port on a pod. If this field is not provided, this matches all port names and
+                              numbers.
+                              If present, only traffic on the specified protocol AND port will be matched.
                             x-kubernetes-int-or-string: true
                           protocol:
                             default: TCP
-                            description: The protocol (TCP, UDP, or SCTP) which traffic
-                              must match. If not specified, this field defaults to
-                              TCP.
+                            description: |-
+                              The protocol (TCP, UDP, or SCTP) which traffic must match. If not specified, this
+                              field defaults to TCP.
                             type: string
                         type: object
                       type: array
                     to:
-                      description: List of destinations for outgoing traffic of a
-                        cluster for this rule. Items in this list are combined using
-                        a logical OR operation. If this field is empty or missing,
-                        this rule matches all destinations (traffic not restricted
-                        by destination). If this field is present and contains at
-                        least one item, this rule allows traffic only if the traffic
-                        matches at least one item in the to list. To rules can't contain
-                        ToFQDNs rules.
+                      description: |-
+                        List of destinations for outgoing traffic of a cluster for this rule.
+                        Items in this list are combined using a logical OR operation. If this field is
+                        empty or missing, this rule matches all destinations (traffic not restricted by
+                        destination). If this field is present and contains at least one item, this rule
+                        allows traffic only if the traffic matches at least one item in the to list.
+                        To rules can't contain ToFQDNs rules.
                       items:
-                        description: IPBlock describes a particular CIDR (Ex. "192.168.1.0/24","2001:db8::/64")
-                          that is allowed to the pods matched by a NetworkPolicySpec's
-                          podSelector. The except entry describes CIDRs that should
-                          not be included within this rule.
+                        description: |-
+                          IPBlock describes a particular CIDR (Ex. "192.168.1.0/24","2001:db8::/64") that is allowed
+                          to the pods matched by a NetworkPolicySpec's podSelector. The except entry describes CIDRs
+                          that should not be included within this rule.
                         properties:
                           cidr:
-                            description: CIDR is a string representing the IP Block
+                            description: |-
+                              CIDR is a string representing the IP Block
                               Valid examples are "192.168.1.0/24" or "2001:db8::/64"
                             type: string
                           except:
-                            description: Except is a slice of CIDRs that should not
-                              be included within an IP Block Valid examples are "192.168.1.0/24"
-                              or "2001:db8::/64" Except values will be rejected if
-                              they are outside the CIDR range
+                            description: |-
+                              Except is a slice of CIDRs that should not be included within an IP Block
+                              Valid examples are "192.168.1.0/24" or "2001:db8::/64"
+                              Except values will be rejected if they are outside the CIDR range
                             items:
                               type: string
                             type: array
@@ -128,11 +134,11 @@ spec:
                         type: object
                       type: array
                     toFQDNs:
-                      description: List of FQDNs (fully qualified domain names) for
-                        outgoing traffic of a cluster for this rule. Items in this
-                        list are combined using a logical OR operation. This field
-                        is used as whitelist for DNS names. If none specified, no
-                        rule will be applied. ToFQDNs rules can't contain To rules.
+                      description: |-
+                        List of FQDNs (fully qualified domain names) for outgoing traffic of a cluster for this rule.
+                        Items in this list are combined using a logical OR operation. This field is used as
+                        whitelist for DNS names. If none specified, no rule will be applied.
+                        ToFQDNs rules can't contain To rules.
                       items:
                         description: FQDNSelector describes rules for matching DNS
                           names.
@@ -142,8 +148,9 @@ spec:
                             pattern: ^([-a-zA-Z0-9_]+[.]?)+$
                             type: string
                           matchPattern:
-                            description: MatchPattern allows using "*" to match DNS
-                              names. "*" matches 0 or more valid characters.
+                            description: |-
+                              MatchPattern allows using "*" to match DNS names.
+                              "*" matches 0 or more valid characters.
                             pattern: ^([-a-zA-Z0-9_*]+[.]?)+$
                             type: string
                         type: object
@@ -151,38 +158,38 @@ spec:
                   type: object
                 type: array
               ingress:
-                description: List of ingress rules to be applied. Traffic is allowed
-                  to a cluster if there is a ClusterwideNetworkPolicy that allows
-                  it, OR there is a service exposed with type Loadbalancer. Clusters
-                  are isolated by default.
+                description: |-
+                  List of ingress rules to be applied. Traffic is allowed to
+                  a cluster if there is a ClusterwideNetworkPolicy that allows it, OR there is a service
+                  exposed with type Loadbalancer. Clusters are isolated by default.
                 items:
-                  description: IngressRule describes a particular set of traffic that
-                    is allowed to the cluster. The traffic must match both ports and
-                    from.
+                  description: |-
+                    IngressRule describes a particular set of traffic that is allowed to the cluster.
+                    The traffic must match both ports and from.
                   properties:
                     from:
-                      description: List of sources which should be able to access
-                        the cluster for this rule. Items in this list are combined
-                        using a logical OR operation. If this field is empty or missing,
-                        this rule matches all sources (traffic not restricted by source).
-                        If this field is present and contains at least one item, this
-                        rule allows traffic only if the traffic matches at least one
-                        item in the from list.
+                      description: |-
+                        List of sources which should be able to access the cluster for this rule.
+                        Items in this list are combined using a logical OR operation. If this field is
+                        empty or missing, this rule matches all sources (traffic not restricted by
+                        source). If this field is present and contains at least one item, this rule
+                        allows traffic only if the traffic matches at least one item in the from list.
                       items:
-                        description: IPBlock describes a particular CIDR (Ex. "192.168.1.0/24","2001:db8::/64")
-                          that is allowed to the pods matched by a NetworkPolicySpec's
-                          podSelector. The except entry describes CIDRs that should
-                          not be included within this rule.
+                        description: |-
+                          IPBlock describes a particular CIDR (Ex. "192.168.1.0/24","2001:db8::/64") that is allowed
+                          to the pods matched by a NetworkPolicySpec's podSelector. The except entry describes CIDRs
+                          that should not be included within this rule.
                         properties:
                           cidr:
-                            description: CIDR is a string representing the IP Block
+                            description: |-
+                              CIDR is a string representing the IP Block
                               Valid examples are "192.168.1.0/24" or "2001:db8::/64"
                             type: string
                           except:
-                            description: Except is a slice of CIDRs that should not
-                              be included within an IP Block Valid examples are "192.168.1.0/24"
-                              or "2001:db8::/64" Except values will be rejected if
-                              they are outside the CIDR range
+                            description: |-
+                              Except is a slice of CIDRs that should not be included within an IP Block
+                              Valid examples are "192.168.1.0/24" or "2001:db8::/64"
+                              Except values will be rejected if they are outside the CIDR range
                             items:
                               type: string
                             type: array
@@ -191,41 +198,39 @@ spec:
                         type: object
                       type: array
                     ports:
-                      description: List of ports which should be made accessible on
-                        the cluster for this rule. Each item in this list is combined
-                        using a logical OR. If this field is empty or missing, this
-                        rule matches all ports (traffic not restricted by port). If
-                        this field is present and contains at least one item, then
-                        this rule allows traffic only if the traffic matches at least
-                        one port in the list.
+                      description: |-
+                        List of ports which should be made accessible on the cluster for this
+                        rule. Each item in this list is combined using a logical OR. If this field is
+                        empty or missing, this rule matches all ports (traffic not restricted by port).
+                        If this field is present and contains at least one item, then this rule allows
+                        traffic only if the traffic matches at least one port in the list.
                       items:
                         description: NetworkPolicyPort describes a port to allow traffic
                           on
                         properties:
                           endPort:
-                            description: If set, indicates that the range of ports
-                              from port to endPort, inclusive, should be allowed by
-                              the policy. This field cannot be defined if the port
-                              field is not defined or if the port field is defined
-                              as a named (string) port. The endPort must be equal
-                              or greater than port.
+                            description: |-
+                              If set, indicates that the range of ports from port to endPort, inclusive,
+                              should be allowed by the policy. This field cannot be defined if the port field
+                              is not defined or if the port field is defined as a named (string) port.
+                              The endPort must be equal or greater than port.
                             format: int32
                             type: integer
                           port:
                             anyOf:
                             - type: integer
                             - type: string
-                            description: The port on the given protocol. This can
-                              either be a numerical or named port on a pod. If this
-                              field is not provided, this matches all port names and
-                              numbers. If present, only traffic on the specified protocol
-                              AND port will be matched.
+                            description: |-
+                              The port on the given protocol. This can either be a numerical or named
+                              port on a pod. If this field is not provided, this matches all port names and
+                              numbers.
+                              If present, only traffic on the specified protocol AND port will be matched.
                             x-kubernetes-int-or-string: true
                           protocol:
                             default: TCP
-                            description: The protocol (TCP, UDP, or SCTP) which traffic
-                              must match. If not specified, this field defaults to
-                              TCP.
+                            description: |-
+                              The protocol (TCP, UDP, or SCTP) which traffic must match. If not specified, this
+                              field defaults to TCP.
                             type: string
                         type: object
                       type: array
@@ -255,8 +260,9 @@ spec:
                         type: string
                     type: object
                   type: array
-                description: FQDNState stores mapping from FQDN rules to nftables
-                  sets used for a firewall rule. Key is either MatchName or MatchPattern
+                description: |-
+                  FQDNState stores mapping from FQDN rules to nftables sets used for a firewall rule.
+                  Key is either MatchName or MatchPattern
                 type: object
               message:
                 description: Message describes why the state changed
