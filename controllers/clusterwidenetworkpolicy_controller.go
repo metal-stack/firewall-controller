@@ -154,7 +154,12 @@ func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
 
 	// If proxy is ON, update DNS address(if it's set in spec)
 	if r.DnsProxy != nil && f.Spec.DNSServerAddress != "" {
-		if err = r.DnsProxy.UpdateDNSServerAddr(f.Spec.DNSServerAddress); err != nil {
+		port := 53
+		if f.Spec.DNSPort != nil {
+			port = int(*f.Spec.DNSPort)
+		}
+		addr := fmt.Sprintf("%s:%d", f.Spec.DNSServerAddress, port)
+		if err = r.DnsProxy.UpdateDNSServerAddr(addr); err != nil {
 			return fmt.Errorf("failed to update DNS server address: %w", err)
 		}
 	}
