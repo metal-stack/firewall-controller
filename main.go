@@ -147,10 +147,6 @@ func main() {
 	l.Info("found firewall resource to be responsible for", "firewall-name", firewallName, "namespace", seedNamespace)
 
 	shootAccessHelper := helper.NewShootAccessHelper(seedClient, fw.Status.ShootAccess)
-	if err != nil {
-		l.Error("unable to construct shoot access helper", "error", err)
-		panic(err)
-	}
 
 	accessTokenUpdater, err := helper.NewShootAccessTokenUpdater(shootAccessHelper, "/etc/firewall-controller")
 	if err != nil {
@@ -180,7 +176,7 @@ func main() {
 		}),
 		Cache: cache.Options{
 			DefaultNamespaces: map[string]cache.Config{
-				seedNamespace: cache.Config{},
+				seedNamespace: {},
 			},
 		},
 		Client: controllerclient.Options{
