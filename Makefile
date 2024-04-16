@@ -64,6 +64,7 @@ vet:
 
 # Generate code
 generate: controller-gen manifests
+	go generate ./...
 	$(CONTROLLER_GEN) object paths="./..."
 
 .PHONY: controller-gen
