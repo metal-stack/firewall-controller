@@ -6,7 +6,6 @@ require (
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/fatih/color v1.16.0
 	github.com/go-logr/logr v1.4.1
-	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/nftables v0.2.0
 	github.com/ks2211/go-suricata v0.0.0-20200823200910-986ce1470707
@@ -18,6 +17,7 @@ require (
 	github.com/miekg/dns v1.1.58
 	github.com/txn2/txeh v1.5.5
 	github.com/vishvananda/netlink v1.2.1-beta.2
+	go.uber.org/mock v0.4.0
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
 	k8s.io/api v0.29.3
 	k8s.io/apiextensions-apiserver v0.29.3

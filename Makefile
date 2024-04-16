@@ -4,8 +4,10 @@ BUILDDATE := $(shell date -Iseconds)
 VERSION := $(or ${VERSION},$(shell git describe --tags --exact-match 2> /dev/null || git symbolic-ref -q --short HEAD || git rev-parse --short HEAD))
 
 CONTROLLER_TOOLS_VERSION ?= v0.14.0
+MOCKGEN_VERSION ?= $(shell go list -m all | grep go.uber.org/mock | awk '{print $$2}')
 LOCALBIN ?= $(shell pwd)/bin
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
+MOCKGEN ?= $(LOCALBIN)/mockgen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 
 all: firewall-controller
@@ -63,7 +65,7 @@ vet:
 	go vet ./...
 
 # Generate code
-generate: controller-gen manifests
+generate: controller-gen mockgen manifests
 	go generate ./...
 	$(CONTROLLER_GEN) object paths="./..."
 
@@ -77,3 +79,9 @@ $(CONTROLLER_GEN): $(LOCALBIN)
 setup-envtest: $(ENVTEST)
 $(ENVTEST): $(LOCALBIN)
 	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+
+.PHONY: mockgen
+mockgen: $(MOCKGEN)
+$(MOCKGEN): $(LOCALBIN)
+	test -s $(LOCALBIN)/mockgen && $(LOCALBIN)/mockgen -version | grep -q $(MOCKGEN_VERSION) || \
+	GOBIN=$(LOCALBIN) go install go.uber.org/mock/mockgen@$(MOCKGEN_VERSION)
