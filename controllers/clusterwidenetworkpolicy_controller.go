@@ -48,7 +48,7 @@ type ClusterwideNetworkPolicyReconciler struct {
 // SetupWithManager configures this controller to run in schedule
 func (r *ClusterwideNetworkPolicyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if r.Interval == 0 {
-		r.Interval = reconcilationInterval
+		r.Interval = reconciliationInterval
 	}
 
 	scheduleChan := make(chan event.GenericEvent)
@@ -58,8 +58,8 @@ func (r *ClusterwideNetworkPolicyReconciler) SetupWithManager(mgr ctrl.Manager) 
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&firewallv1.ClusterwideNetworkPolicy{}).
-		Watches(&source.Kind{Type: &corev1.Service{}}, &handler.EnqueueRequestForObject{}).
-		Watches(&source.Channel{Source: scheduleChan}, &handler.EnqueueRequestForObject{}).
+		Watches(&corev1.Service{}, &handler.EnqueueRequestForObject{}).
+		WatchesRawSource(&source.Channel{Source: scheduleChan}, &handler.EnqueueRequestForObject{}).
 		Complete(r)
 }
 

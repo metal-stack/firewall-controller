@@ -12,7 +12,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/go-logr/logr"
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
@@ -94,8 +93,8 @@ func (r *DroptailerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Pod{}, builder.WithPredicates(droptailerPredicate)).
-		Watches(&source.Kind{Type: &corev1.Secret{}}, handler.EnqueueRequestsFromMapFunc(func(_ client.Object) []reconcile.Request {
-			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		Watches(&corev1.Secret{}, handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, _ client.Object) []reconcile.Request {
+			ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 			defer cancel()
 
 			pods := &corev1.PodList{}

@@ -69,7 +69,7 @@ func (h *DNSProxyHandler) ServeDNS(w dnsgo.ResponseWriter, request *dnsgo.Msg) {
 	err = w.WriteMsg(response)
 }
 
-// UpdateDNSServerAddr validates and if successfull updates DNS server address
+// UpdateDNSServerAddr validates and if successful updates DNS server address
 func (h *DNSProxyHandler) UpdateDNSServerAddr(addr string) error {
 	m := new(dnsgo.Msg)
 	m.Id = dnsgo.Id()

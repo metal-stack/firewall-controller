@@ -19,7 +19,10 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	controllerclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	"github.com/metal-stack/firewall-controller-manager/api/v2/helper"
@@ -168,14 +171,26 @@ func main() {
 	}
 
 	seedMgr, err := ctrl.NewManager(seedConfig, ctrl.Options{
-		Scheme:             scheme,
-		MetricsBindAddress: metricsAddr,
-		Port:               9443,
-		Namespace:          seedNamespace,
-		// we need to disable caches on secrets as otherwise the controller would need list access to secrets
-		// see: https://github.com/kubernetes-sigs/controller-runtime/issues/550
-		ClientDisableCacheFor: []controllerclient.Object{&corev1.Secret{}},
-		LeaderElection:        false, // leader election does not make sense for this controller, it's always single managed by systemd
+		Scheme: scheme,
+		Metrics: server.Options{
+			BindAddress: metricsAddr,
+		},
+		WebhookServer: webhook.NewServer(webhook.Options{
+			Port: 9443,
+		}),
+		Cache: cache.Options{
+			DefaultNamespaces: map[string]cache.Config{
+				seedNamespace: cache.Config{},
+			},
+		},
+		Client: controllerclient.Options{
+			Cache: &controllerclient.CacheOptions{
+				// we need to disable caches on secrets as otherwise the controller would need list access to secrets
+				// see: https://github.com/kubernetes-sigs/controller-runtime/issues/550
+				DisableFor: []controllerclient.Object{&corev1.Secret{}},
+			},
+		},
+		LeaderElection: false, // leader election does not make sense for this controller, it's always single managed by systemd
 	})
 	if err != nil {
 		l.Error("unable to create seed manager", "error", err)
@@ -183,9 +198,11 @@ func main() {
 	}
 
 	shootMgr, err := ctrl.NewManager(shootConfig, ctrl.Options{
-		Scheme:             scheme,
-		MetricsBindAddress: "0",
-		LeaderElection:     false,
+		Scheme: scheme,
+		Metrics: server.Options{
+			BindAddress: "0",
+		},
+		LeaderElection: false,
 	})
 	if err != nil {
 		l.Error("unable to create shoot manager", "error", err)
