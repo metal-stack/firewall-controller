@@ -82,17 +82,18 @@ table inet firewall {
 	}
 {{- end }}
 }
-{{- if .DNSAddrs }}
+{{- if .AdditionalDNSAddrs }}
+
 # Add additional DNS addresses for dnat redirection for the dns proxy
 table inet nat {
-    set public_dns_servers {
-    	type ipv4_addr
-    	flags interval
-    	auto-merge
-    	elements = {
-        {{- $sep := " " }}
-        {{- range .DNSAddrs }}{{ $sep }}{{ . }}{{ $sep = ", " }}
-        {{- end }} }
-    }
+	set public_dns_servers {
+		type ipv4_addr
+		flags interval
+		auto-merge
+		elements = {
+		{{- $sep := " " }}
+		{{- range .AdditionalDNSAddrs }}{{ $sep }}{{ . }}{{ $sep = ", " }}
+		{{- end }} }
+	}
 }
 {{- end }}

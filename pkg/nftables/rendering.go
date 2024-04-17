@@ -15,13 +15,13 @@ import (
 
 // firewallRenderingData holds the data available in the nftables template
 type firewallRenderingData struct {
-	ForwardingRules  forwardingRules
-	RateLimitRules   nftablesRules
-	SnatRules        nftablesRules
-	Sets             []dns.RenderIPSet
-	InternalPrefixes string
-	PrivateVrfID     uint
-	DNSAddrs         []string
+	ForwardingRules    forwardingRules
+	RateLimitRules     nftablesRules
+	SnatRules          nftablesRules
+	Sets               []dns.RenderIPSet
+	InternalPrefixes   string
+	PrivateVrfID       uint
+	AdditionalDNSAddrs []string
 }
 
 func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
@@ -73,9 +73,9 @@ func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 		egress = append(egress, rules...)
 	}
 	return &firewallRenderingData{
-		DNSAddrs:         dnsAddrs,
-		PrivateVrfID:     uint(*f.primaryPrivateNet.Vrf),
-		InternalPrefixes: strings.Join(f.firewall.Spec.InternalPrefixes, ", "),
+		AdditionalDNSAddrs: dnsAddrs,
+		PrivateVrfID:       uint(*f.primaryPrivateNet.Vrf),
+		InternalPrefixes:   strings.Join(f.firewall.Spec.InternalPrefixes, ", "),
 		ForwardingRules: forwardingRules{
 			Ingress: ingress,
 			Egress:  egress,
