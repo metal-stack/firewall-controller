@@ -124,6 +124,10 @@ func (p *DNSProxy) IsInitialized() bool {
 	return p != nil
 }
 
+func (p *DNSProxy) CacheAddr() (string, error) {
+	return getHost()
+}
+
 func getHost() (string, error) {
 	c, err := netconf.New(network.GetLogger(), network.MetalNetworkerConfig)
 	if err != nil || c == nil {

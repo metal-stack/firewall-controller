@@ -60,6 +60,19 @@ func clusterwideNetworkPolicyIngressRules(np firewallv1.ClusterwideNetworkPolicy
 	return uniqueSorted(rules)
 }
 
+func clusterwideNetworkPolicyEgressDNSCacheRules(cache FQDNCache, logAcceptedConnections bool) (nftablesRules, error) {
+	addr, err := cache.CacheAddr()
+	if err != nil {
+		return nil, err
+	}
+	base := []string{"ip saddr == @cluster_prefixes", fmt.Sprintf("ip daddr { %s }", addr)}
+	comment := fmt.Sprintf("accept traffic for dns cache")
+	return nftablesRules{
+		assembleDestinationPortRule(base, "tcp", []string{"53"}, logAcceptedConnections, comment+" tcp"),
+		assembleDestinationPortRule(base, "udp", []string{"53"}, logAcceptedConnections, comment+" udp"),
+	}, nil
+}
+
 func clusterwideNetworkPolicyEgressRules(
 	cache FQDNCache,
 	np firewallv1.ClusterwideNetworkPolicy,

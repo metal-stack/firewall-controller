@@ -35,6 +35,21 @@ func (m *MockFQDNCache) EXPECT() *MockFQDNCacheMockRecorder {
 	return m.recorder
 }
 
+// CacheAddr mocks base method.
+func (m *MockFQDNCache) CacheAddr() (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CacheAddr")
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CacheAddr indicates an expected call of CacheAddr.
+func (mr *MockFQDNCacheMockRecorder) CacheAddr() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CacheAddr", reflect.TypeOf((*MockFQDNCache)(nil).CacheAddr))
+}
+
 // GetSetsForFQDN mocks base method.
 func (m *MockFQDNCache) GetSetsForFQDN(arg0 v1.FQDNSelector, arg1 []v1.IPSet) []v1.IPSet {
 	m.ctrl.T.Helper()
