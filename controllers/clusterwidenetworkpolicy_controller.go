@@ -242,11 +242,6 @@ func (r *ClusterwideNetworkPolicyReconciler) allowedCWNPs(ctx context.Context, c
 }
 
 func (r *ClusterwideNetworkPolicyReconciler) updateCWNPState(ctx context.Context, cwnp firewallv1.ClusterwideNetworkPolicy, state firewallv1.PolicyDeploymentState, msg string) error {
-	// do nothing if message and state already have the desired values
-	if cwnp.Status.Message == msg && cwnp.Status.State == state {
-		return nil
-	}
-
 	cwnp.Status.Message = msg
 	cwnp.Status.State = state
 
