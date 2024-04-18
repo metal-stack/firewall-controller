@@ -66,7 +66,7 @@ func clusterwideNetworkPolicyEgressDNSCacheRules(cache FQDNCache, logAcceptedCon
 		return nil, err
 	}
 	base := []string{"ip saddr == @cluster_prefixes", fmt.Sprintf("ip daddr { %s }", addr)}
-	comment := fmt.Sprintf("accept traffic for dns cache")
+	comment := fmt.Sprintf("accept intercepted traffic for dns cache")
 	return nftablesRules{
 		assembleDestinationPortRule(base, "tcp", []string{"53"}, logAcceptedConnections, comment+" tcp"),
 		assembleDestinationPortRule(base, "udp", []string{"53"}, logAcceptedConnections, comment+" udp"),
