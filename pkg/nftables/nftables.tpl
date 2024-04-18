@@ -90,10 +90,7 @@ table inet nat {
 		type ipv4_addr
 		flags interval
 		auto-merge
-		elements = {
-		{{- $sep := " " }}
-		{{- range .AdditionalDNSAddrs }}{{ $sep }}{{ . }}{{ $sep = ", " }}
-		{{- end }} }
+		elements = { {{ StringsJoin .AdditionalDNSAddrs ", " }} }
 	}
 }
 {{- end }}
