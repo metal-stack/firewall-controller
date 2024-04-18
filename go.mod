@@ -13,7 +13,7 @@ require (
 	github.com/metal-stack/firewall-controller-manager v0.3.2
 	github.com/metal-stack/metal-go v0.28.1
 	github.com/metal-stack/metal-lib v0.15.1
-	github.com/metal-stack/metal-networker v0.42.0
+	github.com/metal-stack/metal-networker v0.42.1-0.20240418084030-c77d17e444d1
 	github.com/metal-stack/v v1.0.3
 	github.com/miekg/dns v1.1.58
 	github.com/txn2/txeh v1.5.5
