@@ -52,7 +52,7 @@ type FirewallReconciler struct {
 }
 
 const (
-	reconcilationInterval = 10 * time.Second
+	reconciliationInterval = 10 * time.Second
 
 	nftablesExporterService   = "node-exporter"
 	nftablesExporterNamedPort = "nodeexporter"
@@ -68,7 +68,7 @@ func (r *FirewallReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.recordFirewallEvent = updater.ShootRecorderNamespaceRewriter(r.Recorder)
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&firewallv2.Firewall{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})). // don't trigger a reconcilation for status updates
+		For(&firewallv2.Firewall{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})). // don't trigger a reconciliation for status updates
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
 			return object.GetNamespace() == r.Namespace && object.GetName() == r.FirewallName
 		})).
@@ -117,9 +117,9 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	var errs []error
 	changed, err := network.ReconcileNetwork(f)
 	if changed && err == nil {
-		r.recordFirewallEvent(f, corev1.EventTypeNormal, "Network settings", "reconcilation succeeded (frr.conf)")
+		r.recordFirewallEvent(f, corev1.EventTypeNormal, "Network settings", "reconciliation succeeded (frr.conf)")
 	} else if changed && err != nil {
-		r.recordFirewallEvent(f, corev1.EventTypeWarning, "Network settings", fmt.Sprintf("reconcilation failed (frr.conf): %v", err))
+		r.recordFirewallEvent(f, corev1.EventTypeWarning, "Network settings", fmt.Sprintf("reconciliation failed (frr.conf): %v", err))
 	}
 	if err != nil {
 		errs = append(errs, err)

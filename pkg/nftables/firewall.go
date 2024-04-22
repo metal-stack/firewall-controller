@@ -23,6 +23,8 @@ import (
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
+
+	_ "go.uber.org/mock/mockgen/model" // required for go:generate to work
 )
 
 const (
@@ -35,7 +37,7 @@ const (
 //go:embed *.tpl
 var templates embed.FS
 
-//go:generate mockgen -destination=./mocks/mock_fqdncache.go -package=mocks . FQDNCache
+//go:generate ../../bin/mockgen -destination=./mocks/mock_fqdncache.go -package=mocks . FQDNCache
 type FQDNCache interface {
 	GetSetsForRendering(fqdns []firewallv1.FQDNSelector) (result []dns.RenderIPSet)
 	GetSetsForFQDN(fqdn firewallv1.FQDNSelector, fqdnSets []firewallv1.IPSet) (result []firewallv1.IPSet)

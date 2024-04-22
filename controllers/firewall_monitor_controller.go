@@ -44,7 +44,7 @@ func (r *FirewallMonitorReconciler) SeedUpdated() {
 // SetupWithManager configures this controller to watch for the CRDs in a specific namespace
 func (r *FirewallMonitorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if r.Interval == 0 {
-		r.Interval = reconcilationInterval
+		r.Interval = reconciliationInterval
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).

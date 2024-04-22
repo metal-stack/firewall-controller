@@ -3,15 +3,15 @@ package nftables
 import (
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	"github.com/google/go-cmp/cmp"
+	"go.uber.org/mock/gomock"
 	corev1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/pointer"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 	"github.com/metal-stack/firewall-controller/v2/pkg/nftables/mocks"
+	"github.com/metal-stack/metal-lib/pkg/pointer"
 )
 
 func port(p int) *intstr.IntOrString {
@@ -62,7 +62,7 @@ func TestClusterwideNetworkPolicyRules(t *testing.T) {
 								{
 									Protocol: &tcp,
 									Port:     port(443),
-									EndPort:  pointer.Int32(448),
+									EndPort:  pointer.Pointer(int32(448)),
 								},
 							},
 						},
@@ -83,7 +83,7 @@ func TestClusterwideNetworkPolicyRules(t *testing.T) {
 								{
 									Protocol: &tcp,
 									Port:     port(443),
-									EndPort:  pointer.Int32(448),
+									EndPort:  pointer.Pointer(int32(448)),
 								},
 							},
 						},
