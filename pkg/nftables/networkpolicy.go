@@ -2,6 +2,7 @@ package nftables
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	networkingv1 "k8s.io/api/networking/v1"
@@ -60,7 +61,7 @@ func clusterwideNetworkPolicyIngressRules(np firewallv1.ClusterwideNetworkPolicy
 	return uniqueSorted(rules)
 }
 
-func clusterwideNetworkPolicyEgressDNSCacheRules(cache FQDNCache, logAcceptedConnections bool) (nftablesRules, error) {
+func clusterwideNetworkPolicyEgressDNSCacheRules(cache FQDNCache, port int, logAcceptedConnections bool) (nftablesRules, error) {
 	addr, err := cache.CacheAddr()
 	if err != nil {
 		return nil, err
@@ -68,8 +69,8 @@ func clusterwideNetworkPolicyEgressDNSCacheRules(cache FQDNCache, logAcceptedCon
 	base := []string{"ip saddr == @cluster_prefixes", fmt.Sprintf("ip daddr { %s }", addr)}
 	comment := fmt.Sprintf("accept intercepted traffic for dns cache")
 	return nftablesRules{
-		assembleDestinationPortRule(base, "tcp", []string{"53"}, logAcceptedConnections, comment+" tcp"),
-		assembleDestinationPortRule(base, "udp", []string{"53"}, logAcceptedConnections, comment+" udp"),
+		assembleDestinationPortRule(base, "tcp", []string{strconv.Itoa(port)}, logAcceptedConnections, comment+" tcp"),
+		assembleDestinationPortRule(base, "udp", []string{strconv.Itoa(port)}, logAcceptedConnections, comment+" udp"),
 	}, nil
 }
 

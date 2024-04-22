@@ -37,11 +37,17 @@ func TestFirewallRenderingData_renderString(t *testing.T) {
 					Egress:  []string{"egress rule 1", "egress rule 2"},
 					Ingress: []string{"ingress rule 1", "ingress rule 2"},
 				},
-				InternalPrefixes:   "1.2.3.0/24, 2.3.4.0/8",
-				RateLimitRules:     []string{"meta iifname \"eth0\" limit rate over 10 mbytes/second counter name drop_ratelimit drop"},
-				SnatRules:          []string{"ip saddr { 10.0.0.0/8 } oifname \"vlan104009\" counter snat 185.1.2.3 comment \"snat internet\""},
-				PrivateVrfID:       uint(42),
-				AdditionalDNSAddrs: []string{"8.9.10.11", "4.5.6.7"},
+				InternalPrefixes: "1.2.3.0/24, 2.3.4.0/8",
+				RateLimitRules:   []string{"meta iifname \"eth0\" limit rate over 10 mbytes/second counter name drop_ratelimit drop"},
+				SnatRules:        []string{"ip saddr { 10.0.0.0/8 } oifname \"vlan104009\" counter snat 185.1.2.3 comment \"snat internet\""},
+				PrivateVrfID:     uint(42),
+				DnsProxy: &dnsProxyData{
+					Enabled:       true,
+					DNSAddrs:      []string{"212.34.83.12"},
+					DNSPort:       53,
+					ExternalIPs:   []string{"212.34.83.19"},
+					PrimaryIfaces: []string{"vlan20"},
+				},
 			},
 			wantErr: false,
 		},
@@ -99,6 +105,7 @@ func TestFirewallRenderingData_renderString(t *testing.T) {
 			rendered, _ := os.ReadFile(path.Join("test_data", tt.name+".nftable.v4"))
 			want := string(rendered)
 			if got != want {
+				t.Log(got)
 				t.Errorf("Firewall.renderString() diff: %v", cmp.Diff(want, got))
 			}
 		})
