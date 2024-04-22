@@ -115,12 +115,12 @@ type DNSCache struct {
 	ipv6Enabled   bool
 }
 
-func newDNSCache(ipv4Enabled, ipv6Enabled bool, log logr.Logger) *DNSCache {
+func newDNSCache(dns string, ipv4Enabled, ipv6Enabled bool, log logr.Logger) *DNSCache {
 	return &DNSCache{
 		log:           log,
 		fqdnToEntry:   map[string]cacheEntry{},
 		setNames:      map[string]struct{}{},
-		dnsServerAddr: defaultDNSServerAddr,
+		dnsServerAddr: dns,
 		ipv4Enabled:   ipv4Enabled,
 		ipv6Enabled:   ipv6Enabled,
 	}

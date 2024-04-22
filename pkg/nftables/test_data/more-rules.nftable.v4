@@ -65,3 +65,13 @@ table inet firewall {
 		ip saddr { 10.0.0.0/8 } oifname "vlan104009" counter snat 185.1.2.3 comment "snat internet"
 	}
 }
+
+# Add additional DNS addresses for dnat redirection for the dns proxy
+table inet nat {
+	set proxy_dns_servers {
+		type ipv4_addr
+		flags interval
+		auto-merge
+		elements = { 8.9.10.11, 4.5.6.7 }
+	}
+}
