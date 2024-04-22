@@ -142,7 +142,7 @@ func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
 
 	if enableDNS && r.DnsProxy == nil {
 		r.Log.Info("DNS Proxy is initialized")
-		if r.DnsProxy, err = dns.NewDNSProxy(f.Spec.DNSPort, ctrl.Log.WithName("DNS proxy")); err != nil {
+		if r.DnsProxy, err = dns.NewDNSProxy(f.Spec.DNSServerAddress, f.Spec.DNSPort, ctrl.Log.WithName("DNS proxy")); err != nil {
 			return fmt.Errorf("failed to init DNS proxy: %w", err)
 		}
 		go r.DnsProxy.Run(ctx)
@@ -154,7 +154,12 @@ func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
 
 	// If proxy is ON, update DNS address(if it's set in spec)
 	if r.DnsProxy != nil && f.Spec.DNSServerAddress != "" {
-		if err = r.DnsProxy.UpdateDNSServerAddr(f.Spec.DNSServerAddress); err != nil {
+		port := 53
+		if f.Spec.DNSPort != nil {
+			port = int(*f.Spec.DNSPort)
+		}
+		addr := fmt.Sprintf("%s:%d", f.Spec.DNSServerAddress, port)
+		if err = r.DnsProxy.UpdateDNSServerAddr(addr); err != nil {
 			return fmt.Errorf("failed to update DNS server address: %w", err)
 		}
 	}
@@ -237,11 +242,6 @@ func (r *ClusterwideNetworkPolicyReconciler) allowedCWNPs(ctx context.Context, c
 }
 
 func (r *ClusterwideNetworkPolicyReconciler) updateCWNPState(ctx context.Context, cwnp firewallv1.ClusterwideNetworkPolicy, state firewallv1.PolicyDeploymentState, msg string) error {
-	// do nothing if message and state already have the desired values
-	if cwnp.Status.Message == msg && cwnp.Status.State == state {
-		return nil
-	}
-
 	cwnp.Status.Message = msg
 	cwnp.Status.State = state
 

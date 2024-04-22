@@ -82,3 +82,15 @@ table inet firewall {
 	}
 {{- end }}
 }
+{{- if .AdditionalDNSAddrs }}
+
+# Add additional DNS addresses for dnat redirection for the dns proxy
+table inet nat {
+	set proxy_dns_servers {
+		type ipv4_addr
+		flags interval
+		auto-merge
+		elements = { {{ StringsJoin .AdditionalDNSAddrs ", " }} }
+	}
+}
+{{- end }}

@@ -40,6 +40,7 @@ type FQDNCache interface {
 	GetSetsForRendering(fqdns []firewallv1.FQDNSelector) (result []dns.RenderIPSet)
 	GetSetsForFQDN(fqdn firewallv1.FQDNSelector, fqdnSets []firewallv1.IPSet) (result []firewallv1.IPSet)
 	IsInitialized() bool
+	CacheAddr() (string, error)
 }
 
 // Firewall assembles nftable rules based on k8s entities
