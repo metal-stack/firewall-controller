@@ -166,8 +166,8 @@ github.com/metal-stack/metal-hammer v0.12.3 h1:XY6PwTnOqBlhL9z/sk13/rdy8XRYdBAdf
 github.com/metal-stack/metal-hammer v0.12.3/go.mod h1:2igSC1ZnqxZcARkkUW9qA8PV04VdN9qmUIfUAZ1lGhs=
 github.com/metal-stack/metal-lib v0.15.1 h1:QCmtZ6ci6pHsf3RQnSDbbvYshpyRaxCSeXghVvbDFuA=
 github.com/metal-stack/metal-lib v0.15.1/go.mod h1:x1nyPRi+b/WeK7N41cm4R8w4pScnhOYv8hos2UM4lXY=
-github.com/metal-stack/metal-networker v0.42.1-0.20240418084030-c77d17e444d1 h1:5LGLN0osnuvrSYN5zte+mVl1wfdoK1+x7S67v1n1Yts=
-github.com/metal-stack/metal-networker v0.42.1-0.20240418084030-c77d17e444d1/go.mod h1:exBcBdyDzngo2s3848tASbndizrPlS6a2/Eg90xLTwc=
+github.com/metal-stack/metal-networker v0.43.0 h1:MbanA43IINJyoHnMTsUS3o93T3bncTtVy11BexlSMy8=
+github.com/metal-stack/metal-networker v0.43.0/go.mod h1:exBcBdyDzngo2s3848tASbndizrPlS6a2/Eg90xLTwc=
 github.com/metal-stack/v v1.0.3 h1:Sh2oBlnxrCUD+mVpzfC8HiqL045YWkxs0gpTvkjppqs=
 github.com/metal-stack/v v1.0.3/go.mod h1:YTahEu7/ishwpYKnp/VaW/7nf8+PInogkfGwLcGPdXg=
 github.com/miekg/dns v1.1.58 h1:ca2Hdkz+cDg/7eNF6V56jjzuZ4aCAE+DbVkILdQWG/4=
