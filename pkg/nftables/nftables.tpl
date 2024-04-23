@@ -72,7 +72,17 @@ table inet firewall {
         counter comment "count and log dropped packets"
         limit rate 10/second counter name drop_total log prefix "nftables-firewall-dropped: "
     }
+{{- if gt (len .SnatRules) 0 }}
+
+    chain postrouting {
+        type nat hook postrouting priority -1; policy accept;
+        {{- range .SnatRules }}
+        {{ . }}
+        {{- end }}
+    }
+{{- end }}
 }
+
 {{- if and .DnsProxy .DnsProxy.Enabled }}
 {{ $dnsProxy := .DnsProxy }}
 
@@ -132,15 +142,5 @@ table inet dnsproxy {
         iifname "{{ $iface }}" udp dport domain ct zone set 3
     {{- end }}
     }
-
-{{- if gt (len .SnatRules) 0 }}
-
-    chain postrouting {
-        type nat hook postrouting priority -1; policy accept;
-        {{- range .SnatRules }}
-        {{ . }}
-        {{- end }}
-    }
-{{- end }}
 }
 {{- end }}

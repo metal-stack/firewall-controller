@@ -57,6 +57,11 @@ table inet firewall {
         counter comment "count and log dropped packets"
         limit rate 10/second counter name drop_total log prefix "nftables-firewall-dropped: "
     }
+
+    chain postrouting {
+        type nat hook postrouting priority -1; policy accept;
+        ip saddr { 10.0.0.0/8 } oifname "vlan104009" counter snat 185.1.2.3 comment "snat internet"
+    }
 }
 
 
@@ -103,10 +108,5 @@ table inet dnsproxy {
         type nat hook output priority raw; policy accept;
         iifname "vlan20" tcp dport domain ct zone set 3
         iifname "vlan20" udp dport domain ct zone set 3
-    }
-
-    chain postrouting {
-        type nat hook postrouting priority -1; policy accept;
-        ip saddr { 10.0.0.0/8 } oifname "vlan104009" counter snat 185.1.2.3 comment "snat internet"
     }
 }
