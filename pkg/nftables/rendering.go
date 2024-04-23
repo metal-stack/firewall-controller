@@ -25,11 +25,12 @@ type firewallRenderingData struct {
 }
 
 type dnsProxyData struct {
-	Enabled       bool
-	DNSAddrs      []string
-	DNSPort       int
-	ExternalIPs   []string
-	PrimaryIfaces []string
+	Enabled      bool
+	DNSAddrs     []string
+	DNSPort      int
+	ExternalIPs  []string
+	PrimaryIface string
+	NodeCidrs    []string
 }
 
 func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
@@ -98,7 +99,8 @@ func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 			dnsProxy.ExternalIPs = append(dnsProxy.ExternalIPs, nw.IPs...)
 		}
 
-		dnsProxy.PrimaryIfaces = []string{fmt.Sprintf("%d", *f.primaryPrivateNet.Vrf)}
+		dnsProxy.PrimaryIface = fmt.Sprintf("%d", *f.primaryPrivateNet.Vrf)
+		dnsProxy.NodeCidrs = append(dnsProxy.NodeCidrs, f.primaryPrivateNet.Prefixes...)
 
 		egress = append(egress, rules...)
 	}

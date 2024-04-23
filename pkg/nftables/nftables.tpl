@@ -87,13 +87,11 @@ table inet firewall {
 {{ $dnsProxy := .DnsProxy }}
 
 table inet dnsproxy {
-    # Prefixes in the cluster, typically 10.x.x.x
-    # FIXME Should be filled with nodeCidr
-    set cluster_prefixes {
+    set node_network_prefixes {
         type ipv4_addr
         flags interval
         auto-merge
-        elements = { 10.0.0.0/8 }
+        elements = { {{ StringsJoin $dnsProxy.NodeCidrs ", " }} }
     }
 
     set proxy_dns_servers {
@@ -106,41 +104,38 @@ table inet dnsproxy {
     chain prerouting {
         type nat hook prerouting priority 0; policy accept;
     {{- range $ip := $dnsProxy.ExternalIPs }}
-    {{- range $iface := $dnsProxy.PrimaryIfaces }}
-        ip daddr @proxy_dns_servers iifname "{{ $iface }}" tcp dport domain dnat ip to {{ $ip }} comment "dnat intercept traffic for dns proxy"
-        ip daddr @proxy_dns_servers iifname "{{ $iface }}" udp dport domain dnat ip to {{ $ip }} comment "dnat intercept traffic for dns proxy"
-    {{- end }}
+        ip daddr @proxy_dns_servers iifname "{{ $dnsProxy.PrimaryIface }}" tcp dport domain dnat ip to {{ $ip }} comment "dnat intercept traffic for dns proxy"
+        ip daddr @proxy_dns_servers iifname "{{ $dnsProxy.PrimaryIface }}" udp dport domain dnat ip to {{ $ip }} comment "dnat intercept traffic for dns proxy"
     {{- end }}
     }
 
     chain prerouting_ct {
+        # Set up additional conntrack zone for DNS traffic.
+        # There was a problem that duplicate packets were registered by conntrack
+        # when packet was leaking from private VRF to the internet VRF.
+        # Isolating traffic to special zone solves the problem.
+        # Zone number(3) was obtained by experiments.
         type filter hook prerouting priority raw; policy accept;
-    {{- range $iface := $dnsProxy.PrimaryIfaces }}
-        iifname "{{ $iface }}" tcp dport domain ct zone set 3
-        iifname "{{ $iface }}" udp dport domain ct zone set 3
-    {{- end }}
+        iifname "{{ $dnsProxy.PrimaryIface }}" tcp dport domain ct zone set 3
+        iifname "{{ $dnsProxy.PrimaryIface }}" udp dport domain ct zone set 3
     }
 
     chain input {
     {{- range $dnsProxy.ExternalIPs }}
-        ip saddr @cluster_prefixes tcp dport domain ip daddr {{ . }} accept comment "dnat to dns proxy"
-        ip saddr @cluster_prefixes udp dport domain ip daddr {{ . }} accept comment "dnat to dns proxy"
+        ip saddr @node_network_prefixes tcp dport domain ip daddr {{ . }} accept comment "allow dnatted packages to reach dns proxy"
+        ip saddr @node_network_prefixes udp dport domain ip daddr {{ . }} accept comment "allow dnatted packages to reach dns proxy"
     {{- end }}
     }
 
     chain forward {
-    {{- range $dnsProxy.DNSAddrs }}
-        ip saddr == @cluster_prefixes ip daddr { {{ . }} } tcp dport { {{ $dnsProxy.DNSPort }} } counter accept comment "accept traffic for dns cache tcp"
-        ip saddr == @cluster_prefixes ip daddr { {{ . }} } udp dport { {{ $dnsProxy.DNSPort }} } counter accept comment "accept traffic for dns cache udp"
-    {{- end }}
+        ip saddr == @node_network_prefixes ip daddr @proxy_dns_servers tcp dport { {{ $dnsProxy.DNSPort }} } counter accept comment "accept traffic for dns cache tcp"
+        ip saddr == @node_network_prefixes ip daddr @proxy_dns_servers udp dport { {{ $dnsProxy.DNSPort }} } counter accept comment "accept traffic for dns cache udp"
     }
 
     chain output_ct {
         type nat hook output priority raw; policy accept;
-    {{- range $iface := $dnsProxy.PrimaryIfaces }}
-        iifname "{{ $iface }}" tcp dport domain ct zone set 3
-        iifname "{{ $iface }}" udp dport domain ct zone set 3
-    {{- end }}
+        iifname "{{ $dnsProxy.PrimaryIface }}" tcp dport domain ct zone set 3
+        iifname "{{ $dnsProxy.PrimaryIface }}" udp dport domain ct zone set 3
     }
 }
 {{- end }}

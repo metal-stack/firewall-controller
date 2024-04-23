@@ -66,20 +66,18 @@ table inet firewall {
 
 
 table inet dnsproxy {
-    # Prefixes in the cluster, typically 10.x.x.x
-    # FIXME Should be filled with nodeCidr
-    set cluster_prefixes {
+    set node_network_prefixes {
         type ipv4_addr
         flags interval
         auto-merge
-        elements = { 10.0.0.0/8 }
+        elements = { 10.130.184.0/22 }
     }
 
     set proxy_dns_servers {
         type ipv4_addr
         flags interval
         auto-merge
-        elements = { 212.34.83.12 }
+        elements = { 1.1.1.1 }
     }
 
     chain prerouting {
@@ -89,19 +87,24 @@ table inet dnsproxy {
     }
 
     chain prerouting_ct {
+        # Set up additional conntrack zone for DNS traffic.
+        # There was a problem that duplicate packets were registered by conntrack
+        # when packet was leaking from private VRF to the internet VRF.
+        # Isolating traffic to special zone solves the problem.
+        # Zone number(3) was obtained by experiments.
         type filter hook prerouting priority raw; policy accept;
         iifname "vlan20" tcp dport domain ct zone set 3
         iifname "vlan20" udp dport domain ct zone set 3
     }
 
     chain input {
-        ip saddr @cluster_prefixes tcp dport domain ip daddr 212.34.83.19 accept comment "dnat to dns proxy"
-        ip saddr @cluster_prefixes udp dport domain ip daddr 212.34.83.19 accept comment "dnat to dns proxy"
+        ip saddr @node_network_prefixes tcp dport domain ip daddr 212.34.83.19 accept comment "allow dnatted packages to reach dns proxy"
+        ip saddr @node_network_prefixes udp dport domain ip daddr 212.34.83.19 accept comment "allow dnatted packages to reach dns proxy"
     }
 
     chain forward {
-        ip saddr == @cluster_prefixes ip daddr { 212.34.83.12 } tcp dport { 53 } counter accept comment "accept traffic for dns cache tcp"
-        ip saddr == @cluster_prefixes ip daddr { 212.34.83.12 } udp dport { 53 } counter accept comment "accept traffic for dns cache udp"
+        ip saddr == @node_network_prefixes ip daddr @proxy_dns_servers tcp dport { 53 } counter accept comment "accept traffic for dns cache tcp"
+        ip saddr == @node_network_prefixes ip daddr @proxy_dns_servers udp dport { 53 } counter accept comment "accept traffic for dns cache udp"
     }
 
     chain output_ct {
