@@ -15,13 +15,22 @@ import (
 
 // firewallRenderingData holds the data available in the nftables template
 type firewallRenderingData struct {
-	ForwardingRules    forwardingRules
-	RateLimitRules     nftablesRules
-	SnatRules          nftablesRules
-	Sets               []dns.RenderIPSet
-	InternalPrefixes   string
-	PrivateVrfID       uint
-	AdditionalDNSAddrs []string
+	ForwardingRules  forwardingRules
+	RateLimitRules   nftablesRules
+	SnatRules        nftablesRules
+	Sets             []dns.RenderIPSet
+	InternalPrefixes string
+	PrivateVrfID     uint
+	DnsProxy         *dnsProxyData
+}
+
+type dnsProxyData struct {
+	Enabled      bool
+	DNSAddrs     []string
+	DNSPort      int
+	ExternalIPs  []string
+	PrimaryIface string
+	NodeCidrs    []string
 }
 
 func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
@@ -58,24 +67,48 @@ func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 	}
 
 	var (
-		sets     []dns.RenderIPSet
-		dnsAddrs = []string{}
+		sets []dns.RenderIPSet
+
+		dnsProxy = &dnsProxyData{
+			Enabled:  false,
+			DNSAddrs: []string{"8.8.8.8", "8.8.4.4", "1.1.1.1", "1.0.0.1"},
+			DNSPort:  53,
+		}
 	)
 	if f.cache.IsInitialized() {
 		sets = f.cache.GetSetsForRendering(f.clusterwideNetworkPolicies.GetFQDNs())
-		rules, err := clusterwideNetworkPolicyEgressDNSCacheRules(f.cache, f.logAcceptedConnections)
+
+		if f.firewall.Spec.DNSPort != nil {
+			dnsProxy.DNSPort = int(*f.firewall.Spec.DNSPort)
+		}
+
+		rules, err := clusterwideNetworkPolicyEgressDNSCacheRules(f.cache, dnsProxy.DNSPort, f.logAcceptedConnections)
 		if err != nil {
 			return &firewallRenderingData{}, err
 		}
+
 		if f.firewall.Spec.DNSServerAddress != "" {
-			dnsAddrs = append(dnsAddrs, f.firewall.Spec.DNSServerAddress)
+			dnsProxy.DNSAddrs = strings.Split(f.firewall.Spec.DNSServerAddress, ",")
 		}
+
+		for _, nw := range f.networkMap {
+			if nw.NetworkType == nil || *nw.NetworkType != "external" {
+				continue
+			}
+
+			dnsProxy.ExternalIPs = append(dnsProxy.ExternalIPs, nw.IPs...)
+		}
+
+		dnsProxy.PrimaryIface = fmt.Sprintf("%d", *f.primaryPrivateNet.Vrf)
+		dnsProxy.NodeCidrs = append(dnsProxy.NodeCidrs, f.primaryPrivateNet.Prefixes...)
+
 		egress = append(egress, rules...)
 	}
+
 	return &firewallRenderingData{
-		AdditionalDNSAddrs: dnsAddrs,
-		PrivateVrfID:       uint(*f.primaryPrivateNet.Vrf),
-		InternalPrefixes:   strings.Join(f.firewall.Spec.InternalPrefixes, ", "),
+		DnsProxy:         dnsProxy,
+		PrivateVrfID:     uint(*f.primaryPrivateNet.Vrf),
+		InternalPrefixes: strings.Join(f.firewall.Spec.InternalPrefixes, ", "),
 		ForwardingRules: forwardingRules{
 			Ingress: ingress,
 			Egress:  egress,
