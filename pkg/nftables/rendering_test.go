@@ -39,7 +39,7 @@ func TestFirewallRenderingData_renderString(t *testing.T) {
 				},
 				InternalPrefixes:   "1.2.3.0/24, 2.3.4.0/8",
 				RateLimitRules:     []string{"meta iifname \"eth0\" limit rate over 10 mbytes/second counter name drop_ratelimit drop"},
-				SnatRules:          []string{"ip saddr { 10.0.0.0/8 } oifname \"vlan104009\" counter snat 185.1.2.3 comment \"snat internet\""},
+				SnatRules:          []string{"ip saddr { 10.0.0.0/8 } oifname \"vlan104009\" counter snat 185.1.2.3 random comment \"snat internet\""},
 				PrivateVrfID:       uint(42),
 				AdditionalDNSAddrs: []string{"8.9.10.11", "4.5.6.7"},
 			},

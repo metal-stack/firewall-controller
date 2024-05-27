@@ -16,7 +16,7 @@ type snatRule struct {
 }
 
 func (s *snatRule) String() string {
-	return fmt.Sprintf(`ip saddr { %s } oifname "%s" counter snat %s comment "%s"`, s.sourceNetworks, s.oifname, s.to, s.comment)
+	return fmt.Sprintf(`ip saddr { %s } oifname "%s" counter snat %s random comment "%s"`, s.sourceNetworks, s.oifname, s.to, s.comment)
 }
 
 // snatRules generates the nftables rules for SNAT based on the firewall spec
