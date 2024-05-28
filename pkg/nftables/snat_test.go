@@ -75,8 +75,8 @@ func TestSnatRules(t *testing.T) {
 			},
 			cwnps: firewallv1.ClusterwideNetworkPolicyList{},
 			want: nftablesRules{
-				`ip saddr { 10.0.1.0/24 } oifname "vlan1" counter snat to jhash ip daddr . tcp sport mod 2 map { 0 : 185.0.0.2, 1 : 185.0.0.3 } comment "snat for internet"`,
-				`ip saddr { 10.0.1.0/24 } oifname "vlan2" counter snat 100.0.0.2 comment "snat for mpls"`,
+				`ip saddr { 10.0.1.0/24 } oifname "vlan1" counter snat to jhash ip daddr . tcp sport mod 2 map { 0 : 185.0.0.2, 1 : 185.0.0.3 } random comment "snat for internet"`,
+				`ip saddr { 10.0.1.0/24 } oifname "vlan2" counter snat 100.0.0.2 random comment "snat for mpls"`,
 			},
 		},
 		{
@@ -151,8 +151,8 @@ func TestSnatRules(t *testing.T) {
 			want: nftablesRules{
 				`ip saddr { 10.0.1.0/24 } tcp dport { 53 } accept comment "escape snat for dns proxy tcp"`,
 				`ip saddr { 10.0.1.0/24 } udp dport { 53 } accept comment "escape snat for dns proxy udp"`,
-				`ip saddr { 10.0.1.0/24 } oifname "vlan1" counter snat to jhash ip daddr . tcp sport mod 2 map { 0 : 185.0.0.2, 1 : 185.0.0.3 } comment "snat for internet"`,
-				`ip saddr { 10.0.1.0/24 } oifname "vlan2" counter snat 100.0.0.2 comment "snat for mpls"`,
+				`ip saddr { 10.0.1.0/24 } oifname "vlan1" counter snat to jhash ip daddr . tcp sport mod 2 map { 0 : 185.0.0.2, 1 : 185.0.0.3 } random comment "snat for internet"`,
+				`ip saddr { 10.0.1.0/24 } oifname "vlan2" counter snat 100.0.0.2 random comment "snat for mpls"`,
 			},
 		},
 		{
