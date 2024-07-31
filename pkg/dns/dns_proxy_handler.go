@@ -58,7 +58,11 @@ func (h *DNSProxyHandler) ServeDNS(w dnsgo.ResponseWriter, request *dnsgo.Msg) {
 	}()
 
 	scopedLog.Info("started processing request")
-	response, err := h.getDataFromDNS(w.LocalAddr(), request)
+	serverAddress := w.LocalAddr()
+	bufsize := getBufSize(serverAddress.Network(), request)
+	scopedLog.Info("Request info", "server", serverAddress, "bufsize", bufsize, "request", request)
+
+	response, err := h.getDataFromDNS(serverAddress, request)
 	if err != nil {
 		scopedLog.Error(err, "failed to get DNS response")
 		err = w.WriteMsg(refusedMsg(request))
@@ -66,7 +70,29 @@ func (h *DNSProxyHandler) ServeDNS(w dnsgo.ResponseWriter, request *dnsgo.Msg) {
 	}
 
 	go h.updateCache(time.Now(), response)
-	err = w.WriteMsg(response)
+
+	scopedLog.Info("Processing and truncating response before sending reply to client", "bufsize", bufsize)
+	reply := dnsgo.Msg{}
+	reply = *response
+	reply.Truncate(bufsize) // response is not (necessarily) compressed even if the original reply of the upstream DNS was. Therefore we must make sure the reply will not exceed downstream's buffer size.
+	scopedLog.Info("Original response and processed reply", "response", response, "reply", reply)
+	err = w.WriteMsg(&reply)
+}
+
+func getBufSize(protocol string, request *dnsgo.Msg) int {
+	if request.Extra != nil {
+		for _, rr := range request.Extra {
+			switch r := rr.(type) {
+			case *dnsgo.OPT:
+				return int(r.UDPSize())
+			}
+		}
+	}
+
+	if protocol == "tcp" {
+		return dnsgo.MaxMsgSize
+	}
+	return dnsgo.MinMsgSize
 }
 
 // UpdateDNSServerAddr validates and if successful updates DNS server address
