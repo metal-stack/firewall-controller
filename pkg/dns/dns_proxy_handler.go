@@ -60,7 +60,7 @@ func (h *DNSProxyHandler) ServeDNS(w dnsgo.ResponseWriter, request *dnsgo.Msg) {
 	scopedLog.Info("started processing request")
 	serverAddress := w.LocalAddr()
 	bufsize := getBufSize(serverAddress.Network(), request)
-	scopedLog.Info("Request info", "server", serverAddress, "bufsize", bufsize, "request", request)
+	scopedLog.Info("request info", "server", serverAddress, "bufsize", bufsize, "request", request)
 
 	response, err := h.getDataFromDNS(serverAddress, request)
 	if err != nil {
@@ -71,12 +71,12 @@ func (h *DNSProxyHandler) ServeDNS(w dnsgo.ResponseWriter, request *dnsgo.Msg) {
 
 	go h.updateCache(time.Now(), response)
 
-	scopedLog.Info("Processing and truncating response before sending reply to client", "bufsize", bufsize)
-	var reply dnsgo.Msg
-	reply = *response
-	reply.Truncate(bufsize) // response is not (necessarily) compressed even if the original reply of the upstream DNS was. Therefore we must make sure the reply will not exceed downstream's buffer size.
-	scopedLog.Info("Original response and processed reply", "response", response, "reply", reply)
-	err = w.WriteMsg(&reply)
+	scopedLog.Info("truncating response before sending reply to client", "bufsize", bufsize)
+	reply := response.Copy()
+	reply.Truncate(bufsize) // response is not (necessarily) compressed even if the original reply of the upstream DNS was. therefore we must make sure the reply will not exceed downstream's buffer size.
+
+	scopedLog.Info("original response and processed reply", "response", response, "reply", reply)
+	err = w.WriteMsg(reply)
 }
 
 func getBufSize(protocol string, request *dnsgo.Msg) int {
