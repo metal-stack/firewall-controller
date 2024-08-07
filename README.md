@@ -51,7 +51,7 @@ spec:
 
 For every `Service` of type `LoadBalancer` in the cluster, the corresponding ingress rules will be automatically generated.
 
-If `loadBalancerSourceRanges` is not specified, incomig traffic to this service will be allowed for any source ip adresses.
+If `loadBalancerSourceRanges` is not specified, incomig traffic to this service will be allowed for any source ip addresses.
 
 ### DNS Policies Configuration
 

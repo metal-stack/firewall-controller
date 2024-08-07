@@ -46,7 +46,7 @@ jobs:
         cache: false
 
     - name: Lint
-      uses: golangci/golangci-lint-action@v4
+      uses: golangci/golangci-lint-action@v6
       with:
         args: --build-tags integration -p bugs -p unused --timeout=3m
 

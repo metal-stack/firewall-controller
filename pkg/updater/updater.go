@@ -38,13 +38,13 @@ func New(log logr.Logger, shootRecorder record.EventRecorder) *Updater {
 func (u *Updater) Run(ctx context.Context, f *firewallv2.Firewall) error {
 	err := u.updateFirewallController(f)
 	if err != nil {
-		u.recorderCallback(f, corev1.EventTypeWarning, "Self-Reconcilation", fmt.Sprintf("updating firewall-controller failed with error: %v", err))
+		u.recorderCallback(f, corev1.EventTypeWarning, "Self-Reconciliation", fmt.Sprintf("updating firewall-controller failed with error: %v", err))
 		return err
 	}
 
 	err = u.updateNFTablesExporter(ctx, f)
 	if err != nil {
-		u.recorderCallback(f, corev1.EventTypeWarning, "Self-Reconcilation", fmt.Sprintf("updating nftables-exporter failed with error: %v", err))
+		u.recorderCallback(f, corev1.EventTypeWarning, "Self-Reconciliation", fmt.Sprintf("updating nftables-exporter failed with error: %v", err))
 		return err
 	}
 
