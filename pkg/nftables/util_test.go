@@ -54,11 +54,11 @@ table ip firewall {
 		type filter hook forward priority 1; policy drop;
 
 		# network traffic accounting for internal traffic
-		ip saddr @internal_prefixes oifname {"vlan42", "vrf42"} counter name internal_in comment "count internal traffic incomming"
+		ip saddr @internal_prefixes oifname {"vlan42", "vrf42"} counter name internal_in comment "count internal traffic incoming"
 		ip daddr @internal_prefixes iifname {"vlan42", "vrf42"} counter name internal_out comment "count internal traffic outgoing"
 
 		# network traffic accounting for external traffic
-		ip saddr != @internal_prefixes oifname {"vlan42", "vrf42"} counter name external_in comment "count external traffic incomming"
+		ip saddr != @internal_prefixes oifname {"vlan42", "vrf42"} counter name external_in comment "count external traffic incoming"
 		ip daddr != @internal_prefixes iifname {"vlan42", "vrf42"} counter name external_out comment "count external traffic outgoing"
 
 		# rate limits
@@ -116,11 +116,11 @@ table ip firewall {
 		type filter hook forward priority 1; policy drop;
 
 		# network traffic accounting for external traffic
-		ip saddr != @internal_prefixes oifname {"vlan42", "vrf42"} counter name external_in comment "count external traffic incomming"
+		ip saddr != @internal_prefixes oifname {"vlan42", "vrf42"} counter name external_in comment "count external traffic incoming"
 		ip daddr != @internal_prefixes iifname {"vlan42", "vrf42"} counter name external_out comment "count external traffic outgoing"
 
 		# network traffic accounting for internal traffic
-		ip saddr @internal_prefixes oifname {"vlan42", "vrf42"} counter name internal_in comment "count internal traffic incomming"
+		ip saddr @internal_prefixes oifname {"vlan42", "vrf42"} counter name internal_in comment "count internal traffic incoming"
 		ip daddr @internal_prefixes iifname {"vlan42", "vrf42"} counter name internal_out comment "count internal traffic outgoing"
 
 		# rate limits

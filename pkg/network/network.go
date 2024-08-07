@@ -58,7 +58,7 @@ func GetNewNetworks(f *firewallv2.Firewall, oldNetworks []*models.V1MachineNetwo
 func ReconcileNetwork(f *firewallv2.Firewall) (changed bool, err error) {
 	tmpFile, err := tmpFile(frrConfig)
 	if err != nil {
-		return false, fmt.Errorf("error during network reconcilation %v: %w", tmpFile, err)
+		return false, fmt.Errorf("error during network reconciliation %v: %w", tmpFile, err)
 	}
 	defer func() {
 		os.Remove(tmpFile)
@@ -75,7 +75,7 @@ func ReconcileNetwork(f *firewallv2.Firewall) (changed bool, err error) {
 
 	changed, err = a.Apply(*tpl, tmpFile, frrConfig, true)
 	if err != nil {
-		return changed, fmt.Errorf("error during network reconcilation: %v: %w", tmpFile, err)
+		return changed, fmt.Errorf("error during network reconciliation: %v: %w", tmpFile, err)
 	}
 
 	return changed, nil

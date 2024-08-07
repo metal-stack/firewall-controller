@@ -16,13 +16,13 @@ func Test_copyToTempFileAndValidateChecksum(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "cheksum match",
+			name: "checksum match",
 			args: args{
 				checksum: "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
 			},
 		},
 		{
-			name: "cheksum mismatch",
+			name: "checksum mismatch",
 			args: args{
 				checksum: "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
 			},
