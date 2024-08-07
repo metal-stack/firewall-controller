@@ -69,20 +69,20 @@ func (h *DNSProxyHandler) ServeDNS(w dnsgo.ResponseWriter, request *dnsgo.Msg) {
 		return
 	}
 
-	go h.updateCache(time.Now(), response)
-
 	scopedLog.Info("truncating response before sending reply to client", "bufsize", bufsize)
-	reply := response.Copy()
+	originalResponse := response.Copy()
 	/*
 		Why are we truncating the answer?
 		DNS has a feature where a DNS server can "compress" the names in a message, and will usually do this if the reply will not fit in the maximum payload length for a DNS packet; for more explanation see here: https://datatracker.ietf.org/doc/html/rfc1035#autoid-44
 		Unfortunately, in dnsgo the compression status of a message is apparently not retained, so if you take a compressed message and write it out again your wind up with a bigger message, without any checks whether the resulting message is too big for the receiver. If this happens, it breaks name resolution.
 		Therefore we find out the buffer size of the client from the request (with UDP it's 512 bytes by default) and limit the reply to this buffer size before we send it out. The Truncate method will try compression first to fit the message into the buffer size and will truncate the message if necessary.
 	*/
-	reply.Truncate(bufsize)
+	response.Truncate(bufsize)
+	scopedLog.Info("original response and processed reply", "original response", originalResponse, "response to client", response)
 
-	scopedLog.Info("original response and processed reply", "response", response, "reply", reply)
-	err = w.WriteMsg(reply)
+	go h.updateCache(time.Now(), response)
+
+	err = w.WriteMsg(response)
 }
 
 func getBufSize(protocol string, request *dnsgo.Msg) int {
