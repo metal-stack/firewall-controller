@@ -57,10 +57,9 @@ func (h *DNSProxyHandler) ServeDNS(w dnsgo.ResponseWriter, request *dnsgo.Msg) {
 		}
 	}()
 
-	scopedLog.Info("started processing request")
 	serverAddress := w.LocalAddr()
 	bufsize := getBufSize(serverAddress.Network(), request)
-	scopedLog.Info("request info", "server", serverAddress, "bufsize", bufsize, "request", request)
+	scopedLog.Info("started processing request", "server", serverAddress, "bufsize", bufsize, "request", request)
 
 	response, err := h.getDataFromDNS(serverAddress, request)
 	if err != nil {
@@ -69,7 +68,6 @@ func (h *DNSProxyHandler) ServeDNS(w dnsgo.ResponseWriter, request *dnsgo.Msg) {
 		return
 	}
 
-	scopedLog.Info("truncating response before sending reply to client", "bufsize", bufsize)
 	originalResponse := response.Copy()
 	/*
 		Why are we truncating the answer?
@@ -78,7 +76,7 @@ func (h *DNSProxyHandler) ServeDNS(w dnsgo.ResponseWriter, request *dnsgo.Msg) {
 		Therefore we find out the buffer size of the client from the request (with UDP it's 512 bytes by default) and limit the reply to this buffer size before we send it out. The Truncate method will try compression first to fit the message into the buffer size and will truncate the message if necessary.
 	*/
 	response.Truncate(bufsize)
-	scopedLog.Info("original response and processed reply", "original response", originalResponse, "response to client", response)
+	scopedLog.Info("processing response", "buffer size", bufsize, "original response", originalResponse, "truncated response", response)
 
 	go h.updateCache(time.Now(), response)
 
