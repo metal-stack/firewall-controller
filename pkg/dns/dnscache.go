@@ -77,11 +77,11 @@ func (e *ipEntry) expireIPs() (deletedIPs []nftables.SetElement) {
 func (e *ipEntry) addAndUpdateIPs(rrs []dnsgo.RR, lookupTime time.Time) (newIPs []nftables.SetElement) {
 	for _, rr := range rrs {
 		var s string
-		switch rr.(type) {
+		switch r := rr.(type) {
 		case *dnsgo.A:
-			s = rr.String()
+			s = r.A.String()
 		case *dnsgo.AAAA:
-			s = rr.String()
+			s = r.AAAA.String()
 		}
 		if _, ok := e.ips[s]; ok {
 			newIPs = append(newIPs, nftables.SetElement{Key: []byte(s)})
