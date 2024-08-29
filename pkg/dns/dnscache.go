@@ -467,6 +467,7 @@ func createIPSetFromIPEntry(fqdn string, version firewallv1.IPVersion, entry *ip
 	ips := firewallv1.IPSet{
 		FQDN:    fqdn,
 		SetName: entry.setName,
+		IPs:     map[string]metav1.Time{},
 		Version: version,
 	}
 	for ip, expirationTime := range entry.ips {
