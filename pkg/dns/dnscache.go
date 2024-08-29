@@ -51,9 +51,9 @@ func newIPEntry(setName string) *ipEntry {
 	}
 }
 
-func (e *ipEntry) update(setName string, rrs []dnsgo.RR, lookupTime time.Time, dtype nftables.SetDatatype) error {
+func (e *ipEntry) update(log logr.Logger, setName string, rrs []dnsgo.RR, lookupTime time.Time, dtype nftables.SetDatatype) error {
 	deletedIPs := e.expireIPs()
-	newIPs := e.addAndUpdateIPs(rrs, lookupTime)
+	newIPs := e.addAndUpdateIPs(log, rrs, lookupTime)
 
 	if newIPs != nil || deletedIPs != nil {
 		if err := updateNftSet(newIPs, deletedIPs, setName, dtype); err != nil {
@@ -74,7 +74,7 @@ func (e *ipEntry) expireIPs() (deletedIPs []nftables.SetElement) {
 	return
 }
 
-func (e *ipEntry) addAndUpdateIPs(rrs []dnsgo.RR, lookupTime time.Time) (newIPs []nftables.SetElement) {
+func (e *ipEntry) addAndUpdateIPs(log logr.Logger, rrs []dnsgo.RR, lookupTime time.Time) (newIPs []nftables.SetElement) {
 	for _, rr := range rrs {
 		var s string
 		switch r := rr.(type) {
@@ -86,7 +86,8 @@ func (e *ipEntry) addAndUpdateIPs(rrs []dnsgo.RR, lookupTime time.Time) (newIPs 
 		if _, ok := e.ips[s]; ok {
 			newIPs = append(newIPs, nftables.SetElement{Key: []byte(s)})
 		}
-		e.ips[s] = lookupTime.Add(time.Duration(rr.Header().Ttl * uint32(time.Second)))
+		log.WithValues("ip", s, "rr header ttl", rr.Header().Ttl, "expiration time", lookupTime.Add(time.Duration(rr.Header().Ttl)*time.Second))
+		e.ips[s] = lookupTime.Add(time.Duration(rr.Header().Ttl) * time.Second)
 
 	}
 	return
@@ -397,7 +398,7 @@ func (c *DNSCache) updateIPEntry(qname string, rrs []dnsgo.RR, lookupTime time.T
 
 	setName := ipe.setName
 	scopedLog.WithValues("set", setName, "lookupTime", lookupTime, "rrs", rrs).Info("updating ip entry")
-	if err := ipe.update(setName, rrs, lookupTime, dtype); err != nil {
+	if err := ipe.update(scopedLog, setName, rrs, lookupTime, dtype); err != nil {
 		return fmt.Errorf("failed to update ipEntry: %w", err)
 	}
 	c.fqdnToEntry[qname] = entry
