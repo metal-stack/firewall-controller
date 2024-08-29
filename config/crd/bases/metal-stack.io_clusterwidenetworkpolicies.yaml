@@ -245,15 +245,13 @@ spec:
                   items:
                     description: IPSet stores set name association to IP addresses
                     properties:
-                      expirationTime:
-                        format: date-time
-                        type: string
                       fqdn:
                         type: string
                       ips:
-                        items:
+                        additionalProperties:
+                          format: date-time
                           type: string
-                        type: array
+                        type: object
                       setName:
                         type: string
                       version:
