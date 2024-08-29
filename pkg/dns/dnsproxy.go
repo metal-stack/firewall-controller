@@ -148,7 +148,7 @@ func bindToPort(host string, port uint, log logr.Logger) (*net.UDPConn, *net.TCP
 	var listener net.Listener
 	var conn net.PacketConn
 
-	bindAddr := net.JoinHostPort(host, strconv.Itoa(int(port)))
+	bindAddr := net.JoinHostPort(host, strconv.FormatUint(uint64(port), 10))
 
 	defer func() {
 		if err != nil {

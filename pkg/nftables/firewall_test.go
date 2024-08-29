@@ -19,7 +19,7 @@ func init() {
 // or to run only the integration test go test Integration
 func TestFirewallValidateRulesIntegration(t *testing.T) {
 	if os.Getegid() != 0 {
-		t.Skipf(color.YellowString("skipping integration test because not root"))
+		t.Skipf(color.YellowString("skipping integration test because not root")) //nolint:govet
 	}
 
 	type fields struct {
