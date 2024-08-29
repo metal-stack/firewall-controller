@@ -86,7 +86,7 @@ func (e *ipEntry) addAndUpdateIPs(rrs []dnsgo.RR, lookupTime time.Time) (newIPs 
 		if _, ok := e.ips[s]; ok {
 			newIPs = append(newIPs, nftables.SetElement{Key: []byte(s)})
 		}
-		e.ips[s] = lookupTime.Add(time.Duration(rr.Header().Ttl))
+		e.ips[s] = lookupTime.Add(time.Duration(rr.Header().Ttl * uint32(time.Second)))
 
 	}
 	return
@@ -396,6 +396,7 @@ func (c *DNSCache) updateIPEntry(qname string, rrs []dnsgo.RR, lookupTime time.T
 	}
 
 	setName := ipe.setName
+	scopedLog.WithValues("set", setName, "lookupTime", lookupTime, "rrs", rrs).Info("updating ip entry")
 	if err := ipe.update(setName, rrs, lookupTime, dtype); err != nil {
 		return fmt.Errorf("failed to update ipEntry: %w", err)
 	}
