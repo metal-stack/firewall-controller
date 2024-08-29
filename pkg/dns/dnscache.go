@@ -47,6 +47,7 @@ type ipEntry struct {
 func newIPEntry(setName string) *ipEntry {
 	return &ipEntry{
 		setName: setName,
+		ips:     map[string]time.Time{},
 	}
 }
 
