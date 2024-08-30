@@ -197,7 +197,9 @@ func (c *DNSCache) restoreSets(fqdnSets []firewallv1.IPSet) {
 				ipa, _, _ := strings.Cut(ip, ",")
 				expirationTime := time.Now()
 				if _, ets, found := strings.Cut(ip, ": "); found {
-					expirationTime.UnmarshalText([]byte(ets))
+					if err := expirationTime.UnmarshalText([]byte(ets)); err != nil {
+						expirationTime = time.Now()
+					}
 				}
 				ipe.ips[ipa] = expirationTime
 			}
