@@ -13,7 +13,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/google/nftables"
 	dnsgo "github.com/miekg/dns"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	// metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 )
@@ -193,8 +193,13 @@ func (c *DNSCache) restoreSets(fqdnSets []firewallv1.IPSet) {
 			ipe := &ipEntry{
 				setName: s.SetName,
 			}
-			for ip, expirationTime := range s.IPs {
-				ipe.ips[ip] = expirationTime.Time
+			for _, ip := range s.IPs {
+				ipa, _, _ := strings.Cut(ip, ",")
+				expirationTime := time.Now()
+				if _, ets, found := strings.Cut(ip, ": "); found {
+					expirationTime.UnmarshalText([]byte(ets))
+				}
+				ipe.ips[ipa] = expirationTime
 			}
 			switch s.Version {
 			case firewallv1.IPv4:
@@ -469,11 +474,14 @@ func createIPSetFromIPEntry(fqdn string, version firewallv1.IPVersion, entry *ip
 	ips := firewallv1.IPSet{
 		FQDN:    fqdn,
 		SetName: entry.setName,
-		IPs:     map[string]metav1.Time{},
+		IPs:     []string{},
 		Version: version,
 	}
 	for ip, expirationTime := range entry.ips {
-		ips.IPs[ip] = metav1.Time{Time: expirationTime}
+		if et, err := expirationTime.MarshalText(); err == nil {
+			ip = ip + ", expiration time: " + string(et)
+		}
+		ips.IPs = append(ips.IPs, ip)
 	}
 	return ips
 }
