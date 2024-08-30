@@ -130,6 +130,9 @@ func clusterwideNetworkPolicyEgressToFQDNRules(
 	fqdnState firewallv1.FQDNState,
 	e firewallv1.EgressRule,
 ) (rules []ruleBase, updatedState firewallv1.FQDNState) {
+	if fqdnState == nil {
+		fqdnState = firewallv1.FQDNState{}
+	}
 
 	for _, fqdn := range e.ToFQDNs {
 		fqdnName := fqdn.MatchName
