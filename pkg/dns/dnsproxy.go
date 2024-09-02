@@ -52,7 +52,7 @@ func NewDNSProxy(dns string, port *uint, log logr.Logger) (*DNSProxy, error) {
 	if port != nil {
 		p = *port
 	}
-	udpConn, tcpListener, err := bindToPort(host, p, log)
+	udpConn, tcpListener, err := bindToPort(host, int(p), log) // nolint:gosec
 	if err != nil {
 		return nil, fmt.Errorf("failed to bind to port: %w", err)
 	}
@@ -143,12 +143,14 @@ func getHost() (string, error) {
 }
 
 // bindToPort attempts to bind to port for both UDP and TCP
-func bindToPort(host string, port uint, log logr.Logger) (*net.UDPConn, *net.TCPListener, error) {
-	var err error
-	var listener net.Listener
-	var conn net.PacketConn
+func bindToPort(host string, port int, log logr.Logger) (*net.UDPConn, *net.TCPListener, error) {
+	var (
+		err      error
+		listener net.Listener
+		conn     net.PacketConn
+	)
 
-	bindAddr := net.JoinHostPort(host, strconv.Itoa(int(port)))
+	bindAddr := net.JoinHostPort(host, strconv.Itoa(port))
 
 	defer func() {
 		if err != nil {
