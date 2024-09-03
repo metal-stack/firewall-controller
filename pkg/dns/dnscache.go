@@ -13,6 +13,8 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/google/nftables"
 	dnsgo "github.com/miekg/dns"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	// metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
@@ -29,6 +31,9 @@ const (
 
 	// How many DNS redirections (CNAME/DNAME) are followed, to break up redirection loops.
 	maxDNSRedirects = 10
+
+	// Configmap that holds the FQDN state
+	fqdnStateConfigmapNameSuffix = "fqdnstate"
 )
 
 // RenderIPSet stores set info for rendering
@@ -105,16 +110,18 @@ type DNSCache struct {
 	fqdnToEntry   map[string]cacheEntry
 	setNames      map[string]struct{}
 	dnsServerAddr string
+	shootClient   client.Client
 	ipv4Enabled   bool
 	ipv6Enabled   bool
 }
 
-func newDNSCache(dns string, ipv4Enabled, ipv6Enabled bool, log logr.Logger) *DNSCache {
+func newDNSCache(dns string, ipv4Enabled, ipv6Enabled bool, shootClient client.Client, log logr.Logger) *DNSCache {
 	return &DNSCache{
 		log:           log,
 		fqdnToEntry:   map[string]cacheEntry{},
 		setNames:      map[string]struct{}{},
 		dnsServerAddr: dns,
+		shootClient:   shootClient,
 		ipv4Enabled:   ipv4Enabled,
 		ipv6Enabled:   ipv6Enabled,
 	}
