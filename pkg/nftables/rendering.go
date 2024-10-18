@@ -74,7 +74,7 @@ func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 	}
 	return &firewallRenderingData{
 		AdditionalDNSAddrs: dnsAddrs,
-		PrivateVrfID:       uint(*f.primaryPrivateNet.Vrf),
+		PrivateVrfID:       uint(*f.primaryPrivateNet.Vrf), // nolint:gosec
 		InternalPrefixes:   strings.Join(f.firewall.Spec.InternalPrefixes, ", "),
 		ForwardingRules: forwardingRules{
 			Ingress: ingress,

@@ -64,7 +64,7 @@ func serviceRules(svc corev1.Service, allowed *netipx.IPSet, logAcceptedConnecti
 }
 
 func appendServiceIP(to []string, svc corev1.Service, allowed *netipx.IPSet, ip string, recorder record.EventRecorder) []string {
-	_, err := netip.ParseAddr(ip)
+	parsedIP, err := netip.ParseAddr(ip)
 	if err != nil {
 		return to
 	}
@@ -72,8 +72,10 @@ func appendServiceIP(to []string, svc corev1.Service, allowed *netipx.IPSet, ip 
 		return append(to, ip)
 	}
 
+	cidr := fmt.Sprintf("%s/%d", parsedIP.String(), parsedIP.BitLen())
+
 	// if there is an allowed-ipset restriction, we check if the given IP is contained in this set
-	if ok, _ := helper.ValidateCIDR(&svc, ip+"/32", allowed, recorder); ok {
+	if ok, _ := helper.ValidateCIDR(&svc, cidr, allowed, recorder); ok {
 		to = append(to, ip)
 	}
 	return to
