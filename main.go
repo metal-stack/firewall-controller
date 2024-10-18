@@ -279,7 +279,7 @@ func main() {
 
 	// +kubebuilder:scaffold:builder
 
-	setupLog.Info("starting firewall-controller", "version", v.V)
+	setupLog.Info("starting firewall-controller", "version", v.V.String())
 
 	// before starting up the controllers, we update components to the specified versions
 	// otherwise we can run into races where controllers start reconfiguring the firewall
