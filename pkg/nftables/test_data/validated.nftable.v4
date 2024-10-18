@@ -37,8 +37,6 @@ table inet firewall {
 		ip saddr @internal_prefixes oifname {"vlan42", "vrf42"} counter name internal_in comment "count internal traffic incoming"
 		ip daddr @internal_prefixes iifname {"vlan42", "vrf42"} counter name internal_out comment "count internal traffic outgoing"
 
-		# rate limits
-
 		# state dependent rules
 		ct state established,related counter accept comment "accept established connections"
 		ct state invalid counter drop comment "drop packets with invalid ct state"
