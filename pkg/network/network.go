@@ -70,6 +70,7 @@ func ReconcileNetwork(f *firewallv2.Firewall) (changed bool, err error) {
 		return false, fmt.Errorf("failed to init networker config: %w", err)
 	}
 	c.Networks = GetNewNetworks(f, c.Networks)
+	c.FirewallDistance = uint8(f.Distance)
 
 	a := netconf.NewFrrConfigApplier(netconf.Firewall, *c, tmpFile)
 	tpl := netconf.MustParseTpl(netconf.TplFirewallFRR)
