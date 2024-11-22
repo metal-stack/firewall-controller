@@ -205,7 +205,9 @@ func main() {
 		panic(err)
 	}
 
-	shootClient, err := controllerclient.New(shootConfig, controllerclient.Options{Scheme: scheme})
+	shootClient, err := controllerclient.New(shootConfig, controllerclient.Options{
+		Scheme: scheme,
+	})
 	if err != nil {
 		l.Error("unable to create shoot client", "error", err)
 		panic(err)
@@ -214,12 +216,14 @@ func main() {
 	updater := updater.New(ctrl.Log.WithName("updater"), shootMgr.GetEventRecorderFor("FirewallController"))
 
 	fwmReconciler := &controllers.FirewallMonitorReconciler{
-		ShootClient:  shootMgr.GetClient(),
-		Log:          ctrl.Log.WithName("controllers").WithName("FirewallMonitorReconciler"),
-		Recorder:     shootMgr.GetEventRecorderFor("FirewallMonitorController"),
-		IDSEnabled:   enableIDS,
-		FirewallName: firewallName,
-		Namespace:    firewallv2.FirewallShootNamespace,
+		ShootClient:   shootMgr.GetClient(),
+		SeedClient:    seedMgr.GetClient(),
+		Log:           ctrl.Log.WithName("controllers").WithName("FirewallMonitorReconciler"),
+		Recorder:      shootMgr.GetEventRecorderFor("FirewallMonitorController"),
+		IDSEnabled:    enableIDS,
+		FirewallName:  firewallName,
+		Namespace:     firewallv2.FirewallShootNamespace,
+		SeedNamespace: seedNamespace,
 	}
 
 	// Firewall Reconciler

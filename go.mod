@@ -1,6 +1,6 @@
 module github.com/metal-stack/firewall-controller/v2
 
-go 1.23
+go 1.23.0
 
 require (
 	github.com/coreos/go-systemd/v22 v22.5.0
@@ -12,7 +12,7 @@ require (
 	github.com/metal-stack/firewall-controller-manager v0.4.3
 	github.com/metal-stack/metal-go v0.37.2
 	github.com/metal-stack/metal-lib v0.18.4
-	github.com/metal-stack/metal-networker v0.45.2
+	github.com/metal-stack/metal-networker v0.45.3-0.20241106150006-034e6adb5d6c
 	github.com/metal-stack/v v1.0.3
 	github.com/miekg/dns v1.1.62
 	github.com/txn2/txeh v1.5.5
@@ -63,7 +63,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mdlayher/netlink v1.7.2 // indirect
 	github.com/mdlayher/socket v0.5.1 // indirect
-	github.com/metal-stack/metal-hammer v0.13.5 // indirect
+	github.com/metal-stack/metal-hammer v0.13.8-0.20241106143854-0826d3549873 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
@@ -77,7 +77,7 @@ require (
 	github.com/sagikazarmark/locafero v0.6.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/vishvananda/netns v0.0.4 // indirect
-	go.mongodb.org/mongo-driver v1.16.1 // indirect
+	go.mongodb.org/mongo-driver v1.17.1 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c // indirect
 	golang.org/x/mod v0.21.0 // indirect

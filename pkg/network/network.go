@@ -55,6 +55,7 @@ func GetNewNetworks(f *firewallv2.Firewall, oldNetworks []*models.V1MachineNetwo
 
 // ReconcileNetwork reconciles the network settings for a firewall
 // Changes both the FRR-Configuration and Nftable rules when network prefixes or FRR template changes
+// Note: Right here the FRR Configs are being applied.
 func ReconcileNetwork(f *firewallv2.Firewall) (changed bool, err error) {
 	tmpFile, err := tmpFile(frrConfig)
 	if err != nil {
@@ -69,6 +70,7 @@ func ReconcileNetwork(f *firewallv2.Firewall) (changed bool, err error) {
 		return false, fmt.Errorf("failed to init networker config: %w", err)
 	}
 	c.Networks = GetNewNetworks(f, c.Networks)
+	c.FirewallDistance = uint8(f.Distance)
 
 	a := netconf.NewFrrConfigApplier(netconf.Firewall, *c, tmpFile)
 	tpl := netconf.MustParseTpl(netconf.TplFirewallFRR)

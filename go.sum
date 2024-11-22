@@ -115,12 +115,12 @@ github.com/metal-stack/firewall-controller-manager v0.4.3 h1:WU5bqD710gUtzyA2NdW
 github.com/metal-stack/firewall-controller-manager v0.4.3/go.mod h1:J/3LHcvfJCpEEC4yk+WD0exh3btaScCaFkzbnbOsqrY=
 github.com/metal-stack/metal-go v0.37.2 h1:SDIuV43y09kmwtHfsReOZoZ7c2F+lNP4iIhazfJL5tQ=
 github.com/metal-stack/metal-go v0.37.2/go.mod h1:3MJTYCS4YJz8D8oteTKhjpaAKNMMjMKYDrIy9awHGtQ=
-github.com/metal-stack/metal-hammer v0.13.5 h1:uwEKOTUCeDXDBDH/Y6P58fkC2kwFqZb/akLbAhwmVuA=
-github.com/metal-stack/metal-hammer v0.13.5/go.mod h1:k9jwhyyA2Q0ViyrhEpWRZLOigzbwu2V7XsMbUHJWxIM=
+github.com/metal-stack/metal-hammer v0.13.8-0.20241106143854-0826d3549873 h1:5nHFcT4ekBvpkFhH/3UCy9i12EzkJxAjshfdiqOhq6w=
+github.com/metal-stack/metal-hammer v0.13.8-0.20241106143854-0826d3549873/go.mod h1:L6jt2NWvUKXHD5dwfo9+8ylNz/8gOvxuGf9mNMNuceM=
 github.com/metal-stack/metal-lib v0.18.4 h1:7HnfSwSbrKNHU+i6i79YFk/eeuhBhwIEHWpGqS7pYCc=
 github.com/metal-stack/metal-lib v0.18.4/go.mod h1:Ctyi6zaXFr2NVrQZLFsDLnFCzupKnYErTtgRFKAsnbw=
-github.com/metal-stack/metal-networker v0.45.2 h1:f1U9tzLPG17fthnQROHphKDKpeW//VDnCiNbtNwcm+A=
-github.com/metal-stack/metal-networker v0.45.2/go.mod h1:DUjaql5THUSJd/7M1ZlcYgX/bllp1IhXwOFM+Nvkaus=
+github.com/metal-stack/metal-networker v0.45.3-0.20241106150006-034e6adb5d6c h1:FXbRLxruvnGLrBVV68j5RkjJVPBRL6ICSQiGbKZViaU=
+github.com/metal-stack/metal-networker v0.45.3-0.20241106150006-034e6adb5d6c/go.mod h1:SKz3+3RkimqZIl9F2N1idf4ojyYO1Nzb6QEVbHw98/g=
 github.com/metal-stack/v v1.0.3 h1:Sh2oBlnxrCUD+mVpzfC8HiqL045YWkxs0gpTvkjppqs=
 github.com/metal-stack/v v1.0.3/go.mod h1:YTahEu7/ishwpYKnp/VaW/7nf8+PInogkfGwLcGPdXg=
 github.com/miekg/dns v1.1.62 h1:cN8OuEF1/x5Rq6Np+h1epln8OiyPWV+lROx9LxcGgIQ=
@@ -193,8 +193,8 @@ github.com/vishvananda/netns v0.0.4 h1:Oeaw1EM2JMxD51g9uhtC0D7erkIjgmj8+JZc26m1Y
 github.com/vishvananda/netns v0.0.4/go.mod h1:SpkAiCQRtJ6TvvxPnOSyH3BMl6unz3xZlaprSwhNNJM=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
-go.mongodb.org/mongo-driver v1.16.1 h1:rIVLL3q0IHM39dvE+z2ulZLp9ENZKThVfuvN/IiN4l8=
-go.mongodb.org/mongo-driver v1.16.1/go.mod h1:oB6AhJQvFQL4LEHyXi6aJzQJtBiTQHiAd83l0GdFaiw=
+go.mongodb.org/mongo-driver v1.17.1 h1:Wic5cJIwJgSpBhe3lx3+/RybR5PiYRMpVFgO7cOHyIM=
+go.mongodb.org/mongo-driver v1.17.1/go.mod h1:wwWm/+BuOddhcq3n68LKRmgk2wXzmF6s0SFOa0GINL4=
 go.uber.org/goleak v1.3.0 h1:2K3zAYmnTNqV73imy9J1T3WC+gmCePx2hEGkimedGto=
 go.uber.org/goleak v1.3.0/go.mod h1:CoHD4mav9JJNrW/WLlf7HGZPjdw8EucARQHekz1X6bE=
 go.uber.org/mock v0.4.0 h1:VcM4ZOtdbR4f6VXfiOpwpVJDL6lCReaZ6mw31wqh7KU=
