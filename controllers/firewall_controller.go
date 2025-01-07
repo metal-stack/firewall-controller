@@ -144,7 +144,7 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	r.SeedUpdatedFunc()
 
-	r.Log.Info("successfully reconciled firewall, requeueing in 3 minutes")
+	r.Log.Info("successfully reconciled firewall, requeuing in 3 minutes")
 
 	return ctrl.Result{
 		RequeueAfter: 3 * time.Minute,

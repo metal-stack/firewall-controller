@@ -37,7 +37,7 @@ func (r *ClusterwideNetworkPolicyValidationReconciler) Reconcile(ctx context.Con
 		r.Recorder.Event(
 			&clusterNP,
 			corev1.EventTypeWarning,
-			"Unapplicable",
+			"Inapplicable",
 			fmt.Sprintf("cluster wide network policies must be defined in namespace %s otherwise they won't take effect", firewallv1.ClusterwideNetworkPolicyNamespace),
 		)
 		return ctrl.Result{}, nil
@@ -48,7 +48,7 @@ func (r *ClusterwideNetworkPolicyValidationReconciler) Reconcile(ctx context.Con
 		r.Recorder.Event(
 			&clusterNP,
 			corev1.EventTypeWarning,
-			"Unapplicable",
+			"Inapplicable",
 			fmt.Sprintf("cluster wide network policy is not valid: %v", err),
 		)
 		return ctrl.Result{}, nil
