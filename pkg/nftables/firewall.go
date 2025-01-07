@@ -72,6 +72,7 @@ type nftablesRules []string
 type forwardingRules struct {
 	Ingress nftablesRules
 	Egress  nftablesRules
+	TcpMss  nftablesRules
 }
 
 // NewFirewall creates a new nftables firewall object based on k8s entities

@@ -45,12 +45,17 @@ table inet firewall {
 		# network traffic accounting for internal traffic
 		ip saddr @internal_prefixes oifname {"vlan{{ .PrivateVrfID }}", "vrf{{ .PrivateVrfID }}"} counter name internal_in comment "count internal traffic incoming"
 		ip daddr @internal_prefixes iifname {"vlan{{ .PrivateVrfID }}", "vrf{{ .PrivateVrfID }}"} counter name internal_out comment "count internal traffic outgoing"
-
+{{ if gt (len .RateLimitRules) 0 }}
 		# rate limits
 		{{- range .RateLimitRules }}
 		{{ . }}
 		{{- end }}
-
+{{ end }}{{ if gt (len .ForwardingRules.TcpMss) 0 }}
+		# TCP-MSS clamping
+		{{- range .ForwardingRules.TcpMss }}
+		{{ . }}
+		{{- end }}
+{{ end }}
 		# state dependent rules
 		ct state established,related counter accept comment "accept established connections"
 		ct state invalid counter drop comment "drop packets with invalid ct state"
