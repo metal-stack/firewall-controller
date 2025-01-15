@@ -5,6 +5,7 @@ go 1.23.0
 toolchain go1.23.4
 
 require (
+	github.com/Masterminds/semver/v3 v3.3.1
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/fatih/color v1.18.0
 	github.com/go-logr/logr v1.4.2
@@ -14,7 +15,7 @@ require (
 	github.com/metal-stack/firewall-controller-manager v0.4.3
 	github.com/metal-stack/metal-go v0.39.4
 	github.com/metal-stack/metal-lib v0.19.0
-	github.com/metal-stack/metal-networker v0.46.0
+	github.com/metal-stack/metal-networker v0.46.1
 	github.com/metal-stack/v v1.0.3
 	github.com/miekg/dns v1.1.62
 	github.com/txn2/txeh v1.5.5
@@ -31,7 +32,6 @@ require (
 replace k8s.io/apimachinery => k8s.io/apimachinery v0.29.3
 
 require (
-	github.com/Masterminds/semver/v3 v3.3.1 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
