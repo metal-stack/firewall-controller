@@ -17,7 +17,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/tools/record"
+	bootstraptokenutil "k8s.io/cluster-bootstrap/token/util"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -108,6 +110,13 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			return ctrl.Result{}, err
 		}
 	}
+
+	err := r.reconcileSeedBootstrapToken(ctx, f)
+	if err != nil {
+		r.Log.Error(err, "failed to reconcile seed bootstrap token")
+		return ctrl.Result{}, err
+	}
+
 	if r.TokenUpdater != nil && f.Status.ShootAccess != nil {
 		r.TokenUpdater.UpdateShootAccess(f.Status.ShootAccess)
 	}
@@ -306,5 +315,61 @@ func (r *FirewallReconciler) reconcileSSHKeys(fw *firewallv2.Firewall) error {
 		return fmt.Errorf("unable to write authorized keys file: %w", err)
 	}
 
+	return nil
+}
+
+const seedBootstrapTokenFile = "/etc/metal/seed-bootstrap-token-secret"
+
+func (r *FirewallReconciler) reconcileSeedBootstrapToken(ctx context.Context, fw *firewallv2.Firewall) error {
+	bootstrapTokenID, ok := fw.Labels[firewallv2.FirewallBootstrapTokenIDLabel]
+	if !ok {
+		return nil
+	}
+
+	bootstrapTokenSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      bootstraptokenutil.BootstrapTokenSecretName(bootstrapTokenID),
+			Namespace: metav1.NamespaceSystem,
+		},
+	}
+	err := r.SeedClient.Get(ctx, client.ObjectKeyFromObject(bootstrapTokenSecret), bootstrapTokenSecret)
+	if apierrors.IsUnauthorized(err) {
+		r.Log.Info("seed client is outdated, refresh")
+		return r.refreshSeedClientConnection()
+	}
+	if err != nil {
+		return fmt.Errorf("failed to fetch seed bootstrap token: %w", err)
+	}
+
+	raw, err := json.Marshal(bootstrapTokenSecret)
+	if err != nil {
+		return fmt.Errorf("failed to serialize seed bootstrap token: %w", err)
+	}
+
+	err = os.WriteFile(seedBootstrapTokenFile, raw, 0600)
+	if err != nil {
+		return fmt.Errorf("failed to write seed bootstrap token: %w", err)
+	}
+	return nil
+}
+
+func (r *FirewallReconciler) refreshSeedClientConnection() error {
+	raw, err := os.ReadFile(seedBootstrapTokenFile)
+	if os.IsNotExist(err) {
+		r.Log.Error(err, "cannot refresh broken seed client, bootstrap token file missing")
+		return err
+	}
+	if err != nil {
+		return err
+	}
+
+	var bootstrapTokenSecret *corev1.Secret
+	err = json.Unmarshal(raw, &bootstrapTokenSecret)
+	if err != nil {
+		r.Log.Error(err, "cannot refresh broken seed client, bootstrap token file malformed")
+		return err
+	}
+
+	// TODO: use to fetch something
 	return nil
 }

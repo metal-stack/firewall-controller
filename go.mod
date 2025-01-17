@@ -9,7 +9,7 @@ require (
 	github.com/google/go-cmp v0.6.0
 	github.com/google/nftables v0.2.1-0.20240414091927-5e242ec57806
 	github.com/ks2211/go-suricata v0.0.0-20200823200910-986ce1470707
-	github.com/metal-stack/firewall-controller-manager v0.4.3
+	github.com/metal-stack/firewall-controller-manager v0.4.4-0.20241115121111-5d30716c300f
 	github.com/metal-stack/metal-go v0.37.2
 	github.com/metal-stack/metal-lib v0.18.4
 	github.com/metal-stack/metal-networker v0.45.2
@@ -23,6 +23,7 @@ require (
 	k8s.io/apiextensions-apiserver v0.29.3
 	k8s.io/apimachinery v0.31.0
 	k8s.io/client-go v0.29.3
+	k8s.io/cluster-bootstrap v0.29.3
 	sigs.k8s.io/controller-runtime v0.17.5
 )
 
