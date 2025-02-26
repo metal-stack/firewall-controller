@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/go-logr/logr"
 	mn "github.com/metal-stack/metal-lib/pkg/net"
 	corev1 "k8s.io/api/core/v1"
@@ -49,6 +50,8 @@ type FirewallReconciler struct {
 	recordFirewallEvent func(f *firewallv2.Firewall, eventtype, reason, message string)
 
 	SeedUpdatedFunc func()
+
+	FrrVersion *semver.Version
 }
 
 const (
@@ -115,7 +118,7 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	r.Log.Info("reconciling network settings")
 
 	var errs []error
-	changed, err := network.ReconcileNetwork(f)
+	changed, err := network.ReconcileNetwork(f, r.FrrVersion)
 	if changed && err == nil {
 		r.recordFirewallEvent(f, corev1.EventTypeNormal, "Network settings", "reconciliation succeeded (frr.conf)")
 	} else if changed && err != nil {
@@ -144,7 +147,7 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	r.SeedUpdatedFunc()
 
-	r.Log.Info("successfully reconciled firewall, requeueing in 3 minutes")
+	r.Log.Info("successfully reconciled firewall, requeuing in 3 minutes")
 
 	return ctrl.Result{
 		RequeueAfter: 3 * time.Minute,

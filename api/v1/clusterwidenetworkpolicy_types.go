@@ -179,7 +179,7 @@ func (l *ClusterwideNetworkPolicyList) GetFQDNs() []FQDNSelector {
 	return s
 }
 
-func (s FQDNSelector) GetName() string {
+func (s *FQDNSelector) GetName() string {
 	if s.MatchName != "" {
 		return s.MatchName
 	}
@@ -187,12 +187,12 @@ func (s FQDNSelector) GetName() string {
 	return s.MatchPattern
 }
 
-func (s FQDNSelector) GetMatchName() string {
+func (s *FQDNSelector) GetMatchName() string {
 	return dnsgo.Fqdn(s.MatchName)
 }
 
 // GetRegex converts a MatchPattern into a regexp string
-func (s FQDNSelector) GetRegex() string {
+func (s *FQDNSelector) GetRegex() string {
 	// Handle "*" as match-all case
 	if s.MatchPattern == "*" {
 		return "(^(" + allowedDNSCharsREGroup + "+[.])+$)|(^[.]$)"

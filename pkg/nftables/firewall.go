@@ -4,6 +4,7 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"net/netip"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -292,7 +293,12 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 		f.log.Info("reconciling ips for", "network", n.NetworkID, "adding", toAdd, "removing", toRemove)
 
 		for add := range toAdd {
-			addr, _ := netlink.ParseAddr(fmt.Sprintf("%s/32", add))
+			parsedAddr, err := netip.ParseAddr(add)
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
+			addr, _ := netlink.ParseAddr(fmt.Sprintf("%s/%d", parsedAddr.String(), parsedAddr.BitLen()))
 			err = netlink.AddrAdd(link, addr)
 			if err != nil {
 				errs = append(errs, err)
@@ -300,7 +306,12 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 		}
 
 		for delete := range toRemove {
-			addr, _ := netlink.ParseAddr(fmt.Sprintf("%s/32", delete))
+			parsedAddr, err := netip.ParseAddr(delete)
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
+			addr, _ := netlink.ParseAddr(fmt.Sprintf("%s/%d", parsedAddr.String(), parsedAddr.BitLen()))
 			err = netlink.AddrDel(link, addr)
 			if err != nil {
 				errs = append(errs, err)
