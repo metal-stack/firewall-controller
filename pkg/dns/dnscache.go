@@ -198,7 +198,7 @@ func (c *DNSCache) getSetsForFQDN(fqdn firewallv1.FQDNSelector, fqdnSets []firew
 		result = append(result, s)
 	}
 
-	c.log.WithValues("fqdn", fqdn, "sets", result).Info("sets for FQDN")
+	c.log.WithValues("fqdn", fqdn, "fqdnSets", fqdnSets, "sets", result).Info("sets for FQDN")
 	return
 }
 
