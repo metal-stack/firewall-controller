@@ -1,8 +1,10 @@
 package dns
 
 import (
+	"context"
 	"crypto/md5" //nolint:gosec
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -13,9 +15,10 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/google/nftables"
 	dnsgo "github.com/miekg/dns"
+	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	// metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 )
@@ -33,7 +36,8 @@ const (
 	maxDNSRedirects = 10
 
 	// Configmap that holds the FQDN state
-	fqdnStateConfigmapNameSuffix = "fqdnstate"
+	fqdnStateConfigmapName = "fqdnstate"
+	fqdnStateNamespace     = "firewall"
 )
 
 // RenderIPSet stores set info for rendering
@@ -106,30 +110,76 @@ type cacheEntry struct {
 type DNSCache struct {
 	sync.RWMutex
 
-	log           logr.Logger
-	fqdnToEntry   map[string]cacheEntry
-	setNames      map[string]struct{}
-	dnsServerAddr string
-	shootClient   client.Client
-	ipv4Enabled   bool
-	ipv6Enabled   bool
+	log            logr.Logger
+	fqdnToEntry    map[string]cacheEntry
+	setNames       map[string]struct{}
+	dnsServerAddr  string
+	shootClient    client.Client
+	ctx            context.Context
+	stateConfigmap *v1.ConfigMap
+	ipv4Enabled    bool
+	ipv6Enabled    bool
 }
 
-func newDNSCache(dns string, ipv4Enabled, ipv6Enabled bool, shootClient client.Client, log logr.Logger) *DNSCache {
-	return &DNSCache{
+func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool, shootClient client.Client, log logr.Logger) (*DNSCache, error) {
+	c := DNSCache{
 		log:           log,
 		fqdnToEntry:   map[string]cacheEntry{},
 		setNames:      map[string]struct{}{},
 		dnsServerAddr: dns,
 		shootClient:   shootClient,
-		ipv4Enabled:   ipv4Enabled,
-		ipv6Enabled:   ipv6Enabled,
+		stateConfigmap: &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fqdnStateConfigmapName,
+				Namespace: fqdnStateNamespace,
+			},
+		},
+		ipv4Enabled: ipv4Enabled,
+		ipv6Enabled: ipv6Enabled,
 	}
+	if err := shootClient.Get(ctx, client.ObjectKey{Namespace: fqdnStateNamespace, Name: fqdnStateConfigmapName}, c.stateConfigmap); err != nil {
+		if err := shootClient.Create(ctx, c.stateConfigmap, nil); err != nil {
+			return nil, err
+		}
+	}
+	if c.stateConfigmap.Data == nil {
+		return &c, nil
+
+	}
+	if c.stateConfigmap.Data["state"] == "" {
+		return &c, nil
+
+	}
+	err := json.Unmarshal([]byte(c.stateConfigmap.Data["state"]), &c.fqdnToEntry)
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
+// writeStateToConfigmap writes the whole DNS cache to the state configmap
+func (c *DNSCache) writeStateToConfigmap() error {
+	if err := c.shootClient.Get(c.ctx, client.ObjectKey{Namespace: fqdnStateNamespace, Name: fqdnStateConfigmapName}, c.stateConfigmap); err != nil { // make sure the configmap exists
+		if err := c.shootClient.Create(c.ctx, c.stateConfigmap, nil); err != nil {
+			return err
+		}
+	}
+
+	s, err := json.Marshal(c.fqdnToEntry)
+	if err != nil {
+		return err
+	}
+	c.stateConfigmap.Data["state"] = string(s)
+
+	if err := c.shootClient.Update(c.ctx, c.stateConfigmap); err != nil {
+		return err
+	}
+	return nil
 }
 
 // getSetsForFQDN returns sets for FQDN selector
 func (c *DNSCache) getSetsForFQDN(fqdn firewallv1.FQDNSelector, fqdnSets []firewallv1.IPSet) (result []firewallv1.IPSet) {
-	c.restoreSets(fqdnSets)
+	// c.restoreSets(fqdnSets)
 
 	sets := map[string]firewallv1.IPSet{}
 	if fqdn.MatchName != "" {
@@ -186,42 +236,42 @@ func (c *DNSCache) updateDNSServerAddr(addr string) {
 }
 
 // restoreSets add missing sets from FQDNSelector.Sets
-func (c *DNSCache) restoreSets(fqdnSets []firewallv1.IPSet) {
-	for _, s := range fqdnSets {
-		// Add cache entries from fqdn.Sets if missing
-		c.Lock()
-		if _, ok := c.setNames[s.SetName]; !ok {
-			c.setNames[s.SetName] = struct{}{}
-			entry, exists := c.fqdnToEntry[s.FQDN]
-			if !exists {
-				entry = cacheEntry{}
-			}
-
-			ipe := &ipEntry{
-				setName: s.SetName,
-			}
-			for _, ip := range s.IPs {
-				ipa, _, _ := strings.Cut(ip, ",")
-				expirationTime := time.Now()
-				if _, ets, found := strings.Cut(ip, ": "); found {
-					if err := expirationTime.UnmarshalText([]byte(ets)); err != nil {
-						expirationTime = time.Now()
-					}
-				}
-				ipe.ips[ipa] = expirationTime
-			}
-			switch s.Version {
-			case firewallv1.IPv4:
-				entry.ipv4 = ipe
-			case firewallv1.IPv6:
-				entry.ipv6 = ipe
-			}
-
-			c.fqdnToEntry[s.FQDN] = entry
-		}
-		c.Unlock()
-	}
-}
+// func (c *DNSCache) restoreSets(fqdnSets []firewallv1.IPSet) {
+// 	for _, s := range fqdnSets {
+// 		// Add cache entries from fqdn.Sets if missing
+// 		c.Lock()
+// 		if _, ok := c.setNames[s.SetName]; !ok {
+// 			c.setNames[s.SetName] = struct{}{}
+// 			entry, exists := c.fqdnToEntry[s.FQDN]
+// 			if !exists {
+// 				entry = cacheEntry{}
+// 			}
+//
+// 			ipe := &ipEntry{
+// 				setName: s.SetName,
+// 			}
+// 			for _, ip := range s.IPs {
+// 				ipa, _, _ := strings.Cut(ip, ",")
+// 				expirationTime := time.Now()
+// 				if _, ets, found := strings.Cut(ip, ": "); found {
+// 					if err := expirationTime.UnmarshalText([]byte(ets)); err != nil {
+// 						expirationTime = time.Now()
+// 					}
+// 				}
+// 				ipe.ips[ipa] = expirationTime
+// 			}
+// 			switch s.Version {
+// 			case firewallv1.IPv4:
+// 				entry.ipv4 = ipe
+// 			case firewallv1.IPv6:
+// 				entry.ipv6 = ipe
+// 			}
+//
+// 			c.fqdnToEntry[s.FQDN] = entry
+// 		}
+// 		c.Unlock()
+// 	}
+// }
 
 // getSetNameForFQDN returns FQDN set data
 func (c *DNSCache) getSetNameForFQDN(fqdn string) (result []firewallv1.IPSet) {
@@ -360,6 +410,8 @@ func (c *DNSCache) Update(lookupTime time.Time, qname string, msg *dnsgo.Msg, fq
 		}
 	}
 
+	ipEntriesUpdated := false
+
 	for _, fqdn := range fqdns {
 		c.log.V(4).Info("DEBUG dnscache Update function Updating DNS cache for", "fqdn", fqdn, "ipv4", ipv4, "ipv6", ipv6)
 		if c.ipv4Enabled && len(ipv4) > 0 {
@@ -371,6 +423,12 @@ func (c *DNSCache) Update(lookupTime time.Time, qname string, msg *dnsgo.Msg, fq
 			if err := c.updateIPEntry(fqdn, ipv6, lookupTime, nftables.TypeIP6Addr); err != nil {
 				return false, fmt.Errorf("failed to update IPv6 addresses: %w", err)
 			}
+		}
+	}
+
+	if ipEntriesUpdated {
+		if err := c.writeStateToConfigmap(); err != nil {
+			c.log.V(4).Info("DEBUG could not write updated DNS cache to state configmap", "configmap", fqdnStateConfigmapName, "namespace", fqdnStateNamespace)
 		}
 	}
 
