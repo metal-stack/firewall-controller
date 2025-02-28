@@ -161,6 +161,10 @@ func (c *DNSCache) writeStateToConfigmap() error {
 	if err != nil {
 		return err
 	}
+	if s == nil {
+		return nil
+	}
+	c.log.V(4).Info("DEBUG writing cache to configmap", "fqdnToEntry", s)
 
 	nn := types.NamespacedName{Name: fqdnStateConfigmapName, Namespace: fqdnStateNamespace}
 	scm := v1.ConfigMap{
@@ -172,17 +176,22 @@ func (c *DNSCache) writeStateToConfigmap() error {
 			"state": string(s),
 		},
 	}
+	c.log.V(4).Info("DEBUG created configmap", "scm", scm)
 
 	if err := c.shootClient.Get(c.ctx, nn, &v1.ConfigMap{}); err != nil {
+		c.log.V(4).Info("DEBUG configmap not found, trying to create")
 		if err := c.shootClient.Create(c.ctx, &scm, nil); err != nil {
 			return err
 		}
+		c.log.V(4).Info("DEBUG configmap created", "scm", scm)
 		return nil
 	}
 
+	c.log.V(4).Info("DEBUG configmap found, trying to update")
 	if err := c.shootClient.Update(c.ctx, &scm); err != nil {
 		return err
 	}
+	c.log.V(4).Info("DEBUG configmap created", "scm", scm)
 	return nil
 }
 
