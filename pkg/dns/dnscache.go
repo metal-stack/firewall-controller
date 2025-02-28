@@ -427,11 +427,13 @@ func (c *DNSCache) Update(lookupTime time.Time, qname string, msg *dnsgo.Msg, fq
 			if err := c.updateIPEntry(fqdn, ipv4, lookupTime, nftables.TypeIPAddr); err != nil {
 				return false, fmt.Errorf("failed to update IPv4 addresses: %w", err)
 			}
+			ipEntriesUpdated = true
 		}
 		if c.ipv6Enabled && len(ipv6) > 0 {
 			if err := c.updateIPEntry(fqdn, ipv6, lookupTime, nftables.TypeIP6Addr); err != nil {
 				return false, fmt.Errorf("failed to update IPv6 addresses: %w", err)
 			}
+			ipEntriesUpdated = true
 		}
 	}
 
