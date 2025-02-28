@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"runtime/debug"
 	"time"
 
 	"github.com/metal-stack/v"
@@ -91,7 +92,7 @@ func main() {
 		return
 	}
 
-	jsonHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{})
+	jsonHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})
 	l := slog.New(jsonHandler)
 
 	ctrl.SetLogger(logr.FromSlogHandler(jsonHandler))
