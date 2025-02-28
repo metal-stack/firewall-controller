@@ -16,6 +16,7 @@ import (
 	"github.com/google/nftables"
 	dnsgo "github.com/miekg/dns"
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -135,7 +136,9 @@ func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool,
 	nn := types.NamespacedName{Name: fqdnStateConfigmapName, Namespace: fqdnStateNamespace}
 	scm := v1.ConfigMap{}
 
-	if err := shootClient.Get(ctx, nn, &scm); err != nil {
+	err := shootClient.Get(ctx, nn, &scm)
+	if err != nil && !apierrors.IsNotFound(err) {
+		return nil, err
 	}
 	if scm.Data == nil {
 		return &c, nil
@@ -145,7 +148,7 @@ func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool,
 		return &c, nil
 
 	}
-	err := json.Unmarshal([]byte(scm.Data["state"]), &c.fqdnToEntry)
+	err = json.Unmarshal([]byte(scm.Data["state"]), &c.fqdnToEntry)
 	if err != nil {
 		return nil, err
 	}
