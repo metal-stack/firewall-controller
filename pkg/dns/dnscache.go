@@ -16,6 +16,7 @@ import (
 	"github.com/google/nftables"
 	dnsgo "github.com/miekg/dns"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -110,15 +111,14 @@ type cacheEntry struct {
 type DNSCache struct {
 	sync.RWMutex
 
-	log            logr.Logger
-	fqdnToEntry    map[string]cacheEntry
-	setNames       map[string]struct{}
-	dnsServerAddr  string
-	shootClient    client.Client
-	ctx            context.Context
-	stateConfigmap *v1.ConfigMap
-	ipv4Enabled    bool
-	ipv6Enabled    bool
+	log           logr.Logger
+	fqdnToEntry   map[string]cacheEntry
+	setNames      map[string]struct{}
+	dnsServerAddr string
+	shootClient   client.Client
+	ctx           context.Context
+	ipv4Enabled   bool
+	ipv6Enabled   bool
 }
 
 func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool, shootClient client.Client, log logr.Logger) (*DNSCache, error) {
@@ -132,29 +132,20 @@ func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool,
 		ipv6Enabled:   ipv6Enabled,
 	}
 
-	scm := v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fqdnStateConfigmapName,
-			Namespace: fqdnStateNamespace,
-		},
-	}
+	nn := types.NamespacedName{Name: fqdnStateConfigmapName, Namespace: fqdnStateNamespace}
+	scm := v1.ConfigMap{}
 
-	c.stateConfigmap = &scm
-
-	if err := shootClient.Get(ctx, client.ObjectKey{Namespace: fqdnStateNamespace, Name: fqdnStateConfigmapName}, c.stateConfigmap); err != nil {
-		if err := shootClient.Create(ctx, c.stateConfigmap, nil); err != nil {
-			return nil, err
-		}
+	if err := shootClient.Get(ctx, nn, &scm); err != nil {
 	}
-	if c.stateConfigmap.Data == nil {
+	if scm.Data == nil {
 		return &c, nil
 
 	}
-	if c.stateConfigmap.Data["state"] == "" {
+	if scm.Data["state"] == "" {
 		return &c, nil
 
 	}
-	err := json.Unmarshal([]byte(c.stateConfigmap.Data["state"]), &c.fqdnToEntry)
+	err := json.Unmarshal([]byte(scm.Data["state"]), &c.fqdnToEntry)
 	if err != nil {
 		return nil, err
 	}
@@ -163,19 +154,30 @@ func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool,
 
 // writeStateToConfigmap writes the whole DNS cache to the state configmap
 func (c *DNSCache) writeStateToConfigmap() error {
-	if err := c.shootClient.Get(c.ctx, client.ObjectKey{Namespace: fqdnStateNamespace, Name: fqdnStateConfigmapName}, c.stateConfigmap); err != nil { // make sure the configmap exists
-		if err := c.shootClient.Create(c.ctx, c.stateConfigmap, nil); err != nil {
-			return err
-		}
-	}
-
 	s, err := json.Marshal(c.fqdnToEntry)
 	if err != nil {
 		return err
 	}
-	c.stateConfigmap.Data["state"] = string(s)
 
-	if err := c.shootClient.Update(c.ctx, c.stateConfigmap); err != nil {
+	nn := types.NamespacedName{Name: fqdnStateConfigmapName, Namespace: fqdnStateNamespace}
+	scm := v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fqdnStateConfigmapName,
+			Namespace: fqdnStateNamespace,
+		},
+		Data: map[string]string{
+			"state": string(s),
+		},
+	}
+
+	if err := c.shootClient.Get(c.ctx, nn, &v1.ConfigMap{}); err != nil {
+		if err := c.shootClient.Create(c.ctx, &scm, nil); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if err := c.shootClient.Update(c.ctx, &scm); err != nil {
 		return err
 	}
 	return nil
