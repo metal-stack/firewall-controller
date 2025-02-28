@@ -128,15 +128,19 @@ func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool,
 		setNames:      map[string]struct{}{},
 		dnsServerAddr: dns,
 		shootClient:   shootClient,
-		stateConfigmap: &v1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      fqdnStateConfigmapName,
-				Namespace: fqdnStateNamespace,
-			},
-		},
-		ipv4Enabled: ipv4Enabled,
-		ipv6Enabled: ipv6Enabled,
+		ipv4Enabled:   ipv4Enabled,
+		ipv6Enabled:   ipv6Enabled,
 	}
+
+	scm := v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fqdnStateConfigmapName,
+			Namespace: fqdnStateNamespace,
+		},
+	}
+
+	c.stateConfigmap = &scm
+
 	if err := shootClient.Get(ctx, client.ObjectKey{Namespace: fqdnStateNamespace, Name: fqdnStateConfigmapName}, c.stateConfigmap); err != nil {
 		if err := shootClient.Create(ctx, c.stateConfigmap, nil); err != nil {
 			return nil, err
