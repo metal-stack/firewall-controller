@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"runtime/debug"
 	"time"
 
 	"github.com/metal-stack/v"
