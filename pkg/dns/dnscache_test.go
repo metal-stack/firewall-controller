@@ -11,20 +11,20 @@ import (
 func Test_GetSetsForFQDN(t *testing.T) {
 	tests := []struct {
 		name         string
-		fqdnToEntry  map[string]cacheEntry
+		fqdnToEntry  map[string]CacheEntry
 		expectedSets []string
 		fqdnSelector firewallv1.FQDNSelector
 		cachedSets   []firewallv1.IPSet
 	}{
 		{
 			name: "get result for matchName",
-			fqdnToEntry: map[string]cacheEntry{
+			fqdnToEntry: map[string]CacheEntry{
 				"test.com.": {
-					ipv4: &ipEntry{
-						setName: "testv4",
+					IPv4: &IPEntry{
+						SetName: "testv4",
 					},
-					ipv6: &ipEntry{
-						setName: "testv6",
+					IPv6: &IPEntry{
+						SetName: "testv6",
 					},
 				},
 			},
@@ -35,37 +35,37 @@ func Test_GetSetsForFQDN(t *testing.T) {
 		},
 		{
 			name: "get result for matchPattern",
-			fqdnToEntry: map[string]cacheEntry{
+			fqdnToEntry: map[string]CacheEntry{
 				"test.com.": {
-					ipv4: &ipEntry{
-						setName: "testv4",
+					IPv4: &IPEntry{
+						SetName: "testv4",
 					},
-					ipv6: &ipEntry{
-						setName: "testv6",
+					IPv6: &IPEntry{
+						SetName: "testv6",
 					},
 				},
 				"test.io.": {
-					ipv4: &ipEntry{
-						setName: "testiov4",
+					IPv4: &IPEntry{
+						SetName: "testiov4",
 					},
-					ipv6: &ipEntry{
-						setName: "testiov6",
+					IPv6: &IPEntry{
+						SetName: "testiov6",
 					},
 				},
 				"example.com.": {
-					ipv4: &ipEntry{
-						setName: "examplev4",
+					IPv4: &IPEntry{
+						SetName: "examplev4",
 					},
-					ipv6: &ipEntry{
-						setName: "examplev6",
+					IPv6: &IPEntry{
+						SetName: "examplev6",
 					},
 				},
 				"second.example.com.": {
-					ipv4: &ipEntry{
-						setName: "2examplev4",
+					IPv4: &IPEntry{
+						SetName: "2examplev4",
 					},
-					ipv6: &ipEntry{
-						setName: "2examplev6",
+					IPv6: &IPEntry{
+						SetName: "2examplev6",
 					},
 				},
 			},
@@ -76,13 +76,13 @@ func Test_GetSetsForFQDN(t *testing.T) {
 		},
 		{
 			name: "pattern from integration testing",
-			fqdnToEntry: map[string]cacheEntry{
+			fqdnToEntry: map[string]CacheEntry{
 				"www.freechess.org.": {
-					ipv4: &ipEntry{
-						setName: "testv4",
+					IPv4: &IPEntry{
+						SetName: "testv4",
 					},
-					ipv6: &ipEntry{
-						setName: "testv6",
+					IPv6: &IPEntry{
+						SetName: "testv6",
 					},
 				},
 			},
