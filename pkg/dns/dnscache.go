@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
 	"sync"
@@ -168,43 +169,39 @@ func (c *DNSCache) writeStateToConfigmap() error {
 	c.log.V(4).Info("DEBUG writing cache to configmap", "fqdnToEntry", s)
 
 	nn := types.NamespacedName{Name: fqdnStateConfigmapName, Namespace: fqdnStateNamespace}
+	meta := metav1.ObjectMeta{
+		Name:      fqdnStateConfigmapName,
+		Namespace: fqdnStateNamespace,
+	}
+
+	var currentCm v1.ConfigMap
+	err = c.shootClient.Get(c.ctx, nn, &currentCm)
+	if err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+
 	scm := v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fqdnStateConfigmapName,
-			Namespace: fqdnStateNamespace,
+		ObjectMeta: meta,
+		Data: map[string]string{
+			fqdnStateConfigmapKey: string(s),
 		},
 	}
 
-	found := true
-	err = c.shootClient.Get(c.ctx, nn, &scm)
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
+	if apierrors.IsNotFound(err) {
+		c.log.V(4).Info("DEBUG configmap not found, trying to create configmap", "NamespacedName", nn, "configmap to create", scm)
+		err = c.shootClient.Create(c.ctx, &scm)
+		if err != nil {
 			return err
 		}
-		c.log.V(4).Info("DEBUG configmap not found", "NamespacedName", nn)
-		found = false
 	}
 
-	scm.Data = map[string]string{
-		fqdnStateConfigmapKey: string(s),
-	}
-
-	c.log.V(4).Info("DEBUG configmap to write", "scm", scm)
-
-	if !found {
-		c.log.V(4).Info("DEBUG configmap not found, trying to create")
-		if err := c.shootClient.Create(c.ctx, &scm, nil); err != nil {
+	if !reflect.DeepEqual(currentCm.Data, scm.Data) {
+		currentCm.Data = scm.Data
+		err = c.shootClient.Update(c.ctx, &currentCm)
+		if err != nil {
 			return err
 		}
-		c.log.V(4).Info("DEBUG configmap created", "scm", scm)
-		return nil
 	}
-
-	c.log.V(4).Info("DEBUG configmap found, trying to update")
-	if err := c.shootClient.Update(c.ctx, &scm); err != nil {
-		return err
-	}
-	c.log.V(4).Info("DEBUG configmap updated", "scm", scm)
 	return nil
 }
 
