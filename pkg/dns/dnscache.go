@@ -40,6 +40,7 @@ const (
 	// Configmap that holds the FQDN state
 	fqdnStateConfigmapName = "fqdnstate"
 	fqdnStateNamespace     = "firewall"
+	fqdnStateConfigmapKey  = "state"
 )
 
 // RenderIPSet stores set info for rendering
@@ -144,7 +145,7 @@ func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool,
 		return &c, nil
 
 	}
-	if scm.Data["state"] == "" {
+	if scm.Data[fqdnStateConfigmapKey] == "" {
 		return &c, nil
 
 	}
@@ -172,13 +173,23 @@ func (c *DNSCache) writeStateToConfigmap() error {
 			Name:      fqdnStateConfigmapName,
 			Namespace: fqdnStateNamespace,
 		},
-		Data: map[string]string{
-			"state": string(s),
-		},
 	}
-	c.log.V(4).Info("DEBUG created configmap", "scm", scm)
 
-	if err := c.shootClient.Get(c.ctx, nn, &v1.ConfigMap{}); err != nil {
+	found := true
+	err = c.shootClient.Get(c.ctx, nn, &scm)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
+		c.log.V(4).Info("DEBUG configmap not found", "NamespacedName", nn)
+		found = false
+	}
+
+	scm.Data[fqdnStateConfigmapKey] = string(s)
+
+	c.log.V(4).Info("DEBUG configmap to write", "scm", scm)
+
+	if !found {
 		c.log.V(4).Info("DEBUG configmap not found, trying to create")
 		if err := c.shootClient.Create(c.ctx, &scm, nil); err != nil {
 			return err
@@ -191,7 +202,7 @@ func (c *DNSCache) writeStateToConfigmap() error {
 	if err := c.shootClient.Update(c.ctx, &scm); err != nil {
 		return err
 	}
-	c.log.V(4).Info("DEBUG configmap created", "scm", scm)
+	c.log.V(4).Info("DEBUG configmap updated", "scm", scm)
 	return nil
 }
 
