@@ -51,8 +51,8 @@ type RenderIPSet struct {
 
 type ipEntry struct {
 	// ips is a map of the ip address and its expiration time which is the time of the DNS lookup + the TTL
-	ips     map[string]time.Time
-	setName string
+	ips     map[string]time.Time `json:"ips,omitempty"`
+	setName string               `json:"setName,omitempty"`
 }
 
 func newIPEntry(setName string) *ipEntry {
@@ -105,8 +105,8 @@ func (e *ipEntry) addAndUpdateIPs(log logr.Logger, rrs []dnsgo.RR, lookupTime ti
 }
 
 type cacheEntry struct {
-	ipv4 *ipEntry
-	ipv6 *ipEntry
+	ipv4 *ipEntry `json:"ipv4,omitempty"`
+	ipv6 *ipEntry `json:"ipv4,omitempty"`
 }
 
 type DNSCache struct {
