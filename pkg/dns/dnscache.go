@@ -185,7 +185,9 @@ func (c *DNSCache) writeStateToConfigmap() error {
 		found = false
 	}
 
-	scm.Data[fqdnStateConfigmapKey] = string(s)
+	scm.Data = map[string]string{
+		fqdnStateConfigmapKey: string(s),
+	}
 
 	c.log.V(4).Info("DEBUG configmap to write", "scm", scm)
 
