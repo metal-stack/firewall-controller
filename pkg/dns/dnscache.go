@@ -177,8 +177,8 @@ func (c *DNSCache) writeStateToConfigmap() error {
 		Namespace: fqdnStateNamespace,
 	}
 
-	c.log.V(4).Info("DEBUG lookint for configmap", "namespacedname", nn)
-	var currentCm *v1.ConfigMap
+	c.log.V(4).Info("DEBUG looking for configmap", "namespacedname", nn)
+	currentCm := &v1.ConfigMap{}
 	err = c.shootClient.Get(c.ctx, nn, currentCm)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
@@ -462,7 +462,7 @@ func (c *DNSCache) Update(lookupTime time.Time, qname string, msg *dnsgo.Msg, fq
 
 	if ipEntriesUpdated {
 		if err := c.writeStateToConfigmap(); err != nil {
-			c.log.V(4).Info("DEBUG could not write updated DNS cache to state configmap", "configmap", fqdnStateConfigmapName, "namespace", fqdnStateNamespace)
+			c.log.V(4).Info("DEBUG could not write updated DNS cache to state configmap", "configmap", fqdnStateConfigmapName, "namespace", fqdnStateNamespace, "error", err)
 		}
 	}
 
