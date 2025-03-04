@@ -177,19 +177,19 @@ func (c *DNSCache) writeStateToConfigmap() error {
 		Namespace: fqdnStateNamespace,
 	}
 
-	c.log.V(4).Info("DEBUG looking for configmap", "namespacedname", nn)
 	currentCm := &v1.ConfigMap{}
+	cmData := map[string]string{}
+	cmData[fqdnStateConfigmapKey] = string(s)
+	scm := &v1.ConfigMap{
+		ObjectMeta: meta,
+		Data:       cmData,
+	}
+
+	c.log.V(4).Info("DEBUG looking for configmap", "namespacedname", nn)
 	err = c.shootClient.Get(c.ctx, nn, currentCm)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
-	scm := &v1.ConfigMap{
-		ObjectMeta: meta,
-		Data: map[string]string{
-			fqdnStateConfigmapKey: string(s),
-		},
-	}
-
 	if apierrors.IsNotFound(err) {
 		c.log.V(4).Info("DEBUG configmap not found, trying to create configmap", "NamespacedName", nn, "configmap to create", scm)
 		err = c.shootClient.Create(c.ctx, scm)
