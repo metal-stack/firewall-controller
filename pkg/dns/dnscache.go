@@ -136,21 +136,24 @@ func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool,
 	}
 
 	nn := types.NamespacedName{Name: fqdnStateConfigmapName, Namespace: fqdnStateNamespace}
-	scm := v1.ConfigMap{}
+	scm := &v1.ConfigMap{}
 
-	err := shootClient.Get(ctx, nn, &scm)
+	err := shootClient.Get(ctx, nn, scm)
 	if err != nil && !apierrors.IsNotFound(err) {
+		c.log.V(4).Info("DEBUG error reading fqndstate configmap")
 		return nil, err
 	}
 	if scm.Data == nil {
+		c.log.V(4).Info("DEBUG cm contains no data", "cm", scm)
 		return &c, nil
 
 	}
 	if scm.Data[fqdnStateConfigmapKey] == "" {
+		c.log.V(4).Info("DEBUG cm does not contain the right key", "cm", scm, "key", fqdnStateConfigmapKey)
 		return &c, nil
 
 	}
-	err = json.Unmarshal([]byte(scm.Data["state"]), &c.fqdnToEntry)
+	err = json.Unmarshal([]byte(scm.Data[fqdnStateConfigmapKey]), &c.fqdnToEntry)
 	if err != nil {
 		return nil, err
 	}
@@ -174,13 +177,13 @@ func (c *DNSCache) writeStateToConfigmap() error {
 		Namespace: fqdnStateNamespace,
 	}
 
-	var currentCm v1.ConfigMap
-	err = c.shootClient.Get(c.ctx, nn, &currentCm)
+	c.log.V(4).Info("DEBUG lookint for configmap", "namespacedname", nn)
+	var currentCm *v1.ConfigMap
+	err = c.shootClient.Get(c.ctx, nn, currentCm)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
-
-	scm := v1.ConfigMap{
+	scm := &v1.ConfigMap{
 		ObjectMeta: meta,
 		Data: map[string]string{
 			fqdnStateConfigmapKey: string(s),
@@ -189,15 +192,16 @@ func (c *DNSCache) writeStateToConfigmap() error {
 
 	if apierrors.IsNotFound(err) {
 		c.log.V(4).Info("DEBUG configmap not found, trying to create configmap", "NamespacedName", nn, "configmap to create", scm)
-		err = c.shootClient.Create(c.ctx, &scm)
+		err = c.shootClient.Create(c.ctx, scm)
 		if err != nil {
 			return err
 		}
 	}
 
+	c.log.V(4).Info("DEBUG trying to updatecm", "current cm", currentCm, "cm", scm)
 	if !reflect.DeepEqual(currentCm.Data, scm.Data) {
 		currentCm.Data = scm.Data
-		err = c.shootClient.Update(c.ctx, &currentCm)
+		err = c.shootClient.Update(c.ctx, currentCm)
 		if err != nil {
 			return err
 		}
