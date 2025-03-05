@@ -91,7 +91,7 @@ func main() {
 		return
 	}
 
-	jsonHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{})
+	jsonHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})
 	l := slog.New(jsonHandler)
 
 	ctrl.SetLogger(logr.FromSlogHandler(jsonHandler))
