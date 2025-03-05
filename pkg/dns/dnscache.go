@@ -171,6 +171,45 @@ func (c *DNSCache) writeStateToConfigmap() error {
 	}
 	c.log.V(4).Info("DEBUG writing cache to configmap", "fqdnToEntry", s)
 
+	// debugging: Try to read, create, update simple configmap.
+	dnn := types.NamespacedName{Name: "dcm", Namespace: fqdnStateNamespace}
+	cdcm := v1.ConfigMap{}
+
+	dcm := v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "dcm",
+			Namespace: fqdnStateNamespace,
+		},
+		Data: map[string]string{
+			"testkey": "testvalue",
+		},
+	}
+
+	c.log.V(4).Info("DEBUG looking for debug configmap", "namespacedname", dnn)
+	err = c.shootClient.Get(c.ctx, dnn, &cdcm)
+	if err != nil && !apierrors.IsNotFound(err) {
+		c.log.V(4).Info("DEBUG error reading debug configmap", "namespacedname", dnn, "error", err)
+		return err
+	}
+
+	if apierrors.IsNotFound(err) {
+		c.log.V(4).Info("DEBUG debug configmap not found, trying to create", "namespacedname", dnn)
+		err = c.shootClient.Create(c.ctx, &dcm)
+		if err != nil {
+			c.log.V(4).Info("DEBUG error creating debug configmap", "configmap", dcm, "error", err)
+			return err
+		}
+	} else {
+		c.log.V(4).Info("DEBUG debug configmap found, trying to update", "current configmap", cdcm, "configmap", dcm)
+		err = c.shootClient.Update(c.ctx, &dcm)
+		if err != nil {
+			c.log.V(4).Info("DEBUG error updating debug configmap", "configmap", dcm, "error", err)
+			return err
+		}
+	}
+
+	// end debugging code
+
 	nn := types.NamespacedName{Name: fqdnStateConfigmapName, Namespace: fqdnStateNamespace}
 	meta := metav1.ObjectMeta{
 		Name:      fqdnStateConfigmapName,
