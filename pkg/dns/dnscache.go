@@ -131,6 +131,7 @@ func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool,
 		setNames:      map[string]struct{}{},
 		dnsServerAddr: dns,
 		shootClient:   shootClient,
+		ctx:           ctx,
 		ipv4Enabled:   ipv4Enabled,
 		ipv6Enabled:   ipv6Enabled,
 	}
