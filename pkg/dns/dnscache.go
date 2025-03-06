@@ -156,7 +156,8 @@ func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool,
 	c.log.V(4).Info("DEBUG state stored in cm, trying to unmarshal", fqdnStateConfigmapKey, scm.Data[fqdnStateConfigmapKey])
 	err = yaml.UnmarshalStrict([]byte(scm.Data[fqdnStateConfigmapKey]), &c.fqdnToEntry)
 	if err != nil {
-		return nil, err
+		c.log.V(4).Info("DEBUG could not unmarshal state from configmap, discarding content.", "error", err)
+		c.fqdnToEntry = map[string]CacheEntry{}
 	}
 	return &c, nil
 }
