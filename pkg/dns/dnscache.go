@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/md5" //nolint:gosec
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -18,10 +17,10 @@ import (
 	dnsgo "github.com/miekg/dns"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/yaml"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 )
@@ -145,7 +144,7 @@ func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool,
 		return nil, err
 	}
 	if scm.Data == nil {
-		c.log.V(4).Info("DEBUG cm contains no data", "cm", scm)
+		c.log.V(4).Info("DEBUG cm not found or contains no data", "cm", scm)
 		return &c, nil
 
 	}
@@ -154,7 +153,8 @@ func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool,
 		return &c, nil
 
 	}
-	err = json.Unmarshal([]byte(scm.Data[fqdnStateConfigmapKey]), &c.fqdnToEntry)
+	c.log.V(4).Info("DEBUG state stored in cm, trying to unmarshal", fqdnStateConfigmapKey, scm.Data[fqdnStateConfigmapKey])
+	err = yaml.UnmarshalStrict([]byte(scm.Data[fqdnStateConfigmapKey]), &c.fqdnToEntry)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +163,7 @@ func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool,
 
 // writeStateToConfigmap writes the whole DNS cache to the state configmap
 func (c *DNSCache) writeStateToConfigmap() error {
-	s, err := json.Marshal(c.fqdnToEntry)
+	s, err := yaml.Marshal(c.fqdnToEntry)
 	if err != nil {
 		return err
 	}
@@ -172,57 +172,16 @@ func (c *DNSCache) writeStateToConfigmap() error {
 	}
 	c.log.V(4).Info("DEBUG writing cache to configmap", "fqdnToEntry", s)
 
-	// debugging: Try to read, create, update simple configmap.
-	dnn := types.NamespacedName{Name: "dcm", Namespace: fqdnStateNamespace}
-	cdcm := v1.ConfigMap{}
-
-	dcm := v1.ConfigMap{
+	currentCm := &v1.ConfigMap{}
+	nn := types.NamespacedName{Name: fqdnStateConfigmapName, Namespace: fqdnStateNamespace}
+	scm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "dcm",
+			Name:      fqdnStateConfigmapName,
 			Namespace: fqdnStateNamespace,
 		},
 		Data: map[string]string{
-			"testkey": "testvalue",
+			fqdnStateConfigmapKey: string(s),
 		},
-	}
-
-	c.log.V(4).Info("DEBUG looking for debug configmap", "namespacedname", dnn)
-	err = c.shootClient.Get(c.ctx, dnn, &cdcm)
-	if err != nil && !apierrors.IsNotFound(err) {
-		c.log.V(4).Info("DEBUG error reading debug configmap", "namespacedname", dnn, "error", err)
-		return err
-	}
-
-	if apierrors.IsNotFound(err) {
-		c.log.V(4).Info("DEBUG debug configmap not found, trying to create", "namespacedname", dnn)
-		err = c.shootClient.Create(c.ctx, &dcm)
-		if err != nil {
-			c.log.V(4).Info("DEBUG error creating debug configmap", "configmap", dcm, "error", err)
-			return err
-		}
-	} else {
-		c.log.V(4).Info("DEBUG debug configmap found, trying to update", "current configmap", cdcm, "configmap", dcm)
-		err = c.shootClient.Update(c.ctx, &dcm)
-		if err != nil {
-			c.log.V(4).Info("DEBUG error updating debug configmap", "configmap", dcm, "error", err)
-			return err
-		}
-	}
-
-	// end debugging code
-
-	nn := types.NamespacedName{Name: fqdnStateConfigmapName, Namespace: fqdnStateNamespace}
-	meta := metav1.ObjectMeta{
-		Name:      fqdnStateConfigmapName,
-		Namespace: fqdnStateNamespace,
-	}
-
-	currentCm := &v1.ConfigMap{}
-	cmData := map[string]string{}
-	cmData[fqdnStateConfigmapKey] = string(s)
-	scm := &v1.ConfigMap{
-		ObjectMeta: meta,
-		Data:       cmData,
 	}
 
 	c.log.V(4).Info("DEBUG looking for configmap", "namespacedname", nn)
@@ -238,7 +197,7 @@ func (c *DNSCache) writeStateToConfigmap() error {
 		}
 	}
 
-	c.log.V(4).Info("DEBUG trying to updatecm", "current cm", currentCm, "cm", scm)
+	c.log.V(4).Info("DEBUG trying to update cm", "current cm", currentCm, "cm", scm)
 	if !reflect.DeepEqual(currentCm.Data, scm.Data) {
 		currentCm.Data = scm.Data
 		err = c.shootClient.Update(c.ctx, currentCm)
