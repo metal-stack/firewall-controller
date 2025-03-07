@@ -91,7 +91,13 @@ func main() {
 		return
 	}
 
-	jsonHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})
+	var sll slog.Level
+	var err error
+	err = sll.UnmarshalText([]byte(logLevel))
+	if err != nil {
+		sll = slog.LevelInfo
+	}
+	jsonHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: sll})
 	l := slog.New(jsonHandler)
 
 	ctrl.SetLogger(logr.FromSlogHandler(jsonHandler))
@@ -105,7 +111,6 @@ func main() {
 
 	// FIXME validation and controller start should be refactored into own func which returns error
 	// instead Fatalw or Error and panic here.
-	var err error
 	if firewallName == "" {
 		firewallName, err = os.Hostname()
 		if err != nil {

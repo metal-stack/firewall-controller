@@ -140,23 +140,23 @@ func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool,
 
 	err := shootClient.Get(ctx, nn, scm)
 	if err != nil && !apierrors.IsNotFound(err) {
-		c.log.V(4).Info("DEBUG error reading fqndstate configmap")
+		c.log.Error(err, "error reading fqndstate configmap")
 		return nil, err
 	}
 	if scm.Data == nil {
-		c.log.V(4).Info("DEBUG cm not found or contains no data", "cm", scm)
+		c.log.V(4).Info("DEBUG fqdnstate cm not found or contains no data", "cm", scm)
 		return &c, nil
 
 	}
 	if scm.Data[fqdnStateConfigmapKey] == "" {
-		c.log.V(4).Info("DEBUG cm does not contain the right key", "cm", scm, "key", fqdnStateConfigmapKey)
+		c.log.V(4).Info("DEBUG fqdnstate cm does not contain the right key", "cm", scm, "key", fqdnStateConfigmapKey)
 		return &c, nil
 
 	}
-	c.log.V(4).Info("DEBUG state stored in cm, trying to unmarshal", fqdnStateConfigmapKey, scm.Data[fqdnStateConfigmapKey])
+	c.log.V(4).Info("DEBUG state stored in fqdnstate cm, trying to unmarshal", fqdnStateConfigmapKey, scm.Data[fqdnStateConfigmapKey])
 	err = yaml.UnmarshalStrict([]byte(scm.Data[fqdnStateConfigmapKey]), &c.fqdnToEntry)
 	if err != nil {
-		c.log.V(4).Info("DEBUG could not unmarshal state from configmap, discarding content.", "error", err)
+		c.log.Info("could not unmarshal state from fqdnstate configmap, ignoring content.", "error", err)
 		c.fqdnToEntry = map[string]CacheEntry{}
 	}
 	return &c, nil
@@ -171,7 +171,7 @@ func (c *DNSCache) writeStateToConfigmap() error {
 	if s == nil {
 		return nil
 	}
-	c.log.V(4).Info("DEBUG writing cache to configmap", "fqdnToEntry", s)
+	c.log.V(4).Info("DEBUG writing cache to configmap", "fqdnToEntry", string(s))
 
 	currentCm := &v1.ConfigMap{}
 	nn := types.NamespacedName{Name: fqdnStateConfigmapName, Namespace: fqdnStateNamespace}
