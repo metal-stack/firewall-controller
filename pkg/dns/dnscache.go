@@ -355,7 +355,7 @@ func (c *DNSCache) loadDataFromDNSServer(fqdns []string) error {
 			return fmt.Errorf("failed to get DNS data about fqdn %s: %w", fqdns[0], err)
 		}
 		c.log.V(4).Info("DEBUG dnscache loadDataFromDNSServer function calling Update function", "answer", in, "fqdns", fqdns)
-		if _, err = c.Update(time.Now(), qname, in, fqdns); err != nil {
+		if _, err = c.Update(time.Now().UTC(), qname, in, fqdns); err != nil {
 			return fmt.Errorf("failed to update DNS data for fqdn %s: %w", fqdns[0], err)
 		}
 	}
