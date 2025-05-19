@@ -21,6 +21,7 @@ import (
 type MockFQDNCache struct {
 	ctrl     *gomock.Controller
 	recorder *MockFQDNCacheMockRecorder
+	isgomock struct{}
 }
 
 // MockFQDNCacheMockRecorder is the mock recorder for MockFQDNCache.
@@ -56,31 +57,31 @@ func (mr *MockFQDNCacheMockRecorder) CacheAddr() *gomock.Call {
 }
 
 // GetSetsForFQDN mocks base method.
-func (m *MockFQDNCache) GetSetsForFQDN(arg0 v1.FQDNSelector, arg1 []v1.IPSet) []v1.IPSet {
+func (m *MockFQDNCache) GetSetsForFQDN(fqdn v1.FQDNSelector, fqdnSets []v1.IPSet) []v1.IPSet {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSetsForFQDN", arg0, arg1)
+	ret := m.ctrl.Call(m, "GetSetsForFQDN", fqdn, fqdnSets)
 	ret0, _ := ret[0].([]v1.IPSet)
 	return ret0
 }
 
 // GetSetsForFQDN indicates an expected call of GetSetsForFQDN.
-func (mr *MockFQDNCacheMockRecorder) GetSetsForFQDN(arg0, arg1 any) *gomock.Call {
+func (mr *MockFQDNCacheMockRecorder) GetSetsForFQDN(fqdn, fqdnSets any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSetsForFQDN", reflect.TypeOf((*MockFQDNCache)(nil).GetSetsForFQDN), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSetsForFQDN", reflect.TypeOf((*MockFQDNCache)(nil).GetSetsForFQDN), fqdn, fqdnSets)
 }
 
 // GetSetsForRendering mocks base method.
-func (m *MockFQDNCache) GetSetsForRendering(arg0 []v1.FQDNSelector) []dns.RenderIPSet {
+func (m *MockFQDNCache) GetSetsForRendering(fqdns []v1.FQDNSelector) []dns.RenderIPSet {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSetsForRendering", arg0)
+	ret := m.ctrl.Call(m, "GetSetsForRendering", fqdns)
 	ret0, _ := ret[0].([]dns.RenderIPSet)
 	return ret0
 }
 
 // GetSetsForRendering indicates an expected call of GetSetsForRendering.
-func (mr *MockFQDNCacheMockRecorder) GetSetsForRendering(arg0 any) *gomock.Call {
+func (mr *MockFQDNCacheMockRecorder) GetSetsForRendering(fqdns any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSetsForRendering", reflect.TypeOf((*MockFQDNCache)(nil).GetSetsForRendering), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSetsForRendering", reflect.TypeOf((*MockFQDNCache)(nil).GetSetsForRendering), fqdns)
 }
 
 // IsInitialized mocks base method.

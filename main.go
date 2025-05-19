@@ -29,6 +29,7 @@ import (
 
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 	"github.com/metal-stack/firewall-controller/v2/controllers"
+	"github.com/metal-stack/firewall-controller/v2/pkg/frr"
 	"github.com/metal-stack/firewall-controller/v2/pkg/sysctl"
 	"github.com/metal-stack/firewall-controller/v2/pkg/updater"
 	// +kubebuilder:scaffold:imports
@@ -213,8 +214,6 @@ func main() {
 		panic(err)
 	}
 
-	updater := updater.New(ctrl.Log.WithName("updater"), shootMgr.GetEventRecorderFor("FirewallController"))
-
 	fwmReconciler := &controllers.FirewallMonitorReconciler{
 		ShootClient:   shootMgr.GetClient(),
 		SeedClient:    seedMgr.GetClient(),
@@ -225,6 +224,15 @@ func main() {
 		Namespace:     firewallv2.FirewallShootNamespace,
 		SeedNamespace: seedNamespace,
 	}
+
+	frrVersion, err := frr.DetectVersion()
+	if err != nil {
+		l.Error("frr version detection", "error", err)
+		panic(err)
+	}
+	l.Info("detected frr", "version", frrVersion.String())
+
+	updater := updater.New(ctrl.Log.WithName("updater"), shootMgr.GetEventRecorderFor("FirewallController"))
 
 	// Firewall Reconciler
 	if err = (&controllers.FirewallReconciler{
@@ -238,6 +246,7 @@ func main() {
 		Updater:         updater,
 		SeedUpdatedFunc: fwmReconciler.SeedUpdated,
 		TokenUpdater:    accessTokenUpdater,
+		FrrVersion:      frrVersion,
 	}).SetupWithManager(seedMgr); err != nil {
 		l.Error("unable to create firewall controller", "error", err)
 		panic(err)

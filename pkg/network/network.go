@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Masterminds/semver/v3"
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	"github.com/metal-stack/metal-go/api/models"
 	"github.com/metal-stack/metal-networker/pkg/netconf"
@@ -55,8 +56,7 @@ func GetNewNetworks(f *firewallv2.Firewall, oldNetworks []*models.V1MachineNetwo
 
 // ReconcileNetwork reconciles the network settings for a firewall
 // Changes both the FRR-Configuration and Nftable rules when network prefixes or FRR template changes
-// Note: Right here the FRR Configs are being applied.
-func ReconcileNetwork(f *firewallv2.Firewall) (changed bool, err error) {
+func ReconcileNetwork(f *firewallv2.Firewall, frrVersion *semver.Version) (changed bool, err error) {
 	tmpFile, err := tmpFile(frrConfig)
 	if err != nil {
 		return false, fmt.Errorf("error during network reconciliation %v: %w", tmpFile, err)
@@ -72,7 +72,7 @@ func ReconcileNetwork(f *firewallv2.Firewall) (changed bool, err error) {
 	c.Networks = GetNewNetworks(f, c.Networks)
 	c.FirewallDistance = uint8(f.Distance)
 
-	a := netconf.NewFrrConfigApplier(netconf.Firewall, *c, tmpFile)
+	a := netconf.NewFrrConfigApplier(netconf.Firewall, *c, tmpFile, frrVersion)
 	tpl := netconf.MustParseTpl(netconf.TplFirewallFRR)
 
 	changed, err = a.Apply(*tpl, tmpFile, frrConfig, true)
