@@ -69,7 +69,8 @@ func (r *ClusterwideNetworkPolicyReconciler) SetupWithManager(mgr ctrl.Manager) 
 // +kubebuilder:rbac:groups=metal-stack.io,resources=clusterwidenetworkpolicies,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=metal-stack.io,resources=clusterwidenetworkpolicies/status,verbs=get;update;patch
 
-func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ctrl.Request) (ctrl.Result, error) {
+func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	r.Log.V(4).Info("DEBUG CWNP Reconcile", "request", req, "time", time.Now())
 	var cwnps firewallv1.ClusterwideNetworkPolicyList
 	if err := r.ShootClient.List(ctx, &cwnps, client.InNamespace(firewallv1.ClusterwideNetworkPolicyNamespace)); err != nil {
 		return ctrl.Result{}, err
@@ -249,7 +250,7 @@ func (r *ClusterwideNetworkPolicyReconciler) updateCWNPState(ctx context.Context
 	r.Log.V(4).Info("DEBUG CWNP reconcile, function updateCWNPState, trying to update status.", "cwnp", cwnp)
 
 	if err := r.ShootClient.Status().Update(ctx, &cwnp); err != nil {
-		return fmt.Errorf("failed to update status of CWNP %q to %q: %w", cwnp.Name, state, err)
+		return fmt.Errorf("failed to update status of CWNP %q to %q with message %s: %w", cwnp.Name, state, msg, err)
 	}
 	return nil
 }
