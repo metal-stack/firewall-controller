@@ -152,21 +152,14 @@ type FQDNSelector struct {
 }
 
 // IPSet stores set name association to IP addresses
-// type IPSet struct {
-// 	FQDN    string                 `json:"fqdn,omitempty"`
-// 	SetName string                 `json:"setName,omitempty"`
-// 	IPs     map[string]metav1.Time `json:"ips,omitempty"`
-// 	Version IPVersion              `json:"version,omitempty"`
-// }
-
-// IPSet stores set name association to IP addresses
 type IPSet struct {
-	FQDN           string      `json:"fqdn,omitempty"`
-	SetName        string      `json:"setName,omitempty"`
-	IPs            []string    `json:"ips,omitempty"`
-	ExpirationTime metav1.Time `json:"expirationTime,omitempty"`
-	Version        IPVersion   `json:"version,omitempty"`
+	FQDN    string    `json:"fqdn,omitempty"`
+	SetName string    `json:"setName,omitempty"`
+	IPs     IPs       `json:"ips,omitempty"`
+	Version IPVersion `json:"version,omitempty"`
 }
+
+type IPs map[string]metav1.Time
 
 func (l *ClusterwideNetworkPolicyList) GetFQDNs() []FQDNSelector {
 	s := []FQDNSelector{}
