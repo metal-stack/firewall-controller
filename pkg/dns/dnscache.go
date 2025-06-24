@@ -588,7 +588,7 @@ func createIPSetFromIPEntry(fqdn string, version firewallv1.IPVersion, entry *IP
 
 func createRenderIPSetFromIPEntry(version IPVersion, entry *IPEntry) RenderIPSet {
 	var ips []string
-	for ip, _ := range entry.IPs {
+	for ip := range entry.IPs {
 		ips = append(ips, ip)
 	}
 	return RenderIPSet{

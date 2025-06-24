@@ -197,12 +197,10 @@ func getConfiguredIPs(networkID string) []string {
 	}
 	var ips []string
 	for _, nw := range c.Networks {
-		nw := nw
 		if nw.Networkid == nil || *nw.Networkid != networkID {
 			continue
 		}
 		for _, ip := range nw.Ips {
-			ip := ip
 			ips = append(ips, ip)
 		}
 	}

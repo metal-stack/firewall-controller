@@ -158,9 +158,10 @@ func calculatePorts(ports []networkingv1.NetworkPolicyPort) (tcpPorts, udpPorts 
 		if p.EndPort != nil {
 			portStr = fmt.Sprintf("%s-%d", p.Port, *p.EndPort)
 		}
-		if proto == "tcp" {
+		switch proto {
+		case "tcp":
 			tcpPorts = append(tcpPorts, portStr)
-		} else if proto == "udp" {
+		case "udp":
 			udpPorts = append(udpPorts, portStr)
 		}
 	}

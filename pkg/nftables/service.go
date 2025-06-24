@@ -44,11 +44,11 @@ func serviceRules(svc corev1.Service, allowed *netipx.IPSet, logAcceptedConnecti
 	tcpPorts := []string{}
 	udpPorts := []string{}
 	for _, p := range svc.Spec.Ports {
-		p := p
 		proto := proto(&p.Protocol)
-		if proto == "tcp" {
+		switch proto {
+		case "tcp":
 			tcpPorts = append(tcpPorts, fmt.Sprint(p.Port))
-		} else if proto == "udp" {
+		case "udp":
 			udpPorts = append(udpPorts, fmt.Sprint(p.Port))
 		}
 	}
