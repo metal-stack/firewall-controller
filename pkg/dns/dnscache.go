@@ -283,11 +283,16 @@ func (c *DNSCache) restoreSets(fqdnSets []firewallv1.IPSet) {
 				SetName: s.SetName,
 			}
 
-			ips := make(map[string]time.Time)
-			for ip, exp := range s.IPs {
-				ips[ip] = exp.Time
+			for _, ip := range s.IPs {
+				ipa, _, _ := strings.Cut(ip, ",")
+				expirationTime := time.Now()
+				if _, ets, found := strings.Cut(ip, ": "); found {
+					if err := expirationTime.UnmarshalText([]byte(ets)); err != nil {
+						expirationTime = time.Now()
+					}
+				}
+				ipe.IPs[ipa] = expirationTime
 			}
-			ipe.IPs = ips
 
 			switch s.Version {
 			case firewallv1.IPv4:
