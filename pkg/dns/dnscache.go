@@ -95,7 +95,7 @@ func (e *IPEntry) addAndUpdateIPs(log logr.Logger, rrs []dnsgo.RR, lookupTime ti
 		case *dnsgo.AAAA:
 			s = r.AAAA.String()
 		}
-		if _, ok := e.IPs[s]; ok {
+		if _, ok := e.IPs[s]; !ok {
 			newIPs = append(newIPs, nftables.SetElement{Key: []byte(s)})
 		}
 		log.WithValues("ip", s, "rr header ttl", rr.Header().Ttl, "expiration time", lookupTime.Add(time.Duration(rr.Header().Ttl)*time.Second))
