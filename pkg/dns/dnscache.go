@@ -211,7 +211,7 @@ func (c *DNSCache) writeStateToConfigmap() error {
 
 // getSetsForFQDN returns sets for FQDN selector
 func (c *DNSCache) getSetsForFQDN(fqdn firewallv1.FQDNSelector, fqdnSets []firewallv1.IPSet) (result []firewallv1.IPSet) {
-	// c.restoreSets(fqdnSets)
+	c.restoreSets(fqdnSets)
 
 	sets := map[string]firewallv1.IPSet{}
 	if fqdn.MatchName != "" {
@@ -268,42 +268,39 @@ func (c *DNSCache) updateDNSServerAddr(addr string) {
 }
 
 // restoreSets add missing sets from FQDNSelector.Sets
-// func (c *DNSCache) restoreSets(fqdnSets []firewallv1.IPSet) {
-// 	for _, s := range fqdnSets {
-// 		// Add cache entries from fqdn.Sets if missing
-// 		c.Lock()
-// 		if _, ok := c.setNames[s.SetName]; !ok {
-// 			c.setNames[s.SetName] = struct{}{}
-// 			entry, exists := c.fqdnToEntry[s.FQDN]
-// 			if !exists {
-// 				entry = CacheEntry{}
-// 			}
-//
-// 			ipe := &IPEntry{
-// 				setName: s.SetName,
-// 			}
-// 			for _, ip := range s.IPs {
-// 				ipa, _, _ := strings.Cut(ip, ",")
-// 				expirationTime := time.Now()
-// 				if _, ets, found := strings.Cut(ip, ": "); found {
-// 					if err := expirationTime.UnmarshalText([]byte(ets)); err != nil {
-// 						expirationTime = time.Now()
-// 					}
-// 				}
-// 				ipe.IPs[ipa] = expirationTime
-// 			}
-// 			switch s.Version {
-// 			case firewallv1.IPv4:
-// 				entry.ipv4 = ipe
-// 			case firewallv1.IPv6:
-// 				entry.ipv6 = ipe
-// 			}
-//
-// 			c.fqdnToEntry[s.FQDN] = entry
-// 		}
-// 		c.Unlock()
-// 	}
-// }
+func (c *DNSCache) restoreSets(fqdnSets []firewallv1.IPSet) {
+	for _, s := range fqdnSets {
+		// Add cache entries from fqdn.Sets if missing
+		c.Lock()
+		if _, ok := c.setNames[s.SetName]; !ok {
+			c.setNames[s.SetName] = struct{}{}
+			entry, exists := c.fqdnToEntry[s.FQDN]
+			if !exists {
+				entry = CacheEntry{}
+			}
+
+			ipe := &IPEntry{
+				SetName: s.SetName,
+			}
+
+			ips := make(map[string]time.Time)
+			for ip, exp := range s.IPs {
+				ips[ip] = exp.Time
+			}
+			ipe.IPs = ips
+
+			switch s.Version {
+			case firewallv1.IPv4:
+				entry.IPv4 = ipe
+			case firewallv1.IPv6:
+				entry.IPv6 = ipe
+			}
+
+			c.fqdnToEntry[s.FQDN] = entry
+		}
+		c.Unlock()
+	}
+}
 
 // getSetNameForFQDN returns FQDN set data
 func (c *DNSCache) getSetNameForFQDN(fqdn string) (result []firewallv1.IPSet) {
