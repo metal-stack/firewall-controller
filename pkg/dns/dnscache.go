@@ -572,13 +572,14 @@ func createIPSetFromIPEntry(fqdn string, version firewallv1.IPVersion, entry *IP
 	ips := firewallv1.IPSet{
 		FQDN:    fqdn,
 		SetName: entry.SetName,
-		IPs:     make(firewallv1.IPs),
+		IPs:     []string{},
 		Version: version,
 	}
 	for ip, expirationTime := range entry.IPs {
-		ips.IPs[ip] = metav1.Time{
-			Time: expirationTime,
+		if et, err := expirationTime.MarshalText(); err == nil {
+			ip = ip + ", expiration time: " + string(et)
 		}
+		ips.IPs = append(ips.IPs, ip)
 	}
 	return ips
 }
