@@ -18,10 +18,12 @@ import (
 	"k8s.io/client-go/tools/record"
 
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
@@ -57,7 +59,7 @@ func (r *ClusterwideNetworkPolicyReconciler) SetupWithManager(mgr ctrl.Manager) 
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&firewallv1.ClusterwideNetworkPolicy{}).
+		For(&firewallv1.ClusterwideNetworkPolicy{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(&corev1.Service{}, &handler.EnqueueRequestForObject{}).
 		WatchesRawSource(&source.Channel{Source: scheduleChan}, &handler.EnqueueRequestForObject{}).
 		Complete(r)
