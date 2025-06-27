@@ -7,7 +7,6 @@ import (
 	"strconv"
 
 	"github.com/metal-stack/metal-networker/pkg/netconf"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 
@@ -37,11 +36,11 @@ type DNSProxy struct {
 	handler DNSHandler
 }
 
-func NewDNSProxy(dns string, port *uint, shootClient client.Client, log logr.Logger) (*DNSProxy, error) {
+func NewDNSProxy(dns string, port *uint, log logr.Logger) (*DNSProxy, error) {
 	if dns == "" {
 		dns = defaultDNSServerAddr
 	}
-	cache := newDNSCache(dns, true, false, shootClient, log.WithName("DNS cache"))
+	cache := newDNSCache(dns, true, false, log.WithName("DNS cache"))
 	handler := NewDNSProxyHandler(log, cache)
 
 	host, err := getHost()
