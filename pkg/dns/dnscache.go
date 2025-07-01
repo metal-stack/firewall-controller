@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -544,6 +545,7 @@ func createIPSetFromIPEntry(fqdn string, version firewallv1.IPVersion, entry *IP
 		}
 		ips.IPs = append(ips.IPs, ip)
 	}
+	sort.Strings(ips.IPs)
 	return ips
 }
 
