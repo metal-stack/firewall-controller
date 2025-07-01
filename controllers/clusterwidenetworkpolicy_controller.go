@@ -115,10 +115,8 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, req 
 	}
 
 	if updated {
-		r.Log.V(4).Info("DEBUG CWNP reconcile, cwnps updated, trying to update cwnp stati.", "cwnps", cwnps)
 		for _, i := range cwnps.Items {
 			o := i
-			r.Log.V(4).Info("DEBUG CWNP reconcile, trying to update cwnp status.", "cwnp", o)
 			if err := r.updateCWNPState(ctx, o, firewallv1.PolicyDeploymentStateDeployed, ""); err != nil {
 				return ctrl.Result{}, err
 			}
@@ -247,7 +245,6 @@ func (r *ClusterwideNetworkPolicyReconciler) allowedCWNPs(ctx context.Context, c
 func (r *ClusterwideNetworkPolicyReconciler) updateCWNPState(ctx context.Context, cwnp firewallv1.ClusterwideNetworkPolicy, state firewallv1.PolicyDeploymentState, msg string) error {
 	cwnp.Status.Message = msg
 	cwnp.Status.State = state
-	r.Log.V(4).Info("DEBUG CWNP reconcile, function updateCWNPState, trying to update status.", "cwnp", cwnp)
 
 	if err := r.ShootClient.Status().Update(ctx, &cwnp); err != nil {
 		return fmt.Errorf("failed to update status of CWNP %q to %q: %w", cwnp.Name, state, err)
