@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -228,6 +229,9 @@ func (c *DNSCache) getSetsForFQDN(fqdn firewallv1.FQDNSelector, fqdnSets []firew
 	for _, s := range sets {
 		result = append(result, s)
 	}
+	slices.SortStableFunc(result, func(a, b firewallv1.IPSet) int {
+		return strings.Compare(a.SetName, b.SetName)
+	})
 
 	c.log.WithValues("fqdn", fqdn, "fqdnSets", fqdnSets, "sets", result).Info("sets for FQDN")
 	return
@@ -258,6 +262,9 @@ func (c *DNSCache) getSetsForRendering(fqdns []firewallv1.FQDNSelector) (result 
 			}
 		}
 	}
+	slices.SortStableFunc(result, func(a, b RenderIPSet) int {
+		return strings.Compare(a.SetName, b.SetName)
+	})
 
 	return
 }
