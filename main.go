@@ -91,11 +91,8 @@ func main() {
 		return
 	}
 
-	var (
-	   sll slog.Level
-	   err error
-	)
-	err = sll.UnmarshalText([]byte(logLevel))
+	var sll slog.Level
+	err := sll.UnmarshalText([]byte(logLevel))
 	if err != nil {
 		sll = slog.LevelInfo
 	}
