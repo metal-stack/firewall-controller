@@ -75,6 +75,10 @@ func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 		}
 		egress = append(egress, rules...)
 	}
+
+	ingress = splitRules(ingress)
+	egress = splitRules(egress)
+
 	return &firewallRenderingData{
 		AdditionalDNSAddrs: dnsAddrs,
 		PrivateVrfID:       uint(*f.primaryPrivateNet.Vrf), // nolint:gosec
