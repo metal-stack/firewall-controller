@@ -561,6 +561,7 @@ func createRenderIPSetFromIPEntry(version IPVersion, entry *IPEntry) RenderIPSet
 	for ip := range entry.IPs {
 		ips = append(ips, ip)
 	}
+	sort.Strings(ips)
 	return RenderIPSet{
 		SetName: entry.SetName,
 		IPs:     ips,
