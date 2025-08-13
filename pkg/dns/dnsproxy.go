@@ -120,8 +120,8 @@ func (p *DNSProxy) GetSetsForRendering(fqdns []firewallv1.FQDNSelector) (result 
 	return p.cache.getSetsForRendering(fqdns)
 }
 
-func (p *DNSProxy) GetSetsForFQDN(fqdn firewallv1.FQDNSelector, fqdnSets []firewallv1.IPSet) (result []firewallv1.IPSet) {
-	return p.cache.getSetsForFQDN(fqdn, fqdnSets)
+func (p *DNSProxy) GetSetsForFQDN(fqdn firewallv1.FQDNSelector) (result []firewallv1.IPSet) {
+	return p.cache.getSetsForFQDN(fqdn)
 }
 
 func (p *DNSProxy) IsInitialized() bool {

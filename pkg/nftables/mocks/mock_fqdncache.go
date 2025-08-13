@@ -57,9 +57,9 @@ func (mr *MockFQDNCacheMockRecorder) CacheAddr() *gomock.Call {
 }
 
 // GetSetsForFQDN mocks base method.
-func (m *MockFQDNCache) GetSetsForFQDN(fqdn v1.FQDNSelector, fqdnSets []v1.IPSet) []v1.IPSet {
+func (m *MockFQDNCache) GetSetsForFQDN(fqdn v1.FQDNSelector) []v1.IPSet {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSetsForFQDN", fqdn, fqdnSets)
+	ret := m.ctrl.Call(m, "GetSetsForFQDN", fqdn)
 	ret0, _ := ret[0].([]v1.IPSet)
 	return ret0
 }

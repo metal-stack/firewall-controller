@@ -212,7 +212,7 @@ func (c *DNSCache) writeStateToConfigmap() error {
 }
 
 // getSetsForFQDN returns sets for FQDN selector
-func (c *DNSCache) getSetsForFQDN(fqdn firewallv1.FQDNSelector, fqdnSets []firewallv1.IPSet) (result []firewallv1.IPSet) {
+func (c *DNSCache) getSetsForFQDN(fqdn firewallv1.FQDNSelector) (result []firewallv1.IPSet) {
 	sets := map[string]firewallv1.IPSet{}
 	if fqdn.MatchName != "" {
 		for _, s := range c.getSetNameForFQDN(fqdn.GetMatchName()) {
@@ -233,7 +233,7 @@ func (c *DNSCache) getSetsForFQDN(fqdn firewallv1.FQDNSelector, fqdnSets []firew
 		return strings.Compare(a.SetName, b.SetName)
 	})
 
-	c.log.WithValues("fqdn", fqdn, "fqdnSets", fqdnSets, "sets", result).Info("sets for FQDN")
+	c.log.WithValues("fqdn", fqdn, "sets", result).Info("sets for FQDN")
 	return
 }
 

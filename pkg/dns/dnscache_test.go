@@ -4,17 +4,17 @@ import (
 	"testing"
 
 	"github.com/go-logr/logr"
+	"github.com/google/go-cmp/cmp"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 )
 
 func Test_GetSetsForFQDN(t *testing.T) {
 	tests := []struct {
-		name         string
-		fqdnToEntry  map[string]CacheEntry
-		expectedSets []string
-		fqdnSelector firewallv1.FQDNSelector
-		cachedSets   []firewallv1.IPSet
+		name        string
+		fqdnToEntry map[string]CacheEntry
+		want        []firewallv1.IPSet
+		fqdn        firewallv1.FQDNSelector
 	}{
 		{
 			name: "get result for matchName",
@@ -28,8 +28,21 @@ func Test_GetSetsForFQDN(t *testing.T) {
 					},
 				},
 			},
-			expectedSets: []string{"testv4", "testv6"},
-			fqdnSelector: firewallv1.FQDNSelector{
+			want: []firewallv1.IPSet{
+				{
+					SetName: "testv4",
+					FQDN:    "test.com.",
+					IPs:     []string{},
+					Version: "ip",
+				},
+				{
+					SetName: "testv6",
+					FQDN:    "test.com.",
+					IPs:     []string{},
+					Version: "ip6",
+				},
+			},
+			fqdn: firewallv1.FQDNSelector{
 				MatchName: "test.com",
 			},
 		},
@@ -69,8 +82,45 @@ func Test_GetSetsForFQDN(t *testing.T) {
 					},
 				},
 			},
-			expectedSets: []string{"testv4", "testv6", "examplev4", "examplev6", "2examplev4", "2examplev6"},
-			fqdnSelector: firewallv1.FQDNSelector{
+			want: []firewallv1.IPSet{
+				{
+					SetName: "2examplev4",
+					FQDN:    "second.example.com.",
+					IPs:     []string{},
+					Version: "ip",
+				},
+				{
+					SetName: "2examplev6",
+					FQDN:    "second.example.com.",
+					IPs:     []string{},
+					Version: "ip6",
+				},
+				{
+					SetName: "examplev4",
+					FQDN:    "example.com.",
+					IPs:     []string{},
+					Version: "ip",
+				},
+				{
+					SetName: "examplev6",
+					FQDN:    "example.com.",
+					IPs:     []string{},
+					Version: "ip6",
+				},
+				{
+					SetName: "testv4",
+					FQDN:    "test.com.",
+					IPs:     []string{},
+					Version: "ip",
+				},
+				{
+					SetName: "testv6",
+					FQDN:    "test.com.",
+					IPs:     []string{},
+					Version: "ip6",
+				},
+			},
+			fqdn: firewallv1.FQDNSelector{
 				MatchPattern: "*.com",
 			},
 		},
@@ -86,58 +136,39 @@ func Test_GetSetsForFQDN(t *testing.T) {
 					},
 				},
 			},
-			expectedSets: []string{"testv4", "testv6"},
-			fqdnSelector: firewallv1.FQDNSelector{
+			want: []firewallv1.IPSet{
+				{
+					SetName: "testv4",
+					FQDN:    "www.freechess.org.",
+					IPs:     []string{},
+					Version: "ip",
+				},
+				{
+					SetName: "testv6",
+					FQDN:    "www.freechess.org.",
+					IPs:     []string{},
+					Version: "ip6",
+				},
+			},
+			fqdn: firewallv1.FQDNSelector{
 				MatchPattern: "ww*.freechess.org",
 			},
 		},
-		/* {
-			name:         "restore sets",
-			fqdnToEntry:  map[string]cacheEntry{},
-			fqdnSelector: firewallv1.FQDNSelector{},
-			cachedSets: []firewallv1.IPSet{{
-				FQDN:    "test-fqdn",
-				SetName: "test-set",
-			}},
-		}, FIXME see how we can test the new state configmap approach */
 	}
 
 	for _, tt := range tests {
-		tc := tt
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			cache := DNSCache{
 				log:         logr.Discard(),
-				fqdnToEntry: tc.fqdnToEntry,
+				fqdnToEntry: tt.fqdnToEntry,
 				setNames:    make(map[string]struct{}),
 				ipv4Enabled: true,
 				ipv6Enabled: true,
 			}
-			result := cache.getSetsForFQDN(tc.fqdnSelector, tc.cachedSets)
 
-			set := make(map[string]bool, len(tc.expectedSets))
-			for _, s := range tc.expectedSets {
-				set[s] = false
-			}
-			for _, r := range result {
-				if _, found := set[r.SetName]; !found {
-					t.Errorf("set name %s wasn't expected", r.SetName)
-				}
-				set[r.SetName] = true
-			}
-			for s, b := range set {
-				if !b {
-					t.Errorf("set name %s didn't occurred in result", s)
-				}
-			}
-
-			// Check if cache was updated
-			for _, s := range tc.cachedSets {
-				if _, ok := cache.setNames[s.SetName]; !ok {
-					t.Errorf("set name %s wasn't added to cache", s.SetName)
-				}
-				if _, ok := cache.fqdnToEntry[s.FQDN]; !ok {
-					t.Errorf("FQDN %s wasn't added to cache", s.FQDN)
-				}
+			got := cache.getSetsForFQDN(tt.fqdn)
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("DNSCache.getSetsForFQDN diff = %s", diff)
 			}
 		})
 	}

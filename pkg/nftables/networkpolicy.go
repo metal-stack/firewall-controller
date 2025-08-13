@@ -139,7 +139,7 @@ func clusterwideNetworkPolicyEgressToFQDNRules(
 			fqdnName = fqdn.MatchPattern
 		}
 
-		fqdnState[fqdnName] = cache.GetSetsForFQDN(fqdn, fqdnState[fqdnName])
+		fqdnState[fqdnName] = cache.GetSetsForFQDN(fqdn)
 		for _, set := range fqdnState[fqdnName] {
 			rb := []string{"ip saddr == @cluster_prefixes"}
 			rb = append(rb, fmt.Sprintf(string(set.Version)+" daddr @%s", set.SetName))
