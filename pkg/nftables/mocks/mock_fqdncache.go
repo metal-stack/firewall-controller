@@ -65,9 +65,9 @@ func (m *MockFQDNCache) GetSetsForFQDN(fqdn v1.FQDNSelector) []v1.IPSet {
 }
 
 // GetSetsForFQDN indicates an expected call of GetSetsForFQDN.
-func (mr *MockFQDNCacheMockRecorder) GetSetsForFQDN(fqdn, fqdnSets any) *gomock.Call {
+func (mr *MockFQDNCacheMockRecorder) GetSetsForFQDN(fqdn any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSetsForFQDN", reflect.TypeOf((*MockFQDNCache)(nil).GetSetsForFQDN), fqdn, fqdnSets)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSetsForFQDN", reflect.TypeOf((*MockFQDNCache)(nil).GetSetsForFQDN), fqdn)
 }
 
 // GetSetsForRendering mocks base method.
