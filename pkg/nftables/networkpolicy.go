@@ -2,6 +2,7 @@ package nftables
 
 import (
 	"fmt"
+	"net/netip"
 	"strings"
 
 	networkingv1 "k8s.io/api/networking/v1"
@@ -73,6 +74,11 @@ func clusterwideNetworkPolicyEgressDNSCacheRules(cache FQDNCache, logAcceptedCon
 	}, nil
 }
 
+var (
+	ipv4any = netip.MustParsePrefix("0.0.0.0/0")
+	ipv6any = netip.MustParsePrefix("[::]/0")
+)
+
 func clusterwideNetworkPolicyEgressRules(
 	cache FQDNCache,
 	np firewallv1.ClusterwideNetworkPolicy,
@@ -88,8 +94,20 @@ func clusterwideNetworkPolicyEgressRules(
 				rb = append(rb, fmt.Sprintf("ip daddr != { %s }", strings.Join(except, ", ")))
 			}
 			if len(allow) > 0 {
-				if allow[0] != "0.0.0.0/0" {
-					rb = append(rb, fmt.Sprintf("ip daddr { %s }", strings.Join(allow, ", ")))
+				destination, err := netip.ParsePrefix(allow[0])
+				if err != nil {
+					// TODO error handling
+					continue
+				}
+				if destination.Addr().Is4() {
+					if destination != ipv4any {
+						rb = append(rb, fmt.Sprintf("ip daddr { %s }", strings.Join(allow, ", ")))
+					}
+				}
+				if destination.Addr().Is6() {
+					if destination != ipv6any {
+						rb = append(rb, fmt.Sprintf("ip daddr { %s }", strings.Join(allow, ", ")))
+					}
 				}
 			}
 			ruleBases = append(ruleBases, ruleBase{base: rb})
