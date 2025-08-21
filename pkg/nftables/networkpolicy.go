@@ -76,7 +76,7 @@ func clusterwideNetworkPolicyEgressDNSCacheRules(cache FQDNCache, logAcceptedCon
 
 var (
 	ipv4any = netip.MustParsePrefix("0.0.0.0/0")
-	ipv6any = netip.MustParsePrefix("[::]/0")
+	ipv6any = netip.MustParsePrefix("::/0")
 )
 
 func clusterwideNetworkPolicyEgressRules(
