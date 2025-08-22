@@ -141,7 +141,7 @@ func getUpdateCacheFunc(log logr.Logger, cache *DNSCache) func(lookupTime time.T
 		if response.Response && response.Rcode == dnsgo.RcodeSuccess {
 			scopedLog := log.WithValues(reqIdLogField, response.Id)
 			var qname string
-			if response.Question != nil && len(response.Question) > 0 {
+			if len(response.Question) > 0 {
 				qname = strings.ToLower(response.Question[0].Name)
 			}
 			log.V(4).Info("DEBUG dnsproxyhandler function getUpdateCacheFunc updating DNS cache", "queried name", qname, "dns response", response)

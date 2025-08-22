@@ -46,13 +46,14 @@ func serviceRules(svc corev1.Service, allowed *netipx.IPSet, logAcceptedConnecti
 	for _, p := range svc.Spec.Ports {
 		p := p
 		proto := proto(&p.Protocol)
-		if proto == "tcp" {
+		switch proto {
+		case "tcp":
 			tcpPorts = append(tcpPorts, fmt.Sprint(p.Port))
-		} else if proto == "udp" {
+		case "udp":
 			udpPorts = append(udpPorts, fmt.Sprint(p.Port))
 		}
 	}
-	comment := fmt.Sprintf("accept traffic for k8s service %s/%s", svc.ObjectMeta.Namespace, svc.ObjectMeta.Name)
+	comment := fmt.Sprintf("accept traffic for k8s service %s/%s", svc.Namespace, svc.Name)
 	rules := nftablesRules{}
 	if len(tcpPorts) > 0 {
 		rules = append(rules, assembleDestinationPortRule(ruleBase, "tcp", tcpPorts, logAcceptedConnections, comment))

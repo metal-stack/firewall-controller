@@ -223,9 +223,9 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 		}
 	}
 
-	if !reflect.DeepEqual(currentSvc.Spec, svc.Spec) || currentSvc.ObjectMeta.Labels == nil || !reflect.DeepEqual(currentSvc.ObjectMeta.Labels, svc.ObjectMeta.Labels) {
+	if !reflect.DeepEqual(currentSvc.Spec, svc.Spec) || currentSvc.Labels == nil || !reflect.DeepEqual(currentSvc.Labels, svc.Labels) {
 		currentSvc.Spec = svc.Spec
-		currentSvc.ObjectMeta.Labels = svc.ObjectMeta.Labels
+		currentSvc.Labels = svc.Labels
 		err = r.ShootClient.Update(ctx, &currentSvc)
 		if err != nil {
 			return err

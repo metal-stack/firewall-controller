@@ -177,9 +177,10 @@ func getAction(v *expr.Verdict) string {
 	if v == nil {
 		return "other"
 	}
-	if v.Kind == expr.VerdictAccept {
+	switch v.Kind {
+	case expr.VerdictAccept:
 		return "accept"
-	} else if v.Kind == expr.VerdictDrop {
+	case expr.VerdictDrop:
 		return "drop"
 	}
 	return "other"
