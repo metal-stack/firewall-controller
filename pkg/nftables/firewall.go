@@ -138,7 +138,9 @@ func (f *Firewall) Reconcile() (updated bool, err error) {
 	if err != nil {
 		return
 	}
-	defer os.Remove(tmpFile.Name())
+	defer func() {
+		_ = os.Remove(tmpFile.Name())
+	}()
 
 	err = f.reconcileIfaceAddresses()
 	if err != nil {
