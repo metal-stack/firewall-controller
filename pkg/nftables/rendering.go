@@ -132,7 +132,9 @@ func (d *firewallRenderingData) readTpl() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer r.Close()
+	defer func() {
+		_ = r.Close()
+	}()
 	bytes, err := io.ReadAll(r)
 	if err != nil {
 		return "", err

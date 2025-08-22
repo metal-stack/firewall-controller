@@ -62,7 +62,7 @@ func ReconcileNetwork(f *firewallv2.Firewall, frrVersion *semver.Version) (chang
 		return false, fmt.Errorf("error during network reconciliation %v: %w", tmpFile, err)
 	}
 	defer func() {
-		os.Remove(tmpFile)
+		_ = os.Remove(tmpFile)
 	}()
 
 	c, err := netconf.New(GetLogger(), MetalNetworkerConfig)

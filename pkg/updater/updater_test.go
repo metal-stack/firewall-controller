@@ -36,7 +36,9 @@ func Test_copyToTempFileAndValidateChecksum(t *testing.T) {
 			if err != nil {
 				panic(err)
 			}
-			defer os.Remove(tmpFile)
+			defer func() {
+				_ = os.Remove(tmpFile)
+			}()
 			err = validateChecksum(tmpFile, tt.args.checksum)
 
 			if (err != nil) != tt.wantErr {

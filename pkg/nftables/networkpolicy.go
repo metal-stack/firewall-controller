@@ -48,7 +48,7 @@ func clusterwideNetworkPolicyIngressRules(np firewallv1.ClusterwideNetworkPolicy
 			common = append(common, fmt.Sprintf("ip saddr { %s }", strings.Join(allow, ", ")))
 		}
 		tcpPorts, udpPorts := calculatePorts(i.Ports)
-		comment := fmt.Sprintf("accept traffic for k8s network policy %s", np.ObjectMeta.Name)
+		comment := fmt.Sprintf("accept traffic for k8s network policy %s", np.Name)
 		if len(tcpPorts) > 0 {
 			rules = append(rules, assembleDestinationPortRule(common, "tcp", tcpPorts, logAcceptedConnections, comment+" tcp"))
 		}
@@ -100,7 +100,7 @@ func clusterwideNetworkPolicyEgressRules(
 			fqdnState = u
 		}
 
-		comment := fmt.Sprintf("accept traffic for np %s", np.ObjectMeta.Name)
+		comment := fmt.Sprintf("accept traffic for np %s", np.Name)
 		for _, rb := range ruleBases {
 			if len(tcpPorts) > 0 {
 				rules = append(rules, assembleDestinationPortRule(rb.base, "tcp", tcpPorts, logAcceptedConnections, comment+" tcp"+rb.comment))

@@ -52,7 +52,7 @@ func serviceRules(svc corev1.Service, allowed *netipx.IPSet, logAcceptedConnecti
 			udpPorts = append(udpPorts, fmt.Sprint(p.Port))
 		}
 	}
-	comment := fmt.Sprintf("accept traffic for k8s service %s/%s", svc.ObjectMeta.Namespace, svc.ObjectMeta.Name)
+	comment := fmt.Sprintf("accept traffic for k8s service %s/%s", svc.Namespace, svc.Name)
 	rules := nftablesRules{}
 	if len(tcpPorts) > 0 {
 		rules = append(rules, assembleDestinationPortRule(ruleBase, "tcp", tcpPorts, logAcceptedConnections, comment))

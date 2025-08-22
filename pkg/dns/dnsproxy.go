@@ -159,10 +159,10 @@ func bindToPort(host string, port int, log logr.Logger) (*net.UDPConn, *net.TCPL
 	defer func() {
 		if err != nil {
 			if listener != nil {
-				listener.Close()
+				_ = listener.Close()
 			}
 			if conn != nil {
-				conn.Close()
+				_ = conn.Close()
 			}
 		}
 	}()
