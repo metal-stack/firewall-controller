@@ -60,7 +60,7 @@ func (r *DroptailerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		if err != nil {
 			return err
 		}
-		empty.Close()
+		_ = empty.Close()
 	}
 
 	hosts, err := txeh.NewHosts(hc)

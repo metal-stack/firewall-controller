@@ -56,7 +56,9 @@ func copyToTempFile(binaryReader io.ReadCloser, filename string) (string, error)
 	if err != nil {
 		return "", err
 	}
-	defer binaryReader.Close()
+	defer func() {
+		_ = binaryReader.Close()
+	}()
 
 	err = os.Chmod(file.Name(), 0755)
 	if err != nil {
@@ -84,7 +86,9 @@ func slurpFile(url string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 	content, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
