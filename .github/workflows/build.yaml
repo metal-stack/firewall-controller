@@ -30,7 +30,7 @@ jobs:
         password: ${{ secrets.DOCKER_REGISTRY_TOKEN }}
 
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - uses: google-github-actions/auth@v1
       with:
@@ -39,14 +39,14 @@ jobs:
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v0
 
-    - name: Set up Go 1.23
+    - name: Set up Go 1.25
       uses: actions/setup-go@v5
       with:
-        go-version: '1.23'
+        go-version: '1.25'
         cache: false
 
     - name: Lint
-      uses: golangci/golangci-lint-action@v6
+      uses: golangci/golangci-lint-action@v8
       with:
         args: --build-tags integration -p bugs -p unused --timeout=3m
 
@@ -105,12 +105,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
-    - name: Set up Go 1.23
+    - name: Set up Go 1.25
       uses: actions/setup-go@v5
       with:
-        go-version: '1.23'
+        go-version: '1.25'
         cache: false
 
     - name: Run tests
