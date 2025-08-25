@@ -261,8 +261,6 @@ spec:
                         type: string
                       version:
                         type: string
-                    required:
-                    - expirationTime
                     type: object
                   type: array
                 description: |-

@@ -156,7 +156,7 @@ type IPSet struct {
 	FQDN              string                 `json:"fqdn,omitempty"`
 	SetName           string                 `json:"setName,omitempty"`
 	IPs               []string               `json:"ips,omitempty"`
-	ExpirationTime    metav1.Time            `json:"expirationTime"`
+	ExpirationTime    metav1.Time            `json:"expirationTime,omitempty"`
 	IPExpirationTimes map[string]metav1.Time `json:"ipExpirationTimes,omitempty"`
 	Version           IPVersion              `json:"version,omitempty"`
 }
