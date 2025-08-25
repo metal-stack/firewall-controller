@@ -31,17 +31,17 @@ const (
 // +kubebuilder:printcolumn:name="Message",type="string",JSONPath=".status.message"
 type ClusterwideNetworkPolicy struct {
 	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   PolicySpec   `json:"spec"`
-	Status PolicyStatus `json:"status"`
+	Spec   PolicySpec   `json:"spec,omitempty"`
+	Status PolicyStatus `json:"status,omitempty"`
 }
 
 // ClusterwideNetworkPolicyList contains a list of ClusterwideNetworkPolicy
 // +kubebuilder:object:root=true
 type ClusterwideNetworkPolicyList struct {
 	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata"`
+	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []ClusterwideNetworkPolicy `json:"items"`
 }
 
