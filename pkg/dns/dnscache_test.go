@@ -2,11 +2,12 @@ package dns
 
 import (
 	"testing"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
-
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func Test_GetSetsForFQDN(t *testing.T) {
@@ -169,6 +170,58 @@ func Test_GetSetsForFQDN(t *testing.T) {
 			got := cache.getSetsForFQDN(tt.fqdn)
 			if diff := cmp.Diff(tt.want, got); diff != "" {
 				t.Errorf("DNSCache.getSetsForFQDN diff = %s", diff)
+			}
+		})
+	}
+}
+
+func Test_createIPSetFromIPEntry(t *testing.T) {
+	tests := []struct {
+		name    string
+		fqdn    string
+		version firewallv1.IPVersion
+		entry   *IPEntry
+		want    firewallv1.IPSet
+	}{
+		{
+			name:    "empty ip entry",
+			fqdn:    "www.freechess.org",
+			version: "ip",
+			entry: &IPEntry{
+				SetName: "test",
+			},
+			want: firewallv1.IPSet{
+				FQDN:              "www.freechess.org",
+				SetName:           "test",
+				IPExpirationTimes: map[string]v1.Time{},
+				Version:           "ip",
+			},
+		},
+		{
+			name:    "entry contains ips",
+			fqdn:    "www.freechess.org",
+			version: "ip",
+			entry: &IPEntry{
+				SetName: "test",
+				IPs: map[string]time.Time{
+					"1.2.3.4": time.Date(2100, time.January, 1, 0, 0, 0, 0, time.UTC),
+				},
+			},
+			want: firewallv1.IPSet{
+				FQDN:    "www.freechess.org",
+				SetName: "test",
+				IPExpirationTimes: map[string]v1.Time{
+					"1.2.3.4": v1.NewTime(time.Date(2100, time.January, 1, 0, 0, 0, 0, time.UTC)),
+				},
+				Version: "ip",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := createIPSetFromIPEntry(tt.fqdn, tt.version, tt.entry)
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("createIPSetFromIPEntry() diff = %s", diff)
 			}
 		})
 	}

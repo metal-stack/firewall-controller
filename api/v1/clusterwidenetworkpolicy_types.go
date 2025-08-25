@@ -31,17 +31,17 @@ const (
 // +kubebuilder:printcolumn:name="Message",type="string",JSONPath=".status.message"
 type ClusterwideNetworkPolicy struct {
 	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
+	metav1.ObjectMeta `json:"metadata"`
 
-	Spec   PolicySpec   `json:"spec,omitempty"`
-	Status PolicyStatus `json:"status,omitempty"`
+	Spec   PolicySpec   `json:"spec"`
+	Status PolicyStatus `json:"status"`
 }
 
 // ClusterwideNetworkPolicyList contains a list of ClusterwideNetworkPolicy
 // +kubebuilder:object:root=true
 type ClusterwideNetworkPolicyList struct {
 	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
+	metav1.ListMeta `json:"metadata"`
 	Items           []ClusterwideNetworkPolicy `json:"items"`
 }
 
@@ -153,11 +153,12 @@ type FQDNSelector struct {
 
 // IPSet stores set name association to IP addresses
 type IPSet struct {
-	FQDN           string      `json:"fqdn,omitempty"`
-	SetName        string      `json:"setName,omitempty"`
-	IPs            []string    `json:"ips,omitempty"`
-	ExpirationTime metav1.Time `json:"expirationTime,omitempty"`
-	Version        IPVersion   `json:"version,omitempty"`
+	FQDN              string                 `json:"fqdn,omitempty"`
+	SetName           string                 `json:"setName,omitempty"`
+	IPs               []string               `json:"ips,omitempty"`
+	ExpirationTime    metav1.Time            `json:"expirationTime"`
+	IPExpirationTimes map[string]metav1.Time `json:"ipExpirationTimes,omitempty"`
+	Version           IPVersion              `json:"version,omitempty"`
 }
 
 func (l *ClusterwideNetworkPolicyList) GetFQDNs() []FQDNSelector {

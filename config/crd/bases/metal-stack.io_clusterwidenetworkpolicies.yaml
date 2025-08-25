@@ -248,6 +248,11 @@ spec:
                         type: string
                       fqdn:
                         type: string
+                      ipExpirationTimes:
+                        additionalProperties:
+                          format: date-time
+                          type: string
+                        type: object
                       ips:
                         items:
                           type: string
@@ -256,6 +261,8 @@ spec:
                         type: string
                       version:
                         type: string
+                    required:
+                    - expirationTime
                     type: object
                   type: array
                 description: |-
@@ -269,6 +276,10 @@ spec:
                 description: State of the CWNP, can be either deployed or ignored
                 type: string
             type: object
+        required:
+        - metadata
+        - spec
+        - status
         type: object
     served: true
     storage: true

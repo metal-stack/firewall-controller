@@ -151,9 +151,9 @@ func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool,
 
 	}
 	if scm.Data[fqdnStateConfigmapKey] == "" {
-		c.log.V(4).Info("DEBUG fqdnstate cm does not contain the right key", "cm", scm, "key", fqdnStateConfigmapKey)
+		c.log.Error(fmt.Errorf("error reading fqdnstate configmap, ignoring content"), "fqdnstate configmap does not contain the right key", "configmap", scm, "key", fqdnStateConfigmapKey)
+		c.fqdnToEntry = map[string]CacheEntry{}
 		return &c, nil
-
 	}
 	c.log.V(4).Info("DEBUG state stored in fqdnstate cm, trying to unmarshal", fqdnStateConfigmapKey, scm.Data[fqdnStateConfigmapKey])
 	err = yaml.UnmarshalStrict([]byte(scm.Data[fqdnStateConfigmapKey]), &c.fqdnToEntry)
@@ -541,18 +541,14 @@ func updateNftSet(
 
 func createIPSetFromIPEntry(fqdn string, version firewallv1.IPVersion, entry *IPEntry) firewallv1.IPSet {
 	ips := firewallv1.IPSet{
-		FQDN:    fqdn,
-		SetName: entry.SetName,
-		IPs:     []string{},
-		Version: version,
+		FQDN:              fqdn,
+		SetName:           entry.SetName,
+		IPExpirationTimes: make(map[string]metav1.Time),
+		Version:           version,
 	}
 	for ip, expirationTime := range entry.IPs {
-		if et, err := expirationTime.MarshalText(); err == nil {
-			ip = ip + ", expiration time: " + string(et)
-		}
-		ips.IPs = append(ips.IPs, ip)
+		ips.IPExpirationTimes[ip] = metav1.NewTime(expirationTime)
 	}
-	sort.Strings(ips.IPs)
 	return ips
 }
 
