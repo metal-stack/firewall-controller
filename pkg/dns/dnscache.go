@@ -544,14 +544,11 @@ func createIPSetFromIPEntry(fqdn string, version firewallv1.IPVersion, entry *IP
 		FQDN:              fqdn,
 		SetName:           entry.SetName,
 		IPExpirationTimes: make(map[string]metav1.Time),
-		IPs:               make([]string, 0),
 		Version:           version,
 	}
 	for ip, expirationTime := range entry.IPs {
 		ips.IPExpirationTimes[ip] = metav1.NewTime(expirationTime)
-		ips.IPs = append(ips.IPs, ip)
 	}
-	sort.Strings(ips.IPs)
 	return ips
 }
 
