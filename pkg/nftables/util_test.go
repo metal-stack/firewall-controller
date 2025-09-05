@@ -3,6 +3,8 @@ package nftables
 import (
 	"os"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func Test_equal(t *testing.T) {
@@ -148,7 +150,6 @@ table ip firewall {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		s, err := os.CreateTemp("/tmp", "source")
 		if err != nil {
 			t.Fail()
@@ -169,6 +170,33 @@ table ip firewall {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := equal(s.Name(), dest.Name()); got != tt.want {
 				t.Errorf("equal() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_splitRules(t *testing.T) {
+	tests := []struct {
+		name     string
+		rawRules []string
+		want     []string
+	}{
+		{
+			name: "split multiline string into separate strings",
+			rawRules: []string{
+				"ip saddr != { 1.1.0.1 } ip saddr { 1.1.0.0/24 } tcp dport { 80, 443-448 } log prefix \"nftables-firewall-accepted: \" limit rate 10/second\nip saddr != { 1.1.0.1 } ip saddr { 1.1.0.0/24 } tcp dport { 80, 443-448 } counter accept comment \"accept traffic for k8s network policy tcp\"",
+			},
+			want: []string{
+				"ip saddr != { 1.1.0.1 } ip saddr { 1.1.0.0/24 } tcp dport { 80, 443-448 } log prefix \"nftables-firewall-accepted: \" limit rate 10/second",
+				"ip saddr != { 1.1.0.1 } ip saddr { 1.1.0.0/24 } tcp dport { 80, 443-448 } counter accept comment \"accept traffic for k8s network policy tcp\"",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := splitRules(tt.rawRules)
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("splitRules() diff = %s", diff)
 			}
 		})
 	}

@@ -94,7 +94,8 @@ func main() {
 	var sll slog.Level
 	err := sll.UnmarshalText([]byte(logLevel))
 	if err != nil {
-		sll = slog.LevelInfo
+		setupLog.Error(err, "failed to unmarshal log level")
+		os.Exit(1)
 	}
 	jsonHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: sll})
 	l := slog.New(jsonHandler)

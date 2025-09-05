@@ -21,6 +21,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 
@@ -41,7 +42,7 @@ const (
 
 	// Configmap that holds the FQDN state
 	fqdnStateConfigmapName = "fqdnstate"
-	fqdnStateNamespace     = "firewall"
+	fqdnStateNamespace     = firewallv1.ClusterwideNetworkPolicyNamespace
 	fqdnStateConfigmapKey  = "state"
 )
 
@@ -52,20 +53,20 @@ type RenderIPSet struct {
 	Version IPVersion `json:"version,omitempty"`
 }
 
-type IPEntry struct {
+type iPEntry struct {
 	// ips is a map of the ip address and its expiration time which is the time of the DNS lookup + the TTL
 	IPs     map[string]time.Time `json:"ips,omitempty"`
 	SetName string               `json:"setName,omitempty"`
 }
 
-func newIPEntry(setName string) *IPEntry {
-	return &IPEntry{
+func newIPEntry(setName string) *iPEntry {
+	return &iPEntry{
 		SetName: setName,
 		IPs:     map[string]time.Time{},
 	}
 }
 
-func (e *IPEntry) update(log logr.Logger, setName string, rrs []dnsgo.RR, lookupTime time.Time, dtype nftables.SetDatatype) error {
+func (e *iPEntry) update(log logr.Logger, setName string, rrs []dnsgo.RR, lookupTime time.Time, dtype nftables.SetDatatype) error {
 	deletedIPs := e.expireIPs()
 	newIPs := e.addAndUpdateIPs(log, rrs, lookupTime)
 
@@ -78,7 +79,7 @@ func (e *IPEntry) update(log logr.Logger, setName string, rrs []dnsgo.RR, lookup
 	return nil
 }
 
-func (e *IPEntry) expireIPs() (deletedIPs []nftables.SetElement) {
+func (e *iPEntry) expireIPs() (deletedIPs []nftables.SetElement) {
 	for ip, expirationTime := range e.IPs {
 		if expirationTime.Before(time.Now()) {
 			deletedIPs = append(deletedIPs, nftables.SetElement{Key: []byte(ip)})
@@ -88,7 +89,7 @@ func (e *IPEntry) expireIPs() (deletedIPs []nftables.SetElement) {
 	return
 }
 
-func (e *IPEntry) addAndUpdateIPs(log logr.Logger, rrs []dnsgo.RR, lookupTime time.Time) (newIPs []nftables.SetElement) {
+func (e *iPEntry) addAndUpdateIPs(log logr.Logger, rrs []dnsgo.RR, lookupTime time.Time) (newIPs []nftables.SetElement) {
 	for _, rr := range rrs {
 		var s string
 		switch r := rr.(type) {
@@ -107,16 +108,16 @@ func (e *IPEntry) addAndUpdateIPs(log logr.Logger, rrs []dnsgo.RR, lookupTime ti
 	return
 }
 
-type CacheEntry struct {
-	IPv4 *IPEntry `json:"ipv4,omitempty"`
-	IPv6 *IPEntry `json:"ipv6,omitempty"`
+type cacheEntry struct {
+	IPv4 *iPEntry `json:"ipv4,omitempty"`
+	IPv6 *iPEntry `json:"ipv6,omitempty"`
 }
 
 type DNSCache struct {
 	sync.RWMutex
 
 	log           logr.Logger
-	fqdnToEntry   map[string]CacheEntry
+	fqdnToEntry   map[string]cacheEntry
 	setNames      map[string]struct{}
 	dnsServerAddr string
 	shootClient   client.Client
@@ -125,20 +126,25 @@ type DNSCache struct {
 	ipv6Enabled   bool
 }
 
-func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool, shootClient client.Client, log logr.Logger) (*DNSCache, error) {
+func newDNSCache(dns string, ipv4Enabled, ipv6Enabled bool, shootClient client.Client, log logr.Logger) (*DNSCache, error) {
 	c := DNSCache{
 		log:           log,
-		fqdnToEntry:   map[string]CacheEntry{},
+		fqdnToEntry:   map[string]cacheEntry{},
 		setNames:      map[string]struct{}{},
 		dnsServerAddr: dns,
 		shootClient:   shootClient,
-		ctx:           ctx,
+		ctx:           ctrl.SetupSignalHandler(),
 		ipv4Enabled:   ipv4Enabled,
 		ipv6Enabled:   ipv6Enabled,
 	}
 
 	nn := types.NamespacedName{Name: fqdnStateConfigmapName, Namespace: fqdnStateNamespace}
 	scm := &v1.ConfigMap{}
+
+	ctx, cancel := context.WithTimeout(c.ctx, 100*time.Millisecond)
+	defer func() {
+		cancel()
+	}()
 
 	err := shootClient.Get(ctx, nn, scm)
 	if err != nil && !apierrors.IsNotFound(err) {
@@ -152,14 +158,12 @@ func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool,
 	}
 	if scm.Data[fqdnStateConfigmapKey] == "" {
 		c.log.Error(fmt.Errorf("error reading fqdnstate configmap, ignoring content"), "fqdnstate configmap does not contain the right key", "configmap", scm, "key", fqdnStateConfigmapKey)
-		c.fqdnToEntry = map[string]CacheEntry{}
 		return &c, nil
 	}
 	c.log.V(4).Info("DEBUG state stored in fqdnstate cm, trying to unmarshal", fqdnStateConfigmapKey, scm.Data[fqdnStateConfigmapKey])
 	err = yaml.UnmarshalStrict([]byte(scm.Data[fqdnStateConfigmapKey]), &c.fqdnToEntry)
 	if err != nil {
 		c.log.Info("could not unmarshal state from fqdnstate configmap, ignoring content.", "error", err)
-		c.fqdnToEntry = map[string]CacheEntry{}
 	}
 	return &c, nil
 }
@@ -170,44 +174,59 @@ func (c *DNSCache) writeStateToConfigmap() error {
 	if err != nil {
 		return err
 	}
-	if s == nil {
-		return nil
-	}
-	c.log.V(4).Info("DEBUG writing cache to configmap", "fqdnToEntry", string(s))
 
-	currentCm := &v1.ConfigMap{}
-	nn := types.NamespacedName{Name: fqdnStateConfigmapName, Namespace: fqdnStateNamespace}
-	scm := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fqdnStateConfigmapName,
-			Namespace: fqdnStateNamespace,
-		},
-		Data: map[string]string{
+	var (
+		cm = &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fqdnStateConfigmapName,
+				Namespace: fqdnStateNamespace,
+			},
+		}
+
+		data = map[string]string{
 			fqdnStateConfigmapKey: string(s),
-		},
-	}
+		}
 
-	c.log.V(4).Info("DEBUG looking for configmap", "namespacedname", nn)
-	err = c.shootClient.Get(c.ctx, nn, currentCm)
+		debugLog = c.log.V(4).WithValues("namespace", cm.Namespace, "name", cm.Name)
+	)
+
+	debugLog.Info("DEBUG writing cache to configmap", "fqdnToEntry", string(s))
+
+	debugLog.Info("DEBUG looking for configmap")
+
+	err = c.shootClient.Get(c.ctx, client.ObjectKeyFromObject(cm), cm)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
+
 	if apierrors.IsNotFound(err) {
-		c.log.V(4).Info("DEBUG configmap not found, trying to create configmap", "NamespacedName", nn, "configmap to create", scm)
-		err = c.shootClient.Create(c.ctx, scm)
+		debugLog.Info("DEBUG configmap not found, trying to create configmap")
+
+		cm.Data = data
+
+		err = c.shootClient.Create(c.ctx, cm)
 		if err != nil {
 			return err
 		}
+
+		return nil
 	}
 
-	c.log.V(4).Info("DEBUG trying to update cm", "current cm", currentCm, "cm", scm)
-	if !reflect.DeepEqual(currentCm.Data, scm.Data) {
-		currentCm.Data = scm.Data
-		err = c.shootClient.Update(c.ctx, currentCm)
+	if !reflect.DeepEqual(cm.Data, data) {
+		cm.Data = data
+
+		err = c.shootClient.Update(c.ctx, cm)
 		if err != nil {
 			return err
 		}
+
+		debugLog.Info("DEBUG updated cm", "old data", cm.Data, "new data", data)
+
+		return nil
 	}
+
+	debugLog.Info("DEBUG no need to update cm, already up to date")
+
 	return nil
 }
 
@@ -449,10 +468,10 @@ func (c *DNSCache) updateIPEntry(qname string, rrs []dnsgo.RR, lookupTime time.T
 
 	entry, exists := c.fqdnToEntry[qname]
 	if !exists {
-		entry = CacheEntry{}
+		entry = cacheEntry{}
 	}
 
-	var ipe *IPEntry
+	var ipe *iPEntry
 	switch dtype {
 	case nftables.TypeIPAddr:
 		if entry.IPv4 == nil {
@@ -539,7 +558,7 @@ func updateNftSet(
 	return nil
 }
 
-func createIPSetFromIPEntry(fqdn string, version firewallv1.IPVersion, entry *IPEntry) firewallv1.IPSet {
+func createIPSetFromIPEntry(fqdn string, version firewallv1.IPVersion, entry *iPEntry) firewallv1.IPSet {
 	ips := firewallv1.IPSet{
 		FQDN:              fqdn,
 		SetName:           entry.SetName,
@@ -552,7 +571,7 @@ func createIPSetFromIPEntry(fqdn string, version firewallv1.IPVersion, entry *IP
 	return ips
 }
 
-func createRenderIPSetFromIPEntry(version IPVersion, entry *IPEntry) RenderIPSet {
+func createRenderIPSetFromIPEntry(version IPVersion, entry *iPEntry) RenderIPSet {
 	var ips []string
 	for ip := range entry.IPs {
 		ips = append(ips, ip)

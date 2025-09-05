@@ -13,18 +13,18 @@ import (
 func Test_GetSetsForFQDN(t *testing.T) {
 	tests := []struct {
 		name        string
-		fqdnToEntry map[string]CacheEntry
+		fqdnToEntry map[string]cacheEntry
 		want        []firewallv1.IPSet
 		fqdn        firewallv1.FQDNSelector
 	}{
 		{
 			name: "get result for matchName",
-			fqdnToEntry: map[string]CacheEntry{
+			fqdnToEntry: map[string]cacheEntry{
 				"test.com.": {
-					IPv4: &IPEntry{
+					IPv4: &iPEntry{
 						SetName: "testv4",
 					},
-					IPv6: &IPEntry{
+					IPv6: &iPEntry{
 						SetName: "testv6",
 					},
 				},
@@ -49,36 +49,36 @@ func Test_GetSetsForFQDN(t *testing.T) {
 		},
 		{
 			name: "get result for matchPattern",
-			fqdnToEntry: map[string]CacheEntry{
+			fqdnToEntry: map[string]cacheEntry{
 				"test.com.": {
-					IPv4: &IPEntry{
+					IPv4: &iPEntry{
 						SetName: "testv4",
 					},
-					IPv6: &IPEntry{
+					IPv6: &iPEntry{
 						SetName: "testv6",
 					},
 				},
 				"test.io.": {
-					IPv4: &IPEntry{
+					IPv4: &iPEntry{
 						SetName: "testiov4",
 					},
-					IPv6: &IPEntry{
+					IPv6: &iPEntry{
 						SetName: "testiov6",
 					},
 				},
 				"example.com.": {
-					IPv4: &IPEntry{
+					IPv4: &iPEntry{
 						SetName: "examplev4",
 					},
-					IPv6: &IPEntry{
+					IPv6: &iPEntry{
 						SetName: "examplev6",
 					},
 				},
 				"second.example.com.": {
-					IPv4: &IPEntry{
+					IPv4: &iPEntry{
 						SetName: "2examplev4",
 					},
-					IPv6: &IPEntry{
+					IPv6: &iPEntry{
 						SetName: "2examplev6",
 					},
 				},
@@ -127,12 +127,12 @@ func Test_GetSetsForFQDN(t *testing.T) {
 		},
 		{
 			name: "pattern from integration testing",
-			fqdnToEntry: map[string]CacheEntry{
+			fqdnToEntry: map[string]cacheEntry{
 				"www.freechess.org.": {
-					IPv4: &IPEntry{
+					IPv4: &iPEntry{
 						SetName: "testv4",
 					},
-					IPv6: &IPEntry{
+					IPv6: &iPEntry{
 						SetName: "testv6",
 					},
 				},
@@ -180,14 +180,14 @@ func Test_createIPSetFromIPEntry(t *testing.T) {
 		name    string
 		fqdn    string
 		version firewallv1.IPVersion
-		entry   *IPEntry
+		entry   *iPEntry
 		want    firewallv1.IPSet
 	}{
 		{
 			name:    "empty ip entry",
 			fqdn:    "www.freechess.org",
 			version: "ip",
-			entry: &IPEntry{
+			entry: &iPEntry{
 				SetName: "test",
 			},
 			want: firewallv1.IPSet{
@@ -201,7 +201,7 @@ func Test_createIPSetFromIPEntry(t *testing.T) {
 			name:    "entry contains ips",
 			fqdn:    "www.freechess.org",
 			version: "ip",
-			entry: &IPEntry{
+			entry: &iPEntry{
 				SetName: "test",
 				IPs: map[string]time.Time{
 					"1.2.3.4": time.Date(2100, time.January, 1, 0, 0, 0, 0, time.UTC),

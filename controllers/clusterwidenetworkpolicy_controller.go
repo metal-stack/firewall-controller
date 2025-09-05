@@ -144,7 +144,7 @@ func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
 
 	if enableDNS && r.DnsProxy == nil {
 		r.Log.Info("DNS Proxy is initialized")
-		if r.DnsProxy, err = dns.NewDNSProxy(ctx, f.Spec.DNSServerAddress, f.Spec.DNSPort, r.ShootClient, ctrl.Log.WithName("DNS proxy")); err != nil {
+		if r.DnsProxy, err = dns.NewDNSProxy(f.Spec.DNSServerAddress, f.Spec.DNSPort, r.ShootClient, ctrl.Log.WithName("DNS proxy")); err != nil {
 			return fmt.Errorf("failed to init DNS proxy: %w", err)
 		}
 		go r.DnsProxy.Run(ctx)
