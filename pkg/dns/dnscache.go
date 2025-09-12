@@ -140,12 +140,12 @@ func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool,
 	nn := types.NamespacedName{Name: fqdnStateConfigmapName, Namespace: fqdnStateNamespace}
 	scm := &v1.ConfigMap{}
 
-	ctx, cancel := context.WithTimeout(c.ctx, 100*time.Millisecond)
+	ctxWithTimeout, cancel := context.WithTimeout(c.ctx, 5*time.Second)
 	defer func() {
 		cancel()
 	}()
 
-	err := shootClient.Get(ctx, nn, scm)
+	err := shootClient.Get(ctxWithTimeout, nn, scm)
 	if err != nil && !apierrors.IsNotFound(err) {
 		c.log.Error(err, "error reading fqndstate configmap")
 		return nil, err
@@ -193,7 +193,12 @@ func (c *DNSCache) writeStateToConfigmap() error {
 
 	debugLog.Info("DEBUG looking for configmap")
 
-	err = c.shootClient.Get(c.ctx, client.ObjectKeyFromObject(cm), cm)
+	ctxWithTimeout, cancel := context.WithTimeout(c.ctx, 5*time.Second)
+	defer func() {
+		cancel()
+	}()
+
+	err = c.shootClient.Get(ctxWithTimeout, client.ObjectKeyFromObject(cm), cm)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
@@ -203,7 +208,7 @@ func (c *DNSCache) writeStateToConfigmap() error {
 
 		cm.Data = data
 
-		err = c.shootClient.Create(c.ctx, cm)
+		err = c.shootClient.Create(ctxWithTimeout, cm)
 		if err != nil {
 			return err
 		}
@@ -214,7 +219,7 @@ func (c *DNSCache) writeStateToConfigmap() error {
 	if !reflect.DeepEqual(cm.Data, data) {
 		cm.Data = data
 
-		err = c.shootClient.Update(c.ctx, cm)
+		err = c.shootClient.Update(ctxWithTimeout, cm)
 		if err != nil {
 			return err
 		}
