@@ -39,6 +39,7 @@ type FirewallReconciler struct {
 
 	Recorder record.EventRecorder
 	Log      logr.Logger
+	Ctx      context.Context
 	Scheme   *runtime.Scheme
 
 	Updater      *updater.Updater

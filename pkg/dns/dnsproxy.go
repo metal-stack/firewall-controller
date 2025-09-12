@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"time"
 
 	"github.com/metal-stack/metal-networker/pkg/netconf"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -27,9 +28,10 @@ type DNSHandler interface {
 }
 
 type DNSProxy struct {
-	log    logr.Logger
-	cache  *DNSCache
-	stopCh chan struct{}
+	log        logr.Logger
+	ctx        context.Context
+	cancelFunc context.CancelFunc
+	cache      *DNSCache
 
 	udpServer *dnsgo.Server
 	tcpServer *dnsgo.Server
@@ -37,15 +39,10 @@ type DNSProxy struct {
 	handler DNSHandler
 }
 
-func NewDNSProxy(dns string, port *uint, shootClient client.Client, log logr.Logger) (*DNSProxy, error) {
+func NewDNSProxy(ctx context.Context, dns string, port *uint, shootClient client.Client, log logr.Logger) (*DNSProxy, error) {
 	if dns == "" {
 		dns = defaultDNSServerAddr
 	}
-	cache, err := newDNSCache(dns, true, false, shootClient, log.WithName("DNS cache"))
-	if err != nil {
-		return nil, err
-	}
-	handler := NewDNSProxyHandler(log, cache)
 
 	host, err := getHost()
 	if err != nil {
@@ -61,13 +58,22 @@ func NewDNSProxy(dns string, port *uint, shootClient client.Client, log logr.Log
 		return nil, fmt.Errorf("failed to bind to port: %w", err)
 	}
 
+	backgroundCtx, cancel := context.WithCancel(ctx)
+	cache, err := newDNSCache(backgroundCtx, dns, true, false, shootClient, log.WithName("DNS cache"))
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	handler := NewDNSProxyHandler(log, cache)
+
 	udpServer := &dnsgo.Server{PacketConn: udpConn, Addr: udpConn.LocalAddr().String(), Net: "udp", Handler: handler}
 	tcpServer := &dnsgo.Server{Listener: tcpListener, Addr: udpConn.LocalAddr().String(), Net: "tcp", Handler: handler}
 
 	return &DNSProxy{
-		log:    log,
-		cache:  cache,
-		stopCh: make(chan struct{}),
+		log:        log,
+		ctx:        backgroundCtx,
+		cancelFunc: cancel,
+		cache:      cache,
 
 		udpServer: udpServer,
 		tcpServer: tcpServer,
@@ -77,7 +83,7 @@ func NewDNSProxy(dns string, port *uint, shootClient client.Client, log logr.Log
 }
 
 // Run starts TCP/UDP servers
-func (p *DNSProxy) Run(ctx context.Context) {
+func (p *DNSProxy) Run() {
 	go func() {
 		p.log.Info("starting UDP server")
 		if err := p.udpServer.ActivateAndServe(); err != nil {
@@ -92,7 +98,9 @@ func (p *DNSProxy) Run(ctx context.Context) {
 		}
 	}()
 
-	<-p.stopCh
+	<-p.ctx.Done()
+	ctx, cancel := context.WithTimeout(p.ctx, time.Second*5)
+	defer cancel()
 
 	if err := p.udpServer.ShutdownContext(ctx); err != nil {
 		p.log.Error(err, "failed to shut down UDP server")
@@ -104,7 +112,7 @@ func (p *DNSProxy) Run(ctx context.Context) {
 
 // Stop starts TCP/UDP servers
 func (p *DNSProxy) Stop() {
-	close(p.stopCh)
+	p.cancelFunc()
 }
 
 func (p *DNSProxy) UpdateDNSServerAddr(addr string) error {
