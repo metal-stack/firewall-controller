@@ -153,11 +153,18 @@ type FQDNSelector struct {
 
 // IPSet stores set name association to IP addresses
 type IPSet struct {
-	FQDN           string      `json:"fqdn,omitempty"`
-	SetName        string      `json:"setName,omitempty"`
-	IPs            []string    `json:"ips,omitempty"`
+	// FQDN which this IP set is for.
+	FQDN string `json:"fqdn,omitempty"`
+	//  A hash value merely used for reference.
+	SetName string `json:"setName,omitempty"`
+	// Deprecated: use `IPExpirationTimes` instead.
+	IPs []string `json:"ips,omitempty"`
+	// Deprecated: use `IPExpirationTimes` instead.
 	ExpirationTime metav1.Time `json:"expirationTime,omitempty"`
-	Version        IPVersion   `json:"version,omitempty"`
+	// Maps IP addresses to their expiration times.
+	IPExpirationTimes map[string]metav1.Time `json:"ipExpirationTimes,omitempty"`
+	// Whether this is a IPv4 or a IPv6 set.
+	Version IPVersion `json:"version,omitempty"`
 }
 
 func (l *ClusterwideNetworkPolicyList) GetFQDNs() []FQDNSelector {

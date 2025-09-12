@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
 	"text/template"
 
@@ -37,6 +38,8 @@ func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 		egress = append(egress, e...)
 		f.clusterwideNetworkPolicies.Items[ind] = u
 	}
+	sort.Strings(ingress)
+	sort.Strings(egress)
 
 	var serviceAllowedSet *netipx.IPSet
 	if len(f.firewall.Spec.AllowedNetworks.Ingress) > 0 {
@@ -72,6 +75,10 @@ func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 		}
 		egress = append(egress, rules...)
 	}
+
+	ingress = splitRules(ingress)
+	egress = splitRules(egress)
+
 	return &firewallRenderingData{
 		AdditionalDNSAddrs: dnsAddrs,
 		PrivateVrfID:       uint(*f.primaryPrivateNet.Vrf), // nolint:gosec

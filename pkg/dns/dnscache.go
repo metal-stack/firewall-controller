@@ -1,12 +1,13 @@
 package dns
 
 import (
+	"context"
 	"crypto/md5" //nolint:gosec
 	"encoding/hex"
 	"fmt"
-	"math"
-	"net"
+	"reflect"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -16,7 +17,12 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/google/nftables"
 	dnsgo "github.com/miekg/dns"
+	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/yaml"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 )
@@ -32,6 +38,11 @@ const (
 
 	// How many DNS redirections (CNAME/DNAME) are followed, to break up redirection loops.
 	maxDNSRedirects = 10
+
+	// Configmap that holds the FQDN state
+	fqdnStateConfigmapName = "fqdnstate"
+	fqdnStateNamespace     = firewallv1.ClusterwideNetworkPolicyNamespace
+	fqdnStateConfigmapKey  = "state"
 )
 
 // RenderIPSet stores set info for rendering
@@ -41,32 +52,24 @@ type RenderIPSet struct {
 	Version IPVersion `json:"version,omitempty"`
 }
 
-type ipEntry struct {
-	ips            []string
-	expirationTime time.Time
-	setName        string
+type iPEntry struct {
+	// ips is a map of the ip address and its expiration time which is the time of the DNS lookup + the TTL
+	IPs     map[string]time.Time `json:"ips,omitempty"`
+	SetName string               `json:"setName,omitempty"`
 }
 
-func newIPEntry(setName string, expirationTime time.Time) *ipEntry {
-	return &ipEntry{
-		expirationTime: expirationTime,
-		setName:        setName,
+func newIPEntry(setName string) *iPEntry {
+	return &iPEntry{
+		SetName: setName,
+		IPs:     map[string]time.Time{},
 	}
 }
 
-func (e *ipEntry) update(setName string, ips []net.IP, expirationTime time.Time, dtype nftables.SetDatatype) error {
-	newIPs, deletedIPs := e.getNewAndDeletedIPs(ips)
-	if !e.expirationTime.After(time.Now()) {
-		e.expirationTime = expirationTime
-	}
+func (e *iPEntry) update(log logr.Logger, setName string, rrs []dnsgo.RR, lookupTime time.Time, dtype nftables.SetDatatype) error {
+	deletedIPs := e.expireIPs()
+	newIPs := e.addAndUpdateIPs(log, rrs, lookupTime)
 
 	if newIPs != nil || deletedIPs != nil {
-		e.ips = make([]string, len(ips))
-		for i, ip := range ips {
-			e.ips[i] = ip.String()
-		}
-		sort.Strings(e.ips)
-
 		if err := updateNftSet(newIPs, deletedIPs, setName, dtype); err != nil {
 			return fmt.Errorf("failed to update nft set: %w", err)
 		}
@@ -75,33 +78,38 @@ func (e *ipEntry) update(setName string, ips []net.IP, expirationTime time.Time,
 	return nil
 }
 
-func (e *ipEntry) getNewAndDeletedIPs(ips []net.IP) (newIPs, deletedIPs []nftables.SetElement) {
-	currentIps := make(map[string]bool, len(e.ips))
-	for _, ip := range e.ips {
-		currentIps[ip] = false
-	}
-
-	for _, ip := range ips {
-		s := ip.String()
-		if _, ok := currentIps[s]; ok {
-			currentIps[s] = true
-		} else {
-			newIPs = append(newIPs, nftables.SetElement{Key: ip})
+func (e *iPEntry) expireIPs() (deletedIPs []nftables.SetElement) {
+	for ip, expirationTime := range e.IPs {
+		if expirationTime.Before(time.Now()) {
+			deletedIPs = append(deletedIPs, nftables.SetElement{Key: []byte(ip)})
+			delete(e.IPs, ip)
 		}
 	}
+	return
+}
 
-	for ip, exists := range currentIps {
-		if !exists {
-			deletedIPs = append(deletedIPs, nftables.SetElement{Key: net.ParseIP(ip)})
+func (e *iPEntry) addAndUpdateIPs(log logr.Logger, rrs []dnsgo.RR, lookupTime time.Time) (newIPs []nftables.SetElement) {
+	for _, rr := range rrs {
+		var s string
+		switch r := rr.(type) {
+		case *dnsgo.A:
+			s = r.A.String()
+		case *dnsgo.AAAA:
+			s = r.AAAA.String()
 		}
-	}
+		if _, ok := e.IPs[s]; !ok {
+			newIPs = append(newIPs, nftables.SetElement{Key: []byte(s)})
+		}
+		log.WithValues("ip", s, "rr header ttl", rr.Header().Ttl, "expiration time", lookupTime.Add(time.Duration(rr.Header().Ttl)*time.Second))
+		e.IPs[s] = lookupTime.Add(time.Duration(rr.Header().Ttl) * time.Second)
 
+	}
 	return
 }
 
 type cacheEntry struct {
-	ipv4 *ipEntry
-	ipv6 *ipEntry
+	IPv4 *iPEntry `json:"ipv4,omitempty"`
+	IPv6 *iPEntry `json:"ipv6,omitempty"`
 }
 
 type DNSCache struct {
@@ -111,25 +119,123 @@ type DNSCache struct {
 	fqdnToEntry   map[string]cacheEntry
 	setNames      map[string]struct{}
 	dnsServerAddr string
+	shootClient   client.Client
+	ctx           context.Context
 	ipv4Enabled   bool
 	ipv6Enabled   bool
 }
 
-func newDNSCache(dns string, ipv4Enabled, ipv6Enabled bool, log logr.Logger) *DNSCache {
-	return &DNSCache{
+func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool, shootClient client.Client, log logr.Logger) (*DNSCache, error) {
+	c := DNSCache{
 		log:           log,
 		fqdnToEntry:   map[string]cacheEntry{},
 		setNames:      map[string]struct{}{},
 		dnsServerAddr: dns,
+		shootClient:   shootClient,
+		ctx:           ctx,
 		ipv4Enabled:   ipv4Enabled,
 		ipv6Enabled:   ipv6Enabled,
 	}
+
+	nn := types.NamespacedName{Name: fqdnStateConfigmapName, Namespace: fqdnStateNamespace}
+	scm := &v1.ConfigMap{}
+
+	ctxWithTimeout, cancel := context.WithTimeout(c.ctx, 5*time.Second)
+	defer func() {
+		cancel()
+	}()
+
+	err := shootClient.Get(ctxWithTimeout, nn, scm)
+	if err != nil && !apierrors.IsNotFound(err) {
+		c.log.Error(err, "error reading fqndstate configmap")
+		return nil, err
+	}
+	if scm.Data == nil {
+		c.log.V(4).Info("DEBUG fqdnstate cm not found or contains no data", "cm", scm)
+		return &c, nil
+
+	}
+	if scm.Data[fqdnStateConfigmapKey] == "" {
+		c.log.Error(fmt.Errorf("error reading fqdnstate configmap, ignoring content"), "fqdnstate configmap does not contain the right key", "configmap", scm, "key", fqdnStateConfigmapKey)
+		return &c, nil
+	}
+	c.log.V(4).Info("DEBUG state stored in fqdnstate cm, trying to unmarshal", fqdnStateConfigmapKey, scm.Data[fqdnStateConfigmapKey])
+	err = yaml.UnmarshalStrict([]byte(scm.Data[fqdnStateConfigmapKey]), &c.fqdnToEntry)
+	if err != nil {
+		c.log.Info("could not unmarshal state from fqdnstate configmap, ignoring content.", "error", err)
+	}
+	return &c, nil
+}
+
+// writeStateToConfigmap writes the whole DNS cache to the state configmap
+func (c *DNSCache) writeStateToConfigmap() error {
+	s, err := yaml.Marshal(c.fqdnToEntry)
+	if err != nil {
+		return err
+	}
+
+	var (
+		cm = &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fqdnStateConfigmapName,
+				Namespace: fqdnStateNamespace,
+			},
+		}
+
+		data = map[string]string{
+			fqdnStateConfigmapKey: string(s),
+		}
+
+		debugLog = c.log.V(4).WithValues("namespace", cm.Namespace, "name", cm.Name)
+	)
+
+	debugLog.Info("DEBUG writing cache to configmap", "fqdnToEntry", string(s))
+
+	debugLog.Info("DEBUG looking for configmap")
+
+	ctxWithTimeout, cancel := context.WithTimeout(c.ctx, 5*time.Second)
+	defer func() {
+		cancel()
+	}()
+
+	err = c.shootClient.Get(ctxWithTimeout, client.ObjectKeyFromObject(cm), cm)
+	if err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+
+	if apierrors.IsNotFound(err) {
+		debugLog.Info("DEBUG configmap not found, trying to create configmap")
+
+		cm.Data = data
+
+		err = c.shootClient.Create(ctxWithTimeout, cm)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	if !reflect.DeepEqual(cm.Data, data) {
+		cm.Data = data
+
+		err = c.shootClient.Update(ctxWithTimeout, cm)
+		if err != nil {
+			return err
+		}
+
+		debugLog.Info("DEBUG updated cm", "old data", cm.Data, "new data", data)
+
+		return nil
+	}
+
+	debugLog.Info("DEBUG no need to update cm, already up to date")
+
+	return nil
 }
 
 // getSetsForFQDN returns sets for FQDN selector
-func (c *DNSCache) getSetsForFQDN(fqdn firewallv1.FQDNSelector, fqdnSets []firewallv1.IPSet) (result []firewallv1.IPSet) {
-	c.restoreSets(fqdnSets)
-
+func (c *DNSCache) getSetsForFQDN(fqdn firewallv1.FQDNSelector) (result []firewallv1.IPSet) {
 	sets := map[string]firewallv1.IPSet{}
 	if fqdn.MatchName != "" {
 		for _, s := range c.getSetNameForFQDN(fqdn.GetMatchName()) {
@@ -146,6 +252,9 @@ func (c *DNSCache) getSetsForFQDN(fqdn firewallv1.FQDNSelector, fqdnSets []firew
 	for _, s := range sets {
 		result = append(result, s)
 	}
+	slices.SortStableFunc(result, func(a, b firewallv1.IPSet) int {
+		return strings.Compare(a.SetName, b.SetName)
+	})
 
 	c.log.WithValues("fqdn", fqdn, "sets", result).Info("sets for FQDN")
 	return
@@ -168,50 +277,23 @@ func (c *DNSCache) getSetsForRendering(fqdns []firewallv1.FQDNSelector) (result 
 			}
 		}
 		if matched {
-			if e.ipv4 != nil {
-				result = append(result, createRenderIPSetFromIPEntry(IPv4, e.ipv4))
+			if e.IPv4 != nil {
+				result = append(result, createRenderIPSetFromIPEntry(IPv4, e.IPv4))
 			}
-			if e.ipv6 != nil {
-				result = append(result, createRenderIPSetFromIPEntry(IPv6, e.ipv6))
+			if e.IPv6 != nil {
+				result = append(result, createRenderIPSetFromIPEntry(IPv6, e.IPv6))
 			}
 		}
 	}
+	slices.SortStableFunc(result, func(a, b RenderIPSet) int {
+		return strings.Compare(a.SetName, b.SetName)
+	})
 
 	return
 }
 
 func (c *DNSCache) updateDNSServerAddr(addr string) {
 	c.dnsServerAddr = addr
-}
-
-// restoreSets add missing sets from FQDNSelector.Sets
-func (c *DNSCache) restoreSets(fqdnSets []firewallv1.IPSet) {
-	for _, s := range fqdnSets {
-		// Add cache entries from fqdn.Sets if missing
-		c.Lock()
-		if _, ok := c.setNames[s.SetName]; !ok {
-			c.setNames[s.SetName] = struct{}{}
-			entry, exists := c.fqdnToEntry[s.FQDN]
-			if !exists {
-				entry = cacheEntry{}
-			}
-
-			ipe := &ipEntry{
-				ips:            s.IPs,
-				expirationTime: s.ExpirationTime.Time,
-				setName:        s.SetName,
-			}
-			switch s.Version {
-			case firewallv1.IPv4:
-				entry.ipv4 = ipe
-			case firewallv1.IPv6:
-				entry.ipv6 = ipe
-			}
-
-			c.fqdnToEntry[s.FQDN] = entry
-		}
-		c.Unlock()
-	}
 }
 
 // getSetNameForFQDN returns FQDN set data
@@ -235,11 +317,11 @@ func (c *DNSCache) getSetNameForFQDN(fqdn string) (result []firewallv1.IPSet) {
 	}
 	defer c.RUnlock()
 
-	if entry.ipv4 != nil {
-		result = append(result, createIPSetFromIPEntry(fqdn, firewallv1.IPv4, entry.ipv4))
+	if entry.IPv4 != nil {
+		result = append(result, createIPSetFromIPEntry(fqdn, firewallv1.IPv4, entry.IPv4))
 	}
-	if entry.ipv6 != nil {
-		result = append(result, createIPSetFromIPEntry(fqdn, firewallv1.IPv6, entry.ipv6))
+	if entry.IPv6 != nil {
+		result = append(result, createIPSetFromIPEntry(fqdn, firewallv1.IPv6, entry.IPv6))
 	}
 	return
 }
@@ -264,7 +346,7 @@ func (c *DNSCache) loadDataFromDNSServer(fqdns []string) error {
 			return fmt.Errorf("failed to get DNS data about fqdn %s: %w", fqdns[0], err)
 		}
 		c.log.V(4).Info("DEBUG dnscache loadDataFromDNSServer function calling Update function", "answer", in, "fqdns", fqdns)
-		if _, err = c.Update(time.Now(), qname, in, fqdns); err != nil {
+		if _, err = c.Update(time.Now().UTC(), qname, in, fqdns); err != nil {
 			return fmt.Errorf("failed to update DNS data for fqdn %s: %w", fqdns[0], err)
 		}
 	}
@@ -282,11 +364,11 @@ func (c *DNSCache) getSetNameForRegex(regex string) (sets []firewallv1.IPSet) {
 			continue
 		}
 
-		if e.ipv4 != nil {
-			sets = append(sets, createIPSetFromIPEntry(n, firewallv1.IPv4, e.ipv4))
+		if e.IPv4 != nil {
+			sets = append(sets, createIPSetFromIPEntry(n, firewallv1.IPv4, e.IPv4))
 		}
-		if e.ipv6 != nil {
-			sets = append(sets, createIPSetFromIPEntry(n, firewallv1.IPv6, e.ipv6))
+		if e.IPv6 != nil {
+			sets = append(sets, createIPSetFromIPEntry(n, firewallv1.IPv6, e.IPv6))
 		}
 	}
 
@@ -311,10 +393,8 @@ func (c *DNSCache) Update(lookupTime time.Time, qname string, msg *dnsgo.Msg, fq
 		return true, fmt.Errorf("too many hops, fqdn chain: %s", strings.Join(fqdns, ","))
 	}
 
-	ipv4 := []net.IP{}
-	ipv6 := []net.IP{}
-	minIPv4TTL := uint32(math.MaxUint32)
-	minIPv6TTL := uint32(math.MaxUint32)
+	ipv4 := []dnsgo.RR{}
+	ipv6 := []dnsgo.RR{}
 	found := false
 
 	for _, ans := range msg.Answer {
@@ -326,17 +406,11 @@ func (c *DNSCache) Update(lookupTime time.Time, qname string, msg *dnsgo.Msg, fq
 
 		switch rr := ans.(type) {
 		case *dnsgo.A:
-			ipv4 = append(ipv4, rr.A)
-			if minIPv4TTL > rr.Hdr.Ttl {
-				minIPv4TTL = rr.Hdr.Ttl
-			}
+			ipv4 = append(ipv4, rr)
 			found = true
 			c.log.V(4).Info("DEBUG dnscache Update function A record found", "IPs", ipv4)
 		case *dnsgo.AAAA:
-			ipv6 = append(ipv6, rr.AAAA)
-			if minIPv6TTL > rr.Hdr.Ttl {
-				minIPv6TTL = rr.Hdr.Ttl
-			}
+			ipv6 = append(ipv6, rr)
 			found = true
 			c.log.V(4).Info("DEBUG dnscache Update function AAAA record found", "IPs", ipv6)
 		case *dnsgo.CNAME:
@@ -359,27 +433,37 @@ func (c *DNSCache) Update(lookupTime time.Time, qname string, msg *dnsgo.Msg, fq
 		}
 	}
 
+	ipEntriesUpdated := false
+
 	for _, fqdn := range fqdns {
 		c.log.V(4).Info("DEBUG dnscache Update function Updating DNS cache for", "fqdn", fqdn, "ipv4", ipv4, "ipv6", ipv6)
 		if c.ipv4Enabled && len(ipv4) > 0 {
-			if err := c.updateIPEntry(fqdn, ipv4, lookupTime.Add(time.Duration(minIPv4TTL)), nftables.TypeIPAddr); err != nil {
+			if err := c.updateIPEntry(fqdn, ipv4, lookupTime, nftables.TypeIPAddr); err != nil {
 				return false, fmt.Errorf("failed to update IPv4 addresses: %w", err)
 			}
+			ipEntriesUpdated = true
 		}
 		if c.ipv6Enabled && len(ipv6) > 0 {
-			if err := c.updateIPEntry(fqdn, ipv6, lookupTime.Add(time.Duration(minIPv6TTL)), nftables.TypeIP6Addr); err != nil {
+			if err := c.updateIPEntry(fqdn, ipv6, lookupTime, nftables.TypeIP6Addr); err != nil {
 				return false, fmt.Errorf("failed to update IPv6 addresses: %w", err)
 			}
+			ipEntriesUpdated = true
+		}
+	}
+
+	if ipEntriesUpdated {
+		if err := c.writeStateToConfigmap(); err != nil {
+			c.log.V(4).Info("DEBUG could not write updated DNS cache to state configmap", "configmap", fqdnStateConfigmapName, "namespace", fqdnStateNamespace, "error", err)
 		}
 	}
 
 	return found, nil
 }
 
-func (c *DNSCache) updateIPEntry(qname string, ips []net.IP, expirationTime time.Time, dtype nftables.SetDatatype) error {
+func (c *DNSCache) updateIPEntry(qname string, rrs []dnsgo.RR, lookupTime time.Time, dtype nftables.SetDatatype) error {
 	scopedLog := c.log.WithValues(
 		"fqdn", qname,
-		"ip_len", len(ips),
+		"ip_len", len(rrs),
 		"dtype", dtype.Name,
 	)
 
@@ -391,27 +475,28 @@ func (c *DNSCache) updateIPEntry(qname string, ips []net.IP, expirationTime time
 		entry = cacheEntry{}
 	}
 
-	var ipe *ipEntry
+	var ipe *iPEntry
 	switch dtype {
 	case nftables.TypeIPAddr:
-		if entry.ipv4 == nil {
+		if entry.IPv4 == nil {
 			setName := c.createSetName(qname, dtype.Name, 0)
-			ipe = newIPEntry(setName, expirationTime)
-			entry.ipv4 = ipe
+			ipe = newIPEntry(setName)
+			entry.IPv4 = ipe
 		}
-		ipe = entry.ipv4
+		ipe = entry.IPv4
 	case nftables.TypeIP6Addr:
-		if entry.ipv6 == nil {
+		if entry.IPv6 == nil {
 			setName := c.createSetName(qname, dtype.Name, 0)
-			ipe = newIPEntry(setName, expirationTime)
-			entry.ipv6 = ipe
+			ipe = newIPEntry(setName)
+			entry.IPv6 = ipe
 		}
-		ipe = entry.ipv6
+		ipe = entry.IPv6
 	}
 
-	setName := ipe.setName
-	if err := ipe.update(setName, ips, expirationTime, dtype); err != nil {
-		return fmt.Errorf("failed to update ipEntry: %w", err)
+	setName := ipe.SetName
+	scopedLog.WithValues("set", setName, "lookupTime", lookupTime, "rrs", rrs).Info("updating ip entry")
+	if err := ipe.update(scopedLog, setName, rrs, lookupTime, dtype); err != nil {
+		return fmt.Errorf("failed to update IPEntry: %w", err)
 	}
 	c.fqdnToEntry[qname] = entry
 
@@ -477,20 +562,28 @@ func updateNftSet(
 	return nil
 }
 
-func createIPSetFromIPEntry(fqdn string, version firewallv1.IPVersion, entry *ipEntry) firewallv1.IPSet {
-	return firewallv1.IPSet{
-		FQDN:           fqdn,
-		SetName:        entry.setName,
-		IPs:            entry.ips,
-		ExpirationTime: metav1.Time{Time: entry.expirationTime},
-		Version:        version,
+func createIPSetFromIPEntry(fqdn string, version firewallv1.IPVersion, entry *iPEntry) firewallv1.IPSet {
+	ips := firewallv1.IPSet{
+		FQDN:              fqdn,
+		SetName:           entry.SetName,
+		IPExpirationTimes: make(map[string]metav1.Time),
+		Version:           version,
 	}
+	for ip, expirationTime := range entry.IPs {
+		ips.IPExpirationTimes[ip] = metav1.NewTime(expirationTime)
+	}
+	return ips
 }
 
-func createRenderIPSetFromIPEntry(version IPVersion, entry *ipEntry) RenderIPSet {
+func createRenderIPSetFromIPEntry(version IPVersion, entry *iPEntry) RenderIPSet {
+	var ips []string
+	for ip := range entry.IPs {
+		ips = append(ips, ip)
+	}
+	sort.Strings(ips)
 	return RenderIPSet{
-		SetName: entry.setName,
-		IPs:     entry.ips,
+		SetName: entry.SetName,
+		IPs:     ips,
 		Version: version,
 	}
 }

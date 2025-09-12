@@ -91,7 +91,13 @@ func main() {
 		return
 	}
 
-	jsonHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{})
+	var sll slog.Level
+	err := sll.UnmarshalText([]byte(logLevel))
+	if err != nil {
+		setupLog.Error(err, "failed to unmarshal log level")
+		os.Exit(1)
+	}
+	jsonHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: sll})
 	l := slog.New(jsonHandler)
 
 	ctrl.SetLogger(logr.FromSlogHandler(jsonHandler))
@@ -105,7 +111,6 @@ func main() {
 
 	// FIXME validation and controller start should be refactored into own func which returns error
 	// instead Fatalw or Error and panic here.
-	var err error
 	if firewallName == "" {
 		firewallName, err = os.Hostname()
 		if err != nil {
@@ -263,6 +268,7 @@ func main() {
 		SeedClient:    seedMgr.GetClient(),
 		ShootClient:   shootMgr.GetClient(),
 		Log:           ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicy"),
+		Ctx:           ctx,
 		Recorder:      shootMgr.GetEventRecorderFor("FirewallController"),
 		FirewallName:  firewallName,
 		SeedNamespace: seedNamespace,

@@ -18,10 +18,12 @@ import (
 	"k8s.io/client-go/tools/record"
 
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
@@ -38,6 +40,7 @@ type ClusterwideNetworkPolicyReconciler struct {
 	SeedNamespace string
 
 	Log      logr.Logger
+	Ctx      context.Context
 	Recorder record.EventRecorder
 
 	Interval time.Duration
@@ -57,7 +60,7 @@ func (r *ClusterwideNetworkPolicyReconciler) SetupWithManager(mgr ctrl.Manager) 
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&firewallv1.ClusterwideNetworkPolicy{}).
+		For(&firewallv1.ClusterwideNetworkPolicy{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Watches(&corev1.Service{}, &handler.EnqueueRequestForObject{}).
 		WatchesRawSource(&source.Channel{Source: scheduleChan}, &handler.EnqueueRequestForObject{}).
 		Complete(r)
@@ -104,7 +107,7 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ct
 	cwnps.Items = validCwnps
 
 	nftablesFirewall := nftables.NewFirewall(f, &cwnps, &services, r.DnsProxy, r.Log, r.Recorder)
-	if err := r.manageDNSProxy(ctx, f, cwnps, nftablesFirewall); err != nil {
+	if err := r.manageDNSProxy(f, cwnps, nftablesFirewall); err != nil {
 		return ctrl.Result{}, err
 	}
 	updated, err := nftablesFirewall.Reconcile()
@@ -127,7 +130,7 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ct
 // manageDNSProxy start DNS proxy if toFQDN rules are present
 // if rules were deleted it will stop running DNS proxy
 func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
-	ctx context.Context, f *firewallv2.Firewall, cwnps firewallv1.ClusterwideNetworkPolicyList, nftablesFirewall *nftables.Firewall,
+	f *firewallv2.Firewall, cwnps firewallv1.ClusterwideNetworkPolicyList, nftablesFirewall *nftables.Firewall,
 ) (err error) {
 	// Skipping is needed for testing
 	if r.SkipDNS {
@@ -142,10 +145,10 @@ func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
 
 	if enableDNS && r.DnsProxy == nil {
 		r.Log.Info("DNS Proxy is initialized")
-		if r.DnsProxy, err = dns.NewDNSProxy(f.Spec.DNSServerAddress, f.Spec.DNSPort, ctrl.Log.WithName("DNS proxy")); err != nil {
+		if r.DnsProxy, err = dns.NewDNSProxy(r.Ctx, f.Spec.DNSServerAddress, f.Spec.DNSPort, r.ShootClient, ctrl.Log.WithName("DNS proxy")); err != nil {
 			return fmt.Errorf("failed to init DNS proxy: %w", err)
 		}
-		go r.DnsProxy.Run(ctx)
+		go r.DnsProxy.Run()
 	} else if !enableDNS && r.DnsProxy != nil {
 		r.Log.Info("DNS Proxy is stopped")
 		r.DnsProxy.Stop()
@@ -217,7 +220,6 @@ func (r *ClusterwideNetworkPolicyReconciler) allowedCWNPs(ctx context.Context, c
 	}
 
 	for _, cwnp := range cwnps {
-		cwnp := cwnp
 		oke, err := r.validateCWNPEgressTargetPrefix(cwnp, egressSet)
 		if err != nil {
 			return nil, err

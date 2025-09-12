@@ -2,34 +2,48 @@ package dns
 
 import (
 	"testing"
+	"time"
 
 	"github.com/go-logr/logr"
-
+	"github.com/google/go-cmp/cmp"
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func Test_GetSetsForFQDN(t *testing.T) {
 	tests := []struct {
-		name         string
-		fqdnToEntry  map[string]cacheEntry
-		expectedSets []string
-		fqdnSelector firewallv1.FQDNSelector
-		cachedSets   []firewallv1.IPSet
+		name        string
+		fqdnToEntry map[string]cacheEntry
+		want        []firewallv1.IPSet
+		fqdn        firewallv1.FQDNSelector
 	}{
 		{
 			name: "get result for matchName",
 			fqdnToEntry: map[string]cacheEntry{
 				"test.com.": {
-					ipv4: &ipEntry{
-						setName: "testv4",
+					IPv4: &iPEntry{
+						SetName: "testv4",
 					},
-					ipv6: &ipEntry{
-						setName: "testv6",
+					IPv6: &iPEntry{
+						SetName: "testv6",
 					},
 				},
 			},
-			expectedSets: []string{"testv4", "testv6"},
-			fqdnSelector: firewallv1.FQDNSelector{
+			want: []firewallv1.IPSet{
+				{
+					SetName:           "testv4",
+					FQDN:              "test.com.",
+					Version:           "ip",
+					IPExpirationTimes: map[string]v1.Time{},
+				},
+				{
+					SetName:           "testv6",
+					FQDN:              "test.com.",
+					Version:           "ip6",
+					IPExpirationTimes: map[string]v1.Time{},
+				},
+			},
+			fqdn: firewallv1.FQDNSelector{
 				MatchName: "test.com",
 			},
 		},
@@ -37,40 +51,77 @@ func Test_GetSetsForFQDN(t *testing.T) {
 			name: "get result for matchPattern",
 			fqdnToEntry: map[string]cacheEntry{
 				"test.com.": {
-					ipv4: &ipEntry{
-						setName: "testv4",
+					IPv4: &iPEntry{
+						SetName: "testv4",
 					},
-					ipv6: &ipEntry{
-						setName: "testv6",
+					IPv6: &iPEntry{
+						SetName: "testv6",
 					},
 				},
 				"test.io.": {
-					ipv4: &ipEntry{
-						setName: "testiov4",
+					IPv4: &iPEntry{
+						SetName: "testiov4",
 					},
-					ipv6: &ipEntry{
-						setName: "testiov6",
+					IPv6: &iPEntry{
+						SetName: "testiov6",
 					},
 				},
 				"example.com.": {
-					ipv4: &ipEntry{
-						setName: "examplev4",
+					IPv4: &iPEntry{
+						SetName: "examplev4",
 					},
-					ipv6: &ipEntry{
-						setName: "examplev6",
+					IPv6: &iPEntry{
+						SetName: "examplev6",
 					},
 				},
 				"second.example.com.": {
-					ipv4: &ipEntry{
-						setName: "2examplev4",
+					IPv4: &iPEntry{
+						SetName: "2examplev4",
 					},
-					ipv6: &ipEntry{
-						setName: "2examplev6",
+					IPv6: &iPEntry{
+						SetName: "2examplev6",
 					},
 				},
 			},
-			expectedSets: []string{"testv4", "testv6", "examplev4", "examplev6", "2examplev4", "2examplev6"},
-			fqdnSelector: firewallv1.FQDNSelector{
+			want: []firewallv1.IPSet{
+				{
+					SetName:           "2examplev4",
+					FQDN:              "second.example.com.",
+					Version:           "ip",
+					IPExpirationTimes: map[string]v1.Time{},
+				},
+				{
+					SetName:           "2examplev6",
+					FQDN:              "second.example.com.",
+					IPExpirationTimes: map[string]v1.Time{},
+					Version:           "ip6",
+				},
+				{
+					SetName:           "examplev4",
+					FQDN:              "example.com.",
+					IPExpirationTimes: map[string]v1.Time{},
+					Version:           "ip",
+				},
+				{
+					SetName:           "examplev6",
+					FQDN:              "example.com.",
+					IPExpirationTimes: map[string]v1.Time{},
+					Version:           "ip6",
+				},
+				{
+					SetName:           "testv4",
+					FQDN:              "test.com.",
+					IPExpirationTimes: map[string]v1.Time{},
+					Version:           "ip",
+				},
+				{
+					SetName:           "testv6",
+					FQDN:              "test.com.",
+					IPExpirationTimes: map[string]v1.Time{},
+					Version:           "ip6",
+				},
+			},
+			fqdn: firewallv1.FQDNSelector{
 				MatchPattern: "*.com",
 			},
 		},
@@ -78,66 +129,99 @@ func Test_GetSetsForFQDN(t *testing.T) {
 			name: "pattern from integration testing",
 			fqdnToEntry: map[string]cacheEntry{
 				"www.freechess.org.": {
-					ipv4: &ipEntry{
-						setName: "testv4",
+					IPv4: &iPEntry{
+						SetName: "testv4",
 					},
-					ipv6: &ipEntry{
-						setName: "testv6",
+					IPv6: &iPEntry{
+						SetName: "testv6",
 					},
 				},
 			},
-			expectedSets: []string{"testv4", "testv6"},
-			fqdnSelector: firewallv1.FQDNSelector{
+			want: []firewallv1.IPSet{
+				{
+					SetName:           "testv4",
+					FQDN:              "www.freechess.org.",
+					IPExpirationTimes: map[string]v1.Time{},
+					Version:           "ip",
+				},
+				{
+					SetName:           "testv6",
+					FQDN:              "www.freechess.org.",
+					IPExpirationTimes: map[string]v1.Time{},
+					Version:           "ip6",
+				},
+			},
+			fqdn: firewallv1.FQDNSelector{
 				MatchPattern: "ww*.freechess.org",
 			},
-		},
-		{
-			name:         "restore sets",
-			fqdnToEntry:  map[string]cacheEntry{},
-			fqdnSelector: firewallv1.FQDNSelector{},
-			cachedSets: []firewallv1.IPSet{{
-				FQDN:    "test-fqdn",
-				SetName: "test-set",
-			}},
 		},
 	}
 
 	for _, tt := range tests {
-		tc := tt
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			cache := DNSCache{
 				log:         logr.Discard(),
-				fqdnToEntry: tc.fqdnToEntry,
+				fqdnToEntry: tt.fqdnToEntry,
 				setNames:    make(map[string]struct{}),
 				ipv4Enabled: true,
 				ipv6Enabled: true,
 			}
-			result := cache.getSetsForFQDN(tc.fqdnSelector, tc.cachedSets)
 
-			set := make(map[string]bool, len(tc.expectedSets))
-			for _, s := range tc.expectedSets {
-				set[s] = false
+			got := cache.getSetsForFQDN(tt.fqdn)
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("DNSCache.getSetsForFQDN diff = %s", diff)
 			}
-			for _, r := range result {
-				if _, found := set[r.SetName]; !found {
-					t.Errorf("set name %s wasn't expected", r.SetName)
-				}
-				set[r.SetName] = true
-			}
-			for s, b := range set {
-				if !b {
-					t.Errorf("set name %s didn't occurred in result", s)
-				}
-			}
+		})
+	}
+}
 
-			// Check if cache was updated
-			for _, s := range tc.cachedSets {
-				if _, ok := cache.setNames[s.SetName]; !ok {
-					t.Errorf("set name %s wasn't added to cache", s.SetName)
-				}
-				if _, ok := cache.fqdnToEntry[s.FQDN]; !ok {
-					t.Errorf("FQDN %s wasn't added to cache", s.FQDN)
-				}
+func Test_createIPSetFromIPEntry(t *testing.T) {
+	tests := []struct {
+		name    string
+		fqdn    string
+		version firewallv1.IPVersion
+		entry   *iPEntry
+		want    firewallv1.IPSet
+	}{
+		{
+			name:    "empty ip entry",
+			fqdn:    "www.freechess.org",
+			version: "ip",
+			entry: &iPEntry{
+				SetName: "test",
+			},
+			want: firewallv1.IPSet{
+				FQDN:              "www.freechess.org",
+				SetName:           "test",
+				IPExpirationTimes: map[string]v1.Time{},
+				Version:           "ip",
+			},
+		},
+		{
+			name:    "entry contains ips",
+			fqdn:    "www.freechess.org",
+			version: "ip",
+			entry: &iPEntry{
+				SetName: "test",
+				IPs: map[string]time.Time{
+					"1.2.3.4": time.Date(2100, time.January, 1, 0, 0, 0, 0, time.UTC),
+				},
+			},
+			want: firewallv1.IPSet{
+				FQDN:    "www.freechess.org",
+				SetName: "test",
+				IPExpirationTimes: map[string]v1.Time{
+					"1.2.3.4": v1.NewTime(time.Date(2100, time.January, 1, 0, 0, 0, 0, time.UTC)),
+				},
+				Version: "ip",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := createIPSetFromIPEntry(tt.fqdn, tt.version, tt.entry)
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("createIPSetFromIPEntry() diff = %s", diff)
 			}
 		})
 	}

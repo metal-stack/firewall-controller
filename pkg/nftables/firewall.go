@@ -41,7 +41,7 @@ var templates embed.FS
 //go:generate ../../bin/mockgen -destination=./mocks/mock_fqdncache.go -package=mocks . FQDNCache
 type FQDNCache interface {
 	GetSetsForRendering(fqdns []firewallv1.FQDNSelector) (result []dns.RenderIPSet)
-	GetSetsForFQDN(fqdn firewallv1.FQDNSelector, fqdnSets []firewallv1.IPSet) (result []firewallv1.IPSet)
+	GetSetsForFQDN(fqdn firewallv1.FQDNSelector) (result []firewallv1.IPSet)
 	IsInitialized() bool
 	CacheAddr() (string, error)
 }
@@ -199,14 +199,10 @@ func getConfiguredIPs(networkID string) []string {
 	}
 	var ips []string
 	for _, nw := range c.Networks {
-		nw := nw
 		if nw.Networkid == nil || *nw.Networkid != networkID {
 			continue
 		}
-		for _, ip := range nw.Ips {
-			ip := ip
-			ips = append(ips, ip)
-		}
+		ips = append(ips, nw.Ips...)
 	}
 	return ips
 }

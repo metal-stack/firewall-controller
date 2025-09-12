@@ -44,7 +44,6 @@ func serviceRules(svc corev1.Service, allowed *netipx.IPSet, logAcceptedConnecti
 	tcpPorts := []string{}
 	udpPorts := []string{}
 	for _, p := range svc.Spec.Ports {
-		p := p
 		proto := proto(&p.Protocol)
 		switch proto {
 		case "tcp":

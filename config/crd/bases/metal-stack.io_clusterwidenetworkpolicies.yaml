@@ -244,17 +244,28 @@ spec:
                     description: IPSet stores set name association to IP addresses
                     properties:
                       expirationTime:
+                        description: 'Deprecated: use `IPExpirationTimes` instead.'
                         format: date-time
                         type: string
                       fqdn:
+                        description: FQDN which this IP set is for.
                         type: string
+                      ipExpirationTimes:
+                        additionalProperties:
+                          format: date-time
+                          type: string
+                        description: Maps IP addresses to their expiration times.
+                        type: object
                       ips:
+                        description: 'Deprecated: use `IPExpirationTimes` instead.'
                         items:
                           type: string
                         type: array
                       setName:
+                        description: ' A hash value merely used for reference.'
                         type: string
                       version:
+                        description: Whether this is a IPv4 or a IPv6 set.
                         type: string
                     type: object
                   type: array
