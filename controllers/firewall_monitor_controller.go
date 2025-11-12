@@ -24,12 +24,14 @@ import (
 // FirewallMonitorReconciler reconciles a firewall monitor object
 type FirewallMonitorReconciler struct {
 	ShootClient client.Client
+	SeedClient  client.Client
 
 	Recorder record.EventRecorder
 	Log      logr.Logger
 
-	FirewallName string
-	Namespace    string
+	FirewallName  string
+	Namespace     string
+	SeedNamespace string
 
 	IDSEnabled bool
 	Interval   time.Duration
@@ -57,6 +59,9 @@ func (r *FirewallMonitorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return false
 			},
 		}).
+		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
+			return object.GetNamespace() == r.Namespace && object.GetName() == r.FirewallName
+		})).
 		Complete(r)
 }
 
@@ -69,6 +74,13 @@ func (r *FirewallMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	if err != nil {
 		return ctrl.Result{}, err
 	}
+
+	f := &firewallv2.Firewall{}
+	if err := r.SeedClient.Get(ctx, req.NamespacedName, f); err != nil {
+		return ctrl.Result{}, fmt.Errorf("error retrieving resource: %w", err)
+	}
+
+	r.Log.Info("firewall fetched from Seed in Monitor", "Fw Distance", f.Distance, "Fw Name", f.Name)
 
 	idsStats := firewallv2.IDSStatsByDevice{}
 	if r.IDSEnabled {
@@ -119,8 +131,8 @@ func (r *FirewallMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 			ControllerVersion:       v.Version,
 			NftablesExporterVersion: "", // TODO
 			Updated:                 metav1.NewTime(now),
-			Distance:                0,
-			DistanceSupported:       false,
+			Distance:                f.Distance,
+			DistanceSupported:       true,
 		}
 
 		if !r.seedUpdated.IsZero() {
