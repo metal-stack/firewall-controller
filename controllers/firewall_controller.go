@@ -215,6 +215,7 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 					Protocol:   corev1.ProtocolTCP,
 					Port:       s.port,
 					TargetPort: intstr.FromString(s.namedPort),
+					Name:       s.namedPort,
 				},
 			},
 		},
