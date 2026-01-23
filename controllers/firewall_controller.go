@@ -265,6 +265,7 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 			Namespace: meta.Namespace,
 			Labels: map[string]string{
 				discoveryv1.LabelServiceName: meta.Name,
+				exporterLabelKey:             s.name,
 			},
 		},
 		AddressType: discoveryv1.AddressTypeIPv4,
