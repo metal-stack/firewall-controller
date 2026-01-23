@@ -60,6 +60,7 @@ func (r *ClusterwideNetworkPolicyValidationReconciler) Reconcile(ctx context.Con
 // SetupWithManager configures this controller to watch for ClusterwideNetworkPolicy CRD
 func (r *ClusterwideNetworkPolicyValidationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
+		Named("clusterwidenetworkpolicy-validation").
 		For(&firewallv1.ClusterwideNetworkPolicy{}).
 		Complete(r)
 }
