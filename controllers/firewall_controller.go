@@ -9,9 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/metal-stack/metal-lib/pkg/pointer"
-	discoveryv1 "k8s.io/api/discovery/v1"
-
 	"github.com/Masterminds/semver/v3"
 	"github.com/go-logr/logr"
 	mn "github.com/metal-stack/metal-lib/pkg/net"
@@ -260,47 +257,42 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 		return fmt.Errorf("private firewall network contains no ip")
 	}
 
-	endpointSlice := discoveryv1.EndpointSlice{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      meta.Name,
-			Namespace: meta.Namespace,
-			Labels: map[string]string{
-				discoveryv1.LabelServiceName: meta.Name,
-				exporterLabelKey:             s.name,
-			},
-		},
-		AddressType: discoveryv1.AddressTypeIPv4,
-		Endpoints: []discoveryv1.Endpoint{
+	// keep endpoints, even if the endpoint API is deprecated, since default prometheus-operator setups still use endpoints
+	// for service discovery instead of endpoint slices
+	endpoints := corev1.Endpoints{
+		ObjectMeta: meta,
+		Subsets: []corev1.EndpointSubset{
 			{
-				Addresses:  []string{privateNet.IPs[0]},
-				Conditions: discoveryv1.EndpointConditions{Ready: pointer.Pointer(true)},
-			},
-		},
-		Ports: []discoveryv1.EndpointPort{
-			{
-				Name:     pointer.Pointer(s.namedPort),
-				Port:     pointer.Pointer(s.port),
-				Protocol: pointer.Pointer(corev1.ProtocolTCP),
+				Addresses: []corev1.EndpointAddress{
+					{
+						IP: privateNet.IPs[0],
+					},
+				},
+				Ports: []corev1.EndpointPort{
+					{
+						Name:     s.namedPort,
+						Port:     s.port,
+						Protocol: corev1.ProtocolTCP,
+					},
+				},
 			},
 		},
 	}
 
-	var currentEndpointSlice discoveryv1.EndpointSlice
-	err = r.ShootClient.Get(ctx, types.NamespacedName{Name: endpointSlice.Name, Namespace: endpointSlice.Namespace}, &currentEndpointSlice)
+	var currentEndpoints corev1.Endpoints
+	err = r.ShootClient.Get(ctx, nn, &currentEndpoints)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 
 	if apierrors.IsNotFound(err) {
-		return r.ShootClient.Create(ctx, &endpointSlice)
+		err = r.ShootClient.Create(ctx, &endpoints)
+		return err
 	}
 
-	if currentEndpointSlice.Labels == nil || !reflect.DeepEqual(currentEndpointSlice.Labels, endpointSlice.Labels) || currentEndpointSlice.AddressType != endpointSlice.AddressType || !reflect.DeepEqual(currentEndpointSlice.Ports, endpointSlice.Ports) || !reflect.DeepEqual(currentEndpointSlice.Endpoints, endpointSlice.Endpoints) {
-		currentEndpointSlice.Labels = endpointSlice.Labels
-		currentEndpointSlice.AddressType = endpointSlice.AddressType
-		currentEndpointSlice.Ports = endpointSlice.Ports
-		currentEndpointSlice.Endpoints = endpointSlice.Endpoints
-		return r.ShootClient.Update(ctx, &currentEndpointSlice)
+	if !reflect.DeepEqual(currentEndpoints.Subsets, endpoints.Subsets) {
+		currentEndpoints.Subsets = endpoints.Subsets
+		return r.ShootClient.Update(ctx, &currentEndpoints)
 	}
 
 	return nil
