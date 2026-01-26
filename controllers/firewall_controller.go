@@ -161,7 +161,7 @@ type firewallService struct {
 	namedPort string
 }
 
-// reconcileFirewallServices reconciles the services and endpoint slices exposed by the firewall
+// reconcileFirewallServices reconciles the services and endpoints exposed by the firewall
 func (r *FirewallReconciler) reconcileFirewallServices(ctx context.Context, f *firewallv2.Firewall) error {
 	services := []firewallService{
 		{
