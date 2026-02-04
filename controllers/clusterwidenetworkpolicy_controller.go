@@ -61,7 +61,7 @@ func (r *ClusterwideNetworkPolicyReconciler) SetupWithManager(mgr ctrl.Manager) 
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&firewallv1.ClusterwideNetworkPolicy{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
-		Watches(&corev1.Service{}, &handler.TypedEnqueueRequestForObject[client.Object]{}).
+		Watches(&corev1.Service{}, &handler.EnqueueRequestForObject{}).
 		WatchesRawSource(source.Channel(scheduleChan, &handler.TypedEnqueueRequestForObject[*firewallv1.ClusterwideNetworkPolicy]{})).
 		Complete(r)
 }
