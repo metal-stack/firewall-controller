@@ -212,6 +212,7 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 					Protocol:   corev1.ProtocolTCP,
 					Port:       s.port,
 					TargetPort: intstr.FromString(s.namedPort),
+					Name:       s.namedPort,
 				},
 			},
 		},
@@ -256,8 +257,12 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 		return fmt.Errorf("private firewall network contains no ip")
 	}
 
+	// keep endpoints, even if the endpoint API is deprecated, since default prometheus-operator setups still use endpoints
+	// for service discovery instead of endpoint slices
+	//nolint:staticcheck // SA1019
 	endpoints := corev1.Endpoints{
 		ObjectMeta: meta,
+		//nolint:staticcheck // SA1019
 		Subsets: []corev1.EndpointSubset{
 			{
 				Addresses: []corev1.EndpointAddress{
@@ -276,6 +281,7 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 		},
 	}
 
+	//nolint:staticcheck // SA1019
 	var currentEndpoints corev1.Endpoints
 	err = r.ShootClient.Get(ctx, nn, &currentEndpoints)
 	if err != nil && !apierrors.IsNotFound(err) {
@@ -284,10 +290,7 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 
 	if apierrors.IsNotFound(err) {
 		err = r.ShootClient.Create(ctx, &endpoints)
-		if err != nil {
-			return err
-		}
-		return nil
+		return err
 	}
 
 	if !reflect.DeepEqual(currentEndpoints.Subsets, endpoints.Subsets) {
