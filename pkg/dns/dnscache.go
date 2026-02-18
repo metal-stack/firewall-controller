@@ -470,6 +470,10 @@ func (c *DNSCache) updateIPEntry(qname string, rrs []dnsgo.RR, lookupTime time.T
 	c.Lock()
 	defer c.Unlock()
 
+	if c.fqdnToEntry == nil {
+		c.fqdnToEntry = map[string]cacheEntry{}
+	}
+
 	entry, exists := c.fqdnToEntry[qname]
 	if !exists {
 		entry = cacheEntry{}
