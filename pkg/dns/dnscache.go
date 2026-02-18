@@ -169,7 +169,9 @@ func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool,
 
 // writeStateToConfigmap writes the whole DNS cache to the state configmap
 func (c *DNSCache) writeStateToConfigmap() error {
+	c.RLock()
 	s, err := yaml.Marshal(c.fqdnToEntry)
+	c.RUnlock()
 	if err != nil {
 		return err
 	}
@@ -261,6 +263,8 @@ func (c *DNSCache) getSetsForFQDN(fqdn firewallv1.FQDNSelector) (result []firewa
 }
 
 func (c *DNSCache) getSetsForRendering(fqdns []firewallv1.FQDNSelector) (result []RenderIPSet) {
+	c.RLock()
+	defer c.RUnlock()
 	for n, e := range c.fqdnToEntry {
 		var matched bool
 		for _, fqdn := range fqdns {
