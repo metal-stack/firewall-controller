@@ -64,7 +64,7 @@ vet:
 	go vet ./...
 
 # Generate code
-generate: controller-gen mockery manifests
+generate: controller-gen go-mocks manifests
 	$(CONTROLLER_GEN) object paths="./..."
 	go generate ./...
 
@@ -79,7 +79,14 @@ setup-envtest: $(ENVTEST)
 $(ENVTEST): $(LOCALBIN)
 	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 
-.PHONY: mockery
-mockery: $(MOCKERY)
-$(MOCKERY): $(LOCALBIN)
-	test -s $(LOCALBIN)/mockery || GOBIN=$(LOCALBIN) go install github.com/vektra/mockery/v2@latest
+.PHONY: go-mocks
+go-mocks:
+	# we remove files explicitly to ensure files really get generated
+	rm -rf pkg/nftables/mocks
+
+	docker run --rm \
+		--user $$(id -u):$$(id -g) \
+		--tmpfs /.cache:uid=$$(id -u),gid=$$(id -g) \
+		-w /work \
+		-v ${PWD}:/work \
+		vektra/mockery:v3.6.4

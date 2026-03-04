@@ -9,7 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
-	"github.com/metal-stack/firewall-controller/v2/pkg/nftables/mocks"
+	mocks "github.com/metal-stack/firewall-controller/v2/pkg/nftables/mocks/pkg/nftables"
 	"github.com/metal-stack/metal-lib/pkg/pointer"
 )
 
