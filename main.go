@@ -220,7 +220,7 @@ func main() {
 	fwmReconciler := &controllers.FirewallMonitorReconciler{
 		ShootClient:  shootMgr.GetClient(),
 		Log:          ctrl.Log.WithName("controllers").WithName("FirewallMonitorReconciler"),
-		Recorder:     shootMgr.GetEventRecorderFor("FirewallMonitorController"),
+		Recorder:     shootMgr.GetEventRecorderFor("FirewallMonitorController"), // nolint:staticcheck
 		IDSEnabled:   enableIDS,
 		FirewallName: firewallName,
 		Namespace:    firewallv2.FirewallShootNamespace,
@@ -233,7 +233,7 @@ func main() {
 	}
 	l.Info("detected frr", "version", frrVersion.String())
 
-	updater := updater.New(ctrl.Log.WithName("updater"), shootMgr.GetEventRecorderFor("FirewallController"))
+	updater := updater.New(ctrl.Log.WithName("updater"), shootMgr.GetEventRecorderFor("FirewallController")) // nolint:staticcheck
 
 	// Firewall Reconciler
 	if err = (&controllers.FirewallReconciler{
@@ -243,7 +243,7 @@ func main() {
 		Scheme:          scheme,
 		Namespace:       seedNamespace,
 		FirewallName:    firewallName,
-		Recorder:        shootMgr.GetEventRecorderFor("FirewallController"),
+		Recorder:        shootMgr.GetEventRecorderFor("FirewallController"), // nolint:staticcheck
 		Updater:         updater,
 		SeedUpdatedFunc: fwmReconciler.SeedUpdated,
 		TokenUpdater:    accessTokenUpdater,
@@ -269,7 +269,7 @@ func main() {
 		ShootClient:   shootMgr.GetClient(),
 		Log:           ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicy"),
 		Ctx:           ctx,
-		Recorder:      shootMgr.GetEventRecorderFor("FirewallController"),
+		Recorder:      shootMgr.GetEventRecorderFor("FirewallController"), // nolint:staticcheck
 		FirewallName:  firewallName,
 		SeedNamespace: seedNamespace,
 	}).SetupWithManager(shootMgr); err != nil {
@@ -280,7 +280,7 @@ func main() {
 	if err = (&controllers.ClusterwideNetworkPolicyValidationReconciler{
 		ShootClient: shootMgr.GetClient(),
 		Log:         ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicyValidation"),
-		Recorder:    shootMgr.GetEventRecorderFor("FirewallController"),
+		Recorder:    shootMgr.GetEventRecorderFor("FirewallController"), // nolint:staticcheck
 	}).SetupWithManager(shootMgr); err != nil {
 		l.Error("unable to create clusterwidenetworkpolicyvalidation controller", "error", err)
 		panic(err)
