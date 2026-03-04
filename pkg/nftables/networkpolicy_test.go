@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"go.uber.org/mock/gomock"
+	mock "github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -142,7 +142,7 @@ func TestClusterwideNetworkPolicyEgressRules(t *testing.T) {
 	tests := []struct {
 		name   string
 		input  firewallv1.ClusterwideNetworkPolicy
-		record func(*mocks.MockFQDNCache)
+		record func(*mocks.FQDNCache)
 		want   want
 	}{
 		{
@@ -174,7 +174,7 @@ func TestClusterwideNetworkPolicyEgressRules(t *testing.T) {
 					},
 				},
 			},
-			record: func(cache *mocks.MockFQDNCache) {},
+			record: func(cache *mocks.FQDNCache) {},
 			want: want{
 				egress: nftablesRules{
 					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } tcp dport { 53 } counter accept comment "accept traffic for np  tcp"`,
@@ -214,18 +214,15 @@ func TestClusterwideNetworkPolicyEgressRules(t *testing.T) {
 					},
 				},
 			},
-			record: func(cache *mocks.MockFQDNCache) {
+			record: func(cache *mocks.FQDNCache) {
 				cache.
-					EXPECT().
-					IsInitialized().
+					On("IsInitialized").
 					Return(true)
 				cache.
-					EXPECT().
-					GetSetsForFQDN(gomock.Any()).
+					On("GetSetsForFQDN", mock.Anything).
 					Return([]firewallv1.IPSet{{SetName: "test", Version: firewallv1.IPv4}})
 				cache.
-					EXPECT().
-					GetSetsForFQDN(gomock.Any()).
+					On("GetSetsForFQDN", mock.Anything).
 					Return([]firewallv1.IPSet{{SetName: "test2", Version: firewallv1.IPv6}})
 			},
 			want: want{
@@ -239,13 +236,10 @@ func TestClusterwideNetworkPolicyEgressRules(t *testing.T) {
 		},
 	}
 
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	fqdnCache := mocks.NewMockFQDNCache(ctrl)
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			fqdnCache := mocks.NewFQDNCache(t)
 			tt.record(fqdnCache)
 			if len(tt.want.egress) > 0 {
 				egress, _ := clusterwideNetworkPolicyEgressRules(fqdnCache, tt.input, false)

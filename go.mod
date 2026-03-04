@@ -16,9 +16,9 @@ require (
 	github.com/metal-stack/metal-networker v0.46.2
 	github.com/metal-stack/v v1.0.3
 	github.com/miekg/dns v1.1.72
+	github.com/stretchr/testify v1.11.1
 	github.com/txn2/txeh v1.7.0
 	github.com/vishvananda/netlink v1.3.1
-	go.uber.org/mock v0.6.0
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
 	k8s.io/api v0.34.0
 	k8s.io/apiextensions-apiserver v0.34.0
@@ -83,6 +83,7 @@ require (
 	github.com/prometheus/common v0.67.5 // indirect
 	github.com/prometheus/procfs v0.19.2 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
+	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/vishvananda/netns v0.0.5 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	go.mongodb.org/mongo-driver v1.17.7 // indirect
