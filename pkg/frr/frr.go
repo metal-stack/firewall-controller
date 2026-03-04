@@ -23,7 +23,7 @@ func DetectVersion() (*semver.Version, error) {
 	}
 
 	var frrVersion string
-	for _, line := range strings.Split(string(out), "\n") {
+	for line := range strings.SplitSeq(string(out), "\n") {
 		if !strings.Contains(line, "FRRouting") {
 			continue
 		}

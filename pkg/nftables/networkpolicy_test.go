@@ -108,7 +108,6 @@ func TestClusterwideNetworkPolicyRules(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			ingress, egress, _ := clusterwideNetworkPolicyRules(nil, tt.input, false)
 			if !cmp.Equal(ingress, tt.want.ingress) {
@@ -236,7 +235,6 @@ func TestClusterwideNetworkPolicyEgressRules(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			fqdnCache := mocks.NewFQDNCache(t)
 			tt.record(fqdnCache)

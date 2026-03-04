@@ -3,6 +3,7 @@ package helper
 import (
 	"fmt"
 	"net/netip"
+	"strings"
 
 	"go4.org/netipx"
 	corev1 "k8s.io/api/core/v1"
@@ -33,20 +34,20 @@ func BuildNetworksIPSet(networks []string) (*netipx.IPSet, error) {
 }
 
 func NetworkSetAsString(externalSet *netipx.IPSet) string {
-	var allowedNetworksStr string
+	var allowedNetworksStr strings.Builder
 	if externalSet != nil {
 		for i, r := range externalSet.Ranges() {
 			if i > 0 {
-				allowedNetworksStr += ","
+				allowedNetworksStr.WriteString(",")
 			}
 			if p, ok := r.Prefix(); ok {
-				allowedNetworksStr += p.String()
+				allowedNetworksStr.WriteString(p.String())
 			} else {
-				allowedNetworksStr += r.String()
+				allowedNetworksStr.WriteString(r.String())
 			}
 		}
 	}
-	return allowedNetworksStr
+	return allowedNetworksStr.String()
 }
 
 func ValidateCIDR(o runtime.Object, cidr string, ipset *netipx.IPSet, rec record.EventRecorder) (bool, error) {
