@@ -10,7 +10,6 @@ import (
 
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 	mocks "github.com/metal-stack/firewall-controller/v2/pkg/nftables/mocks/pkg/nftables"
-	"github.com/metal-stack/metal-lib/pkg/pointer"
 )
 
 func port(p int) *intstr.IntOrString {
@@ -61,7 +60,7 @@ func TestClusterwideNetworkPolicyRules(t *testing.T) {
 								{
 									Protocol: &tcp,
 									Port:     port(443),
-									EndPort:  pointer.Pointer(int32(448)),
+									EndPort:  new(int32(448)),
 								},
 							},
 						},
@@ -82,7 +81,7 @@ func TestClusterwideNetworkPolicyRules(t *testing.T) {
 								{
 									Protocol: &tcp,
 									Port:     port(443),
-									EndPort:  pointer.Pointer(int32(448)),
+									EndPort:  new(int32(448)),
 								},
 							},
 						},
