@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	mock "github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -219,10 +218,10 @@ func TestClusterwideNetworkPolicyEgressRules(t *testing.T) {
 					On("IsInitialized").
 					Return(true)
 				cache.
-					On("GetSetsForFQDN", mock.Anything).
+					On("GetSetsForFQDN", firewallv1.FQDNSelector{MatchName: "test.com"}).
 					Return([]firewallv1.IPSet{{SetName: "test", Version: firewallv1.IPv4}})
 				cache.
-					On("GetSetsForFQDN", mock.Anything).
+					On("GetSetsForFQDN", firewallv1.FQDNSelector{MatchPattern: "*.test.com"}).
 					Return([]firewallv1.IPSet{{SetName: "test2", Version: firewallv1.IPv6}})
 			},
 			want: want{
