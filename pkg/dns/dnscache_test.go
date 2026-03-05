@@ -1,13 +1,20 @@
 package dns
 
 import (
+	"context"
+	"fmt"
+	"net"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/nftables"
+	dnsgo "github.com/miekg/dns"
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func Test_GetSetsForFQDN(t *testing.T) {
@@ -225,4 +232,258 @@ func Test_createIPSetFromIPEntry(t *testing.T) {
 			}
 		})
 	}
+}
+
+const (
+	raceNumGoroutines = 10
+	raceNumIterations = 100
+)
+
+func newTestDNSCache(entries map[string]cacheEntry) *DNSCache {
+	return &DNSCache{
+		log:           logr.Discard(),
+		fqdnToEntry:   entries,
+		setNames:      make(map[string]struct{}),
+		dnsServerAddr: "127.0.0.1:53",
+		ctx:           context.Background(),
+		shootClient:   fake.NewClientBuilder().Build(),
+		ipv4Enabled:   true,
+		ipv6Enabled:   true,
+	}
+}
+
+func makeTestRRs(fqdn string, ip string) []dnsgo.RR {
+	return []dnsgo.RR{
+		&dnsgo.A{
+			Hdr: dnsgo.RR_Header{Name: fqdn, Rrtype: dnsgo.TypeA, Ttl: 300},
+			A:   net.ParseIP(ip),
+		},
+	}
+}
+
+func seedEntries(n int) map[string]cacheEntry {
+	entries := make(map[string]cacheEntry, n)
+	for i := 0; i < n; i++ {
+		fqdn := fmt.Sprintf("host%d.example.com.", i)
+		entries[fqdn] = cacheEntry{
+			IPv4: &iPEntry{
+				SetName: fmt.Sprintf("set%d", i),
+				IPs:     map[string]time.Time{fmt.Sprintf("10.0.0.%d", i%256): time.Now().Add(5 * time.Minute)},
+			},
+		}
+	}
+	return entries
+}
+
+func TestRace_UpdateAndGetSetsForRendering(t *testing.T) {
+	cache := newTestDNSCache(seedEntries(5))
+	fqdns := []firewallv1.FQDNSelector{{MatchPattern: "*.example.com"}}
+
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+
+	for i := 0; i < raceNumGoroutines; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			<-start
+			fqdn := fmt.Sprintf("writer%d.example.com.", id)
+			for j := 0; j < raceNumIterations; j++ {
+				_ = cache.updateIPEntry(fqdn, makeTestRRs(fqdn, fmt.Sprintf("10.1.%d.%d", id, j%256)), time.Now(), nftables.TypeIPAddr)
+			}
+		}(i)
+	}
+
+	for i := 0; i < raceNumGoroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			for j := 0; j < raceNumIterations; j++ {
+				cache.getSetsForRendering(fqdns)
+			}
+		}()
+	}
+
+	close(start)
+	wg.Wait()
+}
+
+func TestRace_UpdateAndGetSetNameForRegex(t *testing.T) {
+	cache := newTestDNSCache(seedEntries(5))
+
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+
+	for i := 0; i < raceNumGoroutines; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			<-start
+			fqdn := fmt.Sprintf("writer%d.example.com.", id)
+			for j := 0; j < raceNumIterations; j++ {
+				_ = cache.updateIPEntry(fqdn, makeTestRRs(fqdn, fmt.Sprintf("10.2.%d.%d", id, j%256)), time.Now(), nftables.TypeIPAddr)
+			}
+		}(i)
+	}
+
+	for i := 0; i < raceNumGoroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			for j := 0; j < raceNumIterations; j++ {
+				cache.getSetNameForRegex(`.*\.example\.com\.`)
+			}
+		}()
+	}
+
+	close(start)
+	wg.Wait()
+}
+
+func TestRace_UpdateAndGetSetNameForFQDN(t *testing.T) {
+	cache := newTestDNSCache(seedEntries(5))
+
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+
+	for i := 0; i < raceNumGoroutines; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			<-start
+			fqdn := fmt.Sprintf("host%d.example.com.", id%5)
+			for j := 0; j < raceNumIterations; j++ {
+				_ = cache.updateIPEntry(fqdn, makeTestRRs(fqdn, fmt.Sprintf("10.3.%d.%d", id, j%256)), time.Now(), nftables.TypeIPAddr)
+			}
+		}(i)
+	}
+
+	for i := 0; i < raceNumGoroutines; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			<-start
+			fqdn := fmt.Sprintf("host%d.example.com.", id%5)
+			for j := 0; j < raceNumIterations; j++ {
+				cache.getSetNameForFQDN(fqdn)
+			}
+		}(i)
+	}
+
+	close(start)
+	wg.Wait()
+}
+
+func TestRace_UpdateAndWriteStateToConfigmap(t *testing.T) {
+	cache := newTestDNSCache(seedEntries(5))
+
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+
+	for i := 0; i < raceNumGoroutines; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			<-start
+			fqdn := fmt.Sprintf("writer%d.example.com.", id)
+			for j := 0; j < raceNumIterations; j++ {
+				_ = cache.updateIPEntry(fqdn, makeTestRRs(fqdn, fmt.Sprintf("10.4.%d.%d", id, j%256)), time.Now(), nftables.TypeIPAddr)
+			}
+		}(i)
+	}
+
+	for i := 0; i < raceNumGoroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			for j := 0; j < raceNumIterations; j++ {
+				_ = cache.writeStateToConfigmap()
+			}
+		}()
+	}
+
+	close(start)
+	wg.Wait()
+}
+
+func TestRace_UpdateDNSServerAddr(t *testing.T) {
+	cache := newTestDNSCache(seedEntries(1))
+
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+
+	for i := 0; i < raceNumGoroutines; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			<-start
+			for j := 0; j < raceNumIterations; j++ {
+				cache.updateDNSServerAddr(fmt.Sprintf("10.0.%d.%d:53", id, j%256))
+			}
+		}(i)
+	}
+
+	for i := 0; i < raceNumGoroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			for j := 0; j < raceNumIterations; j++ {
+				cache.RLock()
+				_ = cache.dnsServerAddr
+				cache.RUnlock()
+			}
+		}()
+	}
+
+	close(start)
+	wg.Wait()
+}
+
+func TestRace_ConcurrentMultipleReaders(t *testing.T) {
+	cache := newTestDNSCache(seedEntries(10))
+	fqdns := []firewallv1.FQDNSelector{{MatchPattern: "*.example.com"}}
+
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+
+	for i := 0; i < raceNumGoroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			for j := 0; j < raceNumIterations; j++ {
+				cache.getSetsForRendering(fqdns)
+			}
+		}()
+	}
+
+	for i := 0; i < raceNumGoroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			for j := 0; j < raceNumIterations; j++ {
+				cache.getSetNameForRegex(`.*\.example\.com\.`)
+			}
+		}()
+	}
+
+	for i := 0; i < raceNumGoroutines; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			<-start
+			fqdn := fmt.Sprintf("host%d.example.com.", id%10)
+			for j := 0; j < raceNumIterations; j++ {
+				cache.getSetNameForFQDN(fqdn)
+			}
+		}(i)
+	}
+
+	close(start)
+	wg.Wait()
 }
