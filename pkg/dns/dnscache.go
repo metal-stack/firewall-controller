@@ -297,7 +297,9 @@ func (c *DNSCache) getSetsForRendering(fqdns []firewallv1.FQDNSelector) (result 
 }
 
 func (c *DNSCache) updateDNSServerAddr(addr string) {
+	c.Lock()
 	c.dnsServerAddr = addr
+	c.Unlock()
 }
 
 // getSetNameForFQDN returns FQDN set data
@@ -339,13 +341,16 @@ func (c *DNSCache) loadDataFromDNSServer(fqdns []string) error {
 		return fmt.Errorf("too many hops, fqdn chain: %s", strings.Join(fqdns, ","))
 	}
 	qname := fqdns[len(fqdns)-1]
+	c.RLock()
+	dnsAddr := c.dnsServerAddr
+	c.RUnlock()
 	cl := new(dnsgo.Client)
 	for _, t := range []uint16{dnsgo.TypeA, dnsgo.TypeAAAA} {
 		m := new(dnsgo.Msg)
 		m.Id = dnsgo.Id()
 		m.SetQuestion(qname, t)
 		c.log.V(4).Info("DEBUG dnscache loadDataFromDNSServer function querying DNS", "message", m)
-		in, _, err := cl.Exchange(m, c.dnsServerAddr)
+		in, _, err := cl.Exchange(m, dnsAddr)
 		if err != nil {
 			return fmt.Errorf("failed to get DNS data about fqdn %s: %w", fqdns[0], err)
 		}
