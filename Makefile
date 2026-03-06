@@ -29,7 +29,7 @@ $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
 
 test: generate fmt vet manifests setup-envtest
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test -race ./... -coverprofile cover.out
 
 clean:
 	rm -rf bin/*

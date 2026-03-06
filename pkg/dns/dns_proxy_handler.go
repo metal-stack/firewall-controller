@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -22,6 +23,7 @@ const (
 )
 
 type DNSProxyHandler struct {
+	sync.RWMutex
 	log           logr.Logger
 	udpClient     *dnsgo.Client
 	tcpClient     *dnsgo.Client
@@ -111,7 +113,9 @@ func (h *DNSProxyHandler) UpdateDNSServerAddr(addr string) error {
 		return fmt.Errorf("new DNS server address not valid: %w", err)
 	}
 
+	h.Lock()
 	h.dnsServerAddr = addr
+	h.Unlock()
 	return nil
 }
 
@@ -128,7 +132,11 @@ func (h *DNSProxyHandler) getDataFromDNS(addr net.Addr, request *dnsgo.Msg) (*dn
 		return nil, fmt.Errorf("failed to determine transport protocol: %s", protocol)
 	}
 
-	response, _, err := client.Exchange(request, h.dnsServerAddr)
+	h.RLock()
+	dnsAddr := h.dnsServerAddr
+	h.RUnlock()
+
+	response, _, err := client.Exchange(request, dnsAddr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to call target DNS: %w", err)
 	}
