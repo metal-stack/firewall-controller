@@ -212,7 +212,6 @@ func TestServiceRules(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			ingress := serviceRules(tt.input, tt.allowed, false, nil)
 			if !cmp.Equal(ingress, tt.want.ingress) {

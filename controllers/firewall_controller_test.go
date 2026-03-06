@@ -125,7 +125,6 @@ func TestConvert(t *testing.T) {
 		},
 	}
 	for _, tc := range tt {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			actualCwnp, actualErr := convert(tc.np)
 			if !errors.Is(actualErr, tc.expectedErr) {
