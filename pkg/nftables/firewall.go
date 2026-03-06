@@ -24,7 +24,6 @@ import (
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
-
 )
 
 const (
@@ -37,7 +36,6 @@ const (
 //go:embed *.tpl
 var templates embed.FS
 
-//go:generate ../../bin/mockery --name=FQDNCache --outpkg=mocks --output=./mocks --filename=mock_fqdncache.go
 type FQDNCache interface {
 	GetSetsForRendering(fqdns []firewallv1.FQDNSelector) (result []dns.RenderIPSet)
 	GetSetsForFQDN(fqdn firewallv1.FQDNSelector) (result []firewallv1.IPSet)

@@ -150,12 +150,12 @@ func (mr *mockRecorder) Event(object runtime.Object, eventtype, reason, message 
 	mr.tpreason = eventtype + "," + reason
 	mr.ok = eventtype == mr.evType && reason == mr.evReason
 }
-func (mr *mockRecorder) Eventf(object runtime.Object, eventtype, reason, messageFmt string, args ...interface{}) {
+func (mr *mockRecorder) Eventf(object runtime.Object, eventtype, reason, messageFmt string, args ...any) {
 	mr.invoke = true
 	mr.tpreason = eventtype + "," + reason
 	mr.ok = eventtype == mr.evType && reason == mr.evReason
 }
-func (mr *mockRecorder) AnnotatedEventf(object runtime.Object, annotations map[string]string, eventtype, reason, messageFmt string, args ...interface{}) {
+func (mr *mockRecorder) AnnotatedEventf(object runtime.Object, annotations map[string]string, eventtype, reason, messageFmt string, args ...any) {
 	mr.invoke = true
 	mr.tpreason = eventtype + "," + reason
 	mr.ok = eventtype == mr.evType && reason == mr.evReason

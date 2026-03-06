@@ -97,7 +97,6 @@ func TestPolicySpec_Validate(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			p := &PolicySpec{
 				Ingress: tt.Ingress,
@@ -146,7 +145,6 @@ func TestFQDNSelector_GetRegex(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			if r := tt.selector.GetRegex(); tt.expectedRegex != r {
 				t.Errorf("FQDNSelector.GetRegex returned %s, expected %s", r, tt.expectedRegex)

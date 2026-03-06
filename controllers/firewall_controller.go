@@ -236,7 +236,6 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 
 	var privateNet *firewallv2.FirewallNetwork
 	for _, n := range f.Status.FirewallNetworks {
-		n := n
 		if n.NetworkType == nil {
 			continue
 		}

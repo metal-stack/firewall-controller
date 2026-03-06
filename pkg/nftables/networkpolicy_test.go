@@ -9,8 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
-	"github.com/metal-stack/firewall-controller/v2/pkg/nftables/mocks"
-	"github.com/metal-stack/metal-lib/pkg/pointer"
+	mocks "github.com/metal-stack/firewall-controller/v2/pkg/nftables/mocks/pkg/nftables"
 )
 
 func port(p int) *intstr.IntOrString {
@@ -61,7 +60,7 @@ func TestClusterwideNetworkPolicyRules(t *testing.T) {
 								{
 									Protocol: &tcp,
 									Port:     port(443),
-									EndPort:  pointer.Pointer(int32(448)),
+									EndPort:  new(int32(448)),
 								},
 							},
 						},
@@ -82,7 +81,7 @@ func TestClusterwideNetworkPolicyRules(t *testing.T) {
 								{
 									Protocol: &tcp,
 									Port:     port(443),
-									EndPort:  pointer.Pointer(int32(448)),
+									EndPort:  new(int32(448)),
 								},
 							},
 						},
@@ -108,7 +107,6 @@ func TestClusterwideNetworkPolicyRules(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			ingress, egress, _ := clusterwideNetworkPolicyRules(nil, tt.input, false)
 			if !cmp.Equal(ingress, tt.want.ingress) {
@@ -236,7 +234,6 @@ func TestClusterwideNetworkPolicyEgressRules(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			fqdnCache := mocks.NewFQDNCache(t)
 			tt.record(fqdnCache)
