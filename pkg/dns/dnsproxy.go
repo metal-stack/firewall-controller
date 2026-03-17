@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/metal-stack/metal-networker/pkg/netconf"
+	netconf "github.com/metal-stack/os-installer/pkg/network"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
