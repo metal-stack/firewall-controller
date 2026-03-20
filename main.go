@@ -393,6 +393,7 @@ func getSeedNamespace(rawKubeconfig []byte) (string, error) {
 }
 
 func getMachineAllocation() (*apiv2.MachineAllocation, error) {
+	// TODO: check what we can take from the Firewall Object
 	_, err := os.Stat(installerv1.MachineAllocationPath)
 	if errors.Is(err, os.ErrNotExist) {
 		_, err = os.Stat(installerv1.LegacyInstallPath)
@@ -529,9 +530,11 @@ func convertLegacyInstallConfig(config *installerv1.InstallerConfig) (*apiv2.Mac
 			Ips:                 nw.Ips,
 			Vrf:                 uint64(pointer.SafeDeref(nw.Vrf)),
 			Asn:                 uint32(pointer.SafeDeref(nw.Asn)),
-			Project:             nw.Projectid,
-			NatType:             natType,
-			NetworkType:         networkType,
+			// FIXME This is most probably empty as well, but can be taken from
+			// firewall.Status.FirewallNetworks.Project which must be added there
+			Project:     nw.Projectid,
+			NatType:     natType,
+			NetworkType: networkType,
 		})
 	}
 
