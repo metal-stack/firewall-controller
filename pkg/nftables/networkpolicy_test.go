@@ -12,11 +12,6 @@ import (
 	mocks "github.com/metal-stack/firewall-controller/v2/pkg/nftables/mocks/pkg/nftables"
 )
 
-func port(p int) *intstr.IntOrString {
-	intstr := intstr.FromInt(p)
-	return &intstr
-}
-
 func TestClusterwideNetworkPolicyRules(t *testing.T) {
 	tcp := corev1.ProtocolTCP
 	udp := corev1.ProtocolUDP
@@ -51,15 +46,15 @@ func TestClusterwideNetworkPolicyRules(t *testing.T) {
 							Ports: []networking.NetworkPolicyPort{
 								{
 									Protocol: &tcp,
-									Port:     port(53),
+									Port:     new(intstr.FromInt(53)),
 								},
 								{
 									Protocol: &udp,
-									Port:     port(53),
+									Port:     new(intstr.FromInt(53)),
 								},
 								{
 									Protocol: &tcp,
-									Port:     port(443),
+									Port:     new(intstr.FromInt(443)),
 									EndPort:  new(int32(448)),
 								},
 							},
@@ -76,11 +71,11 @@ func TestClusterwideNetworkPolicyRules(t *testing.T) {
 							Ports: []networking.NetworkPolicyPort{
 								{
 									Protocol: &tcp,
-									Port:     port(80),
+									Port:     new(intstr.FromInt(80)),
 								},
 								{
 									Protocol: &tcp,
-									Port:     port(443),
+									Port:     new(intstr.FromInt(443)),
 									EndPort:  new(int32(448)),
 								},
 							},
@@ -160,11 +155,11 @@ func TestClusterwideNetworkPolicyEgressRules(t *testing.T) {
 							Ports: []networking.NetworkPolicyPort{
 								{
 									Protocol: &tcp,
-									Port:     port(53),
+									Port:     new(intstr.FromInt(53)),
 								},
 								{
 									Protocol: &udp,
-									Port:     port(53),
+									Port:     new(intstr.FromInt(53)),
 								},
 							},
 						},
@@ -200,11 +195,11 @@ func TestClusterwideNetworkPolicyEgressRules(t *testing.T) {
 							Ports: []networking.NetworkPolicyPort{
 								{
 									Protocol: &tcp,
-									Port:     port(53),
+									Port:     new(intstr.FromInt(53)),
 								},
 								{
 									Protocol: &udp,
-									Port:     port(53),
+									Port:     new(intstr.FromInt(53)),
 								},
 							},
 						},

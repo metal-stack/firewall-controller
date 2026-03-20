@@ -7,70 +7,75 @@ import (
 	"strconv"
 	"time"
 
-	netconf "github.com/metal-stack/os-installer/pkg/network"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 
 	"github.com/go-logr/logr"
 	dnsgo "github.com/miekg/dns"
-
-	"github.com/metal-stack/firewall-controller/v2/pkg/network"
 )
 
 const (
 	defaultDNSPort uint = 53
 )
 
-type DNSHandler interface {
-	ServeDNS(w dnsgo.ResponseWriter, r *dnsgo.Msg)
-	UpdateDNSServerAddr(addr string) error
-}
-
-type DNSProxy struct {
-	log        logr.Logger
-	ctx        context.Context
-	cancelFunc context.CancelFunc
-	cache      *DNSCache
-
-	udpServer *dnsgo.Server
-	tcpServer *dnsgo.Server
-
-	handler DNSHandler
-}
-
-func NewDNSProxy(ctx context.Context, dns string, port *uint, shootClient client.Client, log logr.Logger) (*DNSProxy, error) {
-	if dns == "" {
-		dns = defaultDNSServerAddr
+type (
+	DNSHandler interface {
+		ServeDNS(w dnsgo.ResponseWriter, r *dnsgo.Msg)
+		UpdateDNSServerAddr(addr string) error
 	}
 
-	host, err := getHost()
-	if err != nil {
-		return nil, err
+	DNSProxy struct {
+		log        logr.Logger
+		ctx        context.Context
+		cancelFunc context.CancelFunc
+		cache      *DNSCache
+
+		udpServer *dnsgo.Server
+		tcpServer *dnsgo.Server
+
+		handler DNSHandler
+
+		bindAddress string
+	}
+
+	DNSProxyConfig struct {
+		DNSServer   string
+		Port        *uint
+		ShootClient client.Client
+		Log         logr.Logger
+		// BindAddress is the first ip of the defaultRouteNetwork
+		BindAddress string
+	}
+)
+
+func NewDNSProxy(ctx context.Context, cfg *DNSProxyConfig) (*DNSProxy, error) {
+	if cfg.DNSServer == "" {
+		cfg.DNSServer = defaultDNSServerAddr
 	}
 
 	p := defaultDNSPort
-	if port != nil {
-		p = *port
+	if cfg.Port != nil {
+		p = *cfg.Port
 	}
-	udpConn, tcpListener, err := bindToPort(host, int(p), log) // nolint:gosec
+	udpConn, tcpListener, err := bindToPort(cfg.BindAddress, int(p), cfg.Log) // nolint:gosec
 	if err != nil {
 		return nil, fmt.Errorf("failed to bind to port: %w", err)
 	}
 
 	backgroundCtx, cancel := context.WithCancel(ctx)
-	cache, err := newDNSCache(backgroundCtx, dns, true, false, shootClient, log.WithName("DNS cache"))
+	cache, err := newDNSCache(backgroundCtx, cfg.DNSServer, true, false, cfg.ShootClient, cfg.Log.WithName("DNS cache"))
 	if err != nil {
 		cancel()
 		return nil, err
 	}
-	handler := NewDNSProxyHandler(log, cache)
+	handler := NewDNSProxyHandler(cfg.Log, cache)
 
 	udpServer := &dnsgo.Server{PacketConn: udpConn, Addr: udpConn.LocalAddr().String(), Net: "udp", Handler: handler}
 	tcpServer := &dnsgo.Server{Listener: tcpListener, Addr: udpConn.LocalAddr().String(), Net: "tcp", Handler: handler}
 
 	return &DNSProxy{
-		log:        log,
+		log:        cfg.Log,
 		ctx:        backgroundCtx,
 		cancelFunc: cancel,
 		cache:      cache,
@@ -79,6 +84,8 @@ func NewDNSProxy(ctx context.Context, dns string, port *uint, shootClient client
 		tcpServer: tcpServer,
 
 		handler: handler,
+
+		bindAddress: cfg.BindAddress,
 	}, nil
 }
 
@@ -136,22 +143,8 @@ func (p *DNSProxy) IsInitialized() bool {
 	return p != nil
 }
 
-func (p *DNSProxy) CacheAddr() (string, error) {
-	return getHost()
-}
-
-func getHost() (string, error) {
-	c, err := netconf.New(network.GetLogger(), network.MetalNetworkerConfig)
-	if err != nil || c == nil {
-		return "", fmt.Errorf("failed to init networker config: %w", err)
-	}
-
-	defaultNetwork := c.GetDefaultRouteNetwork()
-	if defaultNetwork == nil || len(defaultNetwork.Ips) < 1 {
-		return "", fmt.Errorf("failed to retrieve host IP for DNS Proxy")
-	}
-
-	return defaultNetwork.Ips[0], nil
+func (p *DNSProxy) CacheAddr() string {
+	return p.bindAddress
 }
 
 // bindToPort attempts to bind to port for both UDP and TCP

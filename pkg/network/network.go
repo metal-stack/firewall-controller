@@ -1,37 +1,32 @@
 package network
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
-	"os"
-	"path/filepath"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/go-logr/logr"
+	apiv2 "github.com/metal-stack/api/go/metalstack/api/v2"
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
-	"github.com/metal-stack/metal-go/api/models"
-	netconf "github.com/metal-stack/os-installer/pkg/network"
+	"github.com/metal-stack/os-installer/pkg/frr"
+	osnet "github.com/metal-stack/os-installer/pkg/network"
 )
 
-const (
-	MetalNetworkerConfig = "/etc/metal/install.yaml"
-	frrConfig            = "/etc/frr/frr.conf"
-)
-
-var logger *slog.Logger
-
-func init() {
-	jsonHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{})
-	l := slog.New(jsonHandler)
-
-	logger = l.WithGroup("networker")
+type network struct {
+	log        logr.Logger
+	allocation *apiv2.MachineAllocation
 }
 
-func GetLogger() *slog.Logger {
-	return logger
+func NewNetwork(log logr.Logger, allocation *apiv2.MachineAllocation) *network {
+	return &network{
+		log:        log,
+		allocation: allocation,
+	}
 }
 
 // GetNewNetworks returns updated network models
-func GetNewNetworks(f *firewallv2.Firewall, oldNetworks []*models.V1MachineNetwork) []*models.V1MachineNetwork {
+func GetNewNetworks(f *firewallv2.Firewall, oldNetworks []*apiv2.MachineNetwork) []*apiv2.MachineNetwork {
 	networkMap := map[string]firewallv2.FirewallNetwork{}
 	for _, n := range f.Status.FirewallNetworks {
 		if n.NetworkType == nil {
@@ -40,14 +35,14 @@ func GetNewNetworks(f *firewallv2.Firewall, oldNetworks []*models.V1MachineNetwo
 		networkMap[*n.NetworkID] = n
 	}
 
-	newNetworks := []*models.V1MachineNetwork{}
+	newNetworks := []*apiv2.MachineNetwork{}
 	for _, n := range oldNetworks {
 		if n == nil {
 			continue
 		}
 
 		newNet := n
-		newNet.Prefixes = networkMap[*n.Networkid].Prefixes
+		newNet.Prefixes = networkMap[n.Network].Prefixes
 		newNetworks = append(newNetworks, newNet)
 	}
 
@@ -56,42 +51,19 @@ func GetNewNetworks(f *firewallv2.Firewall, oldNetworks []*models.V1MachineNetwo
 
 // ReconcileNetwork reconciles the network settings for a firewall
 // Changes both the FRR-Configuration and Nftable rules when network prefixes or FRR template changes
-func ReconcileNetwork(f *firewallv2.Firewall, frrVersion *semver.Version) (changed bool, err error) {
-	tmpFile, err := tmpFile(frrConfig)
+func (n *network) ReconcileNetwork(f *firewallv2.Firewall, frrVersion *semver.Version) (bool, error) {
+	n.allocation.Networks = GetNewNetworks(f, n.allocation.Networks)
+
+	changed, err := frr.Render(context.Background(), &frr.Config{
+		Log:        slog.New(logr.ToSlogHandler(n.log)),
+		Reload:     true,
+		Validate:   true,
+		Network:    osnet.New(n.allocation),
+		FRRVersion: frrVersion,
+	})
 	if err != nil {
-		return false, fmt.Errorf("error during network reconciliation %v: %w", tmpFile, err)
-	}
-	defer func() {
-		_ = os.Remove(tmpFile)
-	}()
-
-	c, err := netconf.New(GetLogger(), MetalNetworkerConfig)
-	if err != nil || c == nil {
-		return false, fmt.Errorf("failed to init networker config: %w", err)
-	}
-	c.Networks = GetNewNetworks(f, c.Networks)
-
-	a := netconf.NewFrrConfigApplier(netconf.Firewall, *c, tmpFile, frrVersion)
-	tpl := netconf.MustParseTpl(netconf.TplFirewallFRR)
-
-	changed, err = a.Apply(*tpl, tmpFile, frrConfig, true)
-	if err != nil {
-		return changed, fmt.Errorf("error during network reconciliation: %v: %w", tmpFile, err)
+		return changed, fmt.Errorf("error during network reconciliation: %w", err)
 	}
 
 	return changed, nil
-}
-
-func tmpFile(file string) (string, error) {
-	f, err := os.CreateTemp(filepath.Dir(file), filepath.Base(file))
-	if err != nil {
-		return "", err
-	}
-
-	err = f.Close()
-	if err != nil {
-		return "", err
-	}
-
-	return f.Name(), nil
 }

@@ -61,10 +61,7 @@ func clusterwideNetworkPolicyIngressRules(np firewallv1.ClusterwideNetworkPolicy
 }
 
 func clusterwideNetworkPolicyEgressDNSCacheRules(cache FQDNCache, logAcceptedConnections bool) (nftablesRules, error) {
-	addr, err := cache.CacheAddr()
-	if err != nil {
-		return nil, err
-	}
+	addr := cache.CacheAddr()
 	base := []string{"ip saddr == @cluster_prefixes", fmt.Sprintf("ip daddr { %s }", addr)}
 	comment := "accept intercepted traffic for dns cache"
 	return nftablesRules{

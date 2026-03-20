@@ -7,6 +7,7 @@ import (
 
 	"go4.org/netipx"
 
+	apiv2 "github.com/metal-stack/api/go/metalstack/api/v2"
 	"github.com/metal-stack/firewall-controller/v2/pkg/dns"
 	"github.com/metal-stack/firewall-controller/v2/pkg/helper"
 	"github.com/metal-stack/firewall-controller/v2/pkg/nftables"
@@ -46,6 +47,9 @@ type ClusterwideNetworkPolicyReconciler struct {
 	Interval time.Duration
 	DnsProxy *dns.DNSProxy
 	SkipDNS  bool
+
+	DefaultRouteIp    string
+	MachineAllocation *apiv2.MachineAllocation
 }
 
 // SetupWithManager configures this controller to run in schedule
@@ -106,7 +110,7 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ct
 	}
 	cwnps.Items = validCwnps
 
-	nftablesFirewall := nftables.NewFirewall(f, &cwnps, &services, r.DnsProxy, r.Log, r.Recorder)
+	nftablesFirewall := nftables.NewFirewall(f, &cwnps, &services, r.DnsProxy, r.Log, r.Recorder, r.MachineAllocation)
 	if err := r.manageDNSProxy(f, cwnps, nftablesFirewall); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -145,7 +149,14 @@ func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
 
 	if enableDNS && r.DnsProxy == nil {
 		r.Log.Info("DNS Proxy is initialized")
-		if r.DnsProxy, err = dns.NewDNSProxy(r.Ctx, f.Spec.DNSServerAddress, f.Spec.DNSPort, r.ShootClient, ctrl.Log.WithName("DNS proxy")); err != nil {
+		dnsProxyConfig := &dns.DNSProxyConfig{
+			Log:         ctrl.Log.WithName("DNS proxy"),
+			DNSServer:   f.Spec.DNSServerAddress,
+			Port:        f.Spec.DNSPort,
+			ShootClient: r.ShootClient,
+			BindAddress: r.DefaultRouteIp,
+		}
+		if r.DnsProxy, err = dns.NewDNSProxy(r.Ctx, dnsProxyConfig); err != nil {
 			return fmt.Errorf("failed to init DNS proxy: %w", err)
 		}
 		go r.DnsProxy.Run()
