@@ -8,6 +8,7 @@ import (
 	"go4.org/netipx"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func helpMustParseIPSet(ips []string) *netipx.IPSet {
@@ -39,7 +40,7 @@ func TestServiceRules(t *testing.T) {
 					Ports: []corev1.ServicePort{
 						{
 							Port:       443,
-							TargetPort: *port(30443),
+							TargetPort: intstr.FromInt(30443),
 							Protocol:   corev1.ProtocolTCP,
 						},
 					},
@@ -72,7 +73,7 @@ func TestServiceRules(t *testing.T) {
 					Ports: []corev1.ServicePort{
 						{
 							Port:       443,
-							TargetPort: *port(30443),
+							TargetPort: intstr.FromInt(30443),
 							Protocol:   corev1.ProtocolTCP,
 						},
 					},
@@ -88,7 +89,7 @@ func TestServiceRules(t *testing.T) {
 					Ports: []corev1.ServicePort{
 						{
 							Port:       443,
-							TargetPort: *port(30443),
+							TargetPort: intstr.FromInt(30443),
 							Protocol:   corev1.ProtocolTCP,
 						},
 					},
@@ -109,7 +110,7 @@ func TestServiceRules(t *testing.T) {
 					Ports: []corev1.ServicePort{
 						{
 							Port:       443,
-							TargetPort: *port(30443),
+							TargetPort: intstr.FromInt(30443),
 							Protocol:   corev1.ProtocolTCP,
 						},
 					},
@@ -147,7 +148,7 @@ func TestServiceRules(t *testing.T) {
 					Ports: []corev1.ServicePort{
 						{
 							Port:       443,
-							TargetPort: *port(30443),
+							TargetPort: intstr.FromInt(30443),
 							Protocol:   corev1.ProtocolTCP,
 						},
 					},
@@ -185,7 +186,7 @@ func TestServiceRules(t *testing.T) {
 					Ports: []corev1.ServicePort{
 						{
 							Port:       443,
-							TargetPort: *port(30443),
+							TargetPort: intstr.FromInt(30443),
 							Protocol:   corev1.ProtocolTCP,
 						},
 					},

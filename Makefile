@@ -89,4 +89,4 @@ go-mocks:
 		--tmpfs /.cache:uid=$$(id -u),gid=$$(id -g) \
 		-w /work \
 		-v ${PWD}:/work \
-		vektra/mockery:v3.6.4
+		vektra/mockery:v3.7.0

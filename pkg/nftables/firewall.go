@@ -1,14 +1,17 @@
 package nftables
 
 import (
+	"context"
 	"embed"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/netip"
 	"os"
 	"os/exec"
 	"path/filepath"
 
+	apiv2 "github.com/metal-stack/api/go/metalstack/api/v2"
 	"github.com/metal-stack/firewall-controller/v2/pkg/dns"
 
 	"github.com/metal-stack/firewall-controller/v2/pkg/network"
@@ -20,7 +23,8 @@ import (
 	"k8s.io/client-go/tools/record"
 
 	mn "github.com/metal-stack/metal-lib/pkg/net"
-	"github.com/metal-stack/metal-networker/pkg/netconf"
+	osnet "github.com/metal-stack/os-installer/pkg/network"
+	"github.com/metal-stack/os-installer/pkg/nftables"
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
@@ -40,7 +44,7 @@ type FQDNCache interface {
 	GetSetsForRendering(fqdns []firewallv1.FQDNSelector) (result []dns.RenderIPSet)
 	GetSetsForFQDN(fqdn firewallv1.FQDNSelector) (result []firewallv1.IPSet)
 	IsInitialized() bool
-	CacheAddr() (string, error)
+	CacheAddr() string
 }
 
 // Firewall assembles nftable rules based on k8s entities
@@ -56,6 +60,7 @@ type Firewall struct {
 	primaryPrivateNet *firewallv2.FirewallNetwork
 	networkMap        networkMap
 	cache             FQDNCache
+	allocation        *apiv2.MachineAllocation
 
 	enableDNS              bool
 	dryRun                 bool
@@ -79,6 +84,7 @@ func NewFirewall(
 	cache FQDNCache,
 	log logr.Logger,
 	recorder record.EventRecorder,
+	allocation *apiv2.MachineAllocation,
 ) *Firewall {
 	networkMap := networkMap{}
 	var primaryPrivateNet *firewallv2.FirewallNetwork
@@ -104,6 +110,7 @@ func NewFirewall(
 		enableDNS:                  len(cwnps.GetFQDNs()) > 0,
 		log:                        log,
 		recorder:                   recorder,
+		allocation:                 allocation,
 	}
 }
 
@@ -173,32 +180,29 @@ func (f *Firewall) Reconcile() (updated bool, err error) {
 }
 
 func (f *Firewall) ReconcileNetconfTables() error {
-	c, err := netconf.New(network.GetLogger(), network.MetalNetworkerConfig)
-	if err != nil || c == nil {
-		return fmt.Errorf("failed to init networker config: %w", err)
-	}
+	f.allocation.Networks = network.GetNewNetworks(f.firewall, f.allocation.Networks)
 
-	c.Networks = network.GetNewNetworks(f.firewall, c.Networks)
-
-	configurator, err := netconf.NewConfigurator(netconf.Firewall, *c, f.enableDNS)
+	changed, err := nftables.Render(context.Background(), &nftables.Config{
+		Log:            slog.New(logr.ToSlogHandler(f.log)),
+		Reload:         true,
+		Validate:       true,
+		EnableDNSProxy: f.enableDNS,
+		ForwardPolicy:  nftables.ForwardPolicyAccept,
+		Network:        osnet.New(f.allocation),
+	})
 	if err != nil {
-		return fmt.Errorf("failed to init networker configurator: %w", err)
+		return fmt.Errorf("failed to render nftables: %w", err)
 	}
-	configurator.ConfigureNftables(netconf.ForwardPolicyAccept)
+	if changed {
+		f.log.Info("nftables rules have changed")
+	}
 
 	return nil
 }
 
-func getConfiguredIPs(networkID string) []string {
-	c, err := netconf.New(network.GetLogger(), network.MetalNetworkerConfig)
-	if err != nil || c == nil {
-		return nil
-	}
+func (f *Firewall) getConfiguredIPs(networkID string) []string {
 	var ips []string
-	for _, nw := range c.Networks {
-		if nw.Networkid == nil || *nw.Networkid != networkID {
-			continue
-		}
+	for _, nw := range osnet.New(f.allocation).AllocationNetworks() {
 		ips = append(ips, nw.Ips...)
 	}
 	return ips
@@ -245,7 +249,7 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 			continue
 		}
 
-		configureIPs := getConfiguredIPs(*n.NetworkID)
+		configureIPs := f.getConfiguredIPs(*n.NetworkID)
 
 		wantedIPs := sets.NewString(configureIPs...)
 		for _, i := range f.firewall.Spec.EgressRules {

@@ -38,7 +38,7 @@ func (_m *FQDNCache) EXPECT() *FQDNCache_Expecter {
 }
 
 // CacheAddr provides a mock function for the type FQDNCache
-func (_mock *FQDNCache) CacheAddr() (string, error) {
+func (_mock *FQDNCache) CacheAddr() string {
 	ret := _mock.Called()
 
 	if len(ret) == 0 {
@@ -46,21 +46,12 @@ func (_mock *FQDNCache) CacheAddr() (string, error) {
 	}
 
 	var r0 string
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (string, error)); ok {
-		return returnFunc()
-	}
 	if returnFunc, ok := ret.Get(0).(func() string); ok {
 		r0 = returnFunc()
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
+	return r0
 }
 
 // FQDNCache_CacheAddr_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CacheAddr'
@@ -80,12 +71,12 @@ func (_c *FQDNCache_CacheAddr_Call) Run(run func()) *FQDNCache_CacheAddr_Call {
 	return _c
 }
 
-func (_c *FQDNCache_CacheAddr_Call) Return(s string, err error) *FQDNCache_CacheAddr_Call {
-	_c.Call.Return(s, err)
+func (_c *FQDNCache_CacheAddr_Call) Return(s string) *FQDNCache_CacheAddr_Call {
+	_c.Call.Return(s)
 	return _c
 }
 
-func (_c *FQDNCache_CacheAddr_Call) RunAndReturn(run func() (string, error)) *FQDNCache_CacheAddr_Call {
+func (_c *FQDNCache_CacheAddr_Call) RunAndReturn(run func() string) *FQDNCache_CacheAddr_Call {
 	_c.Call.Return(run)
 	return _c
 }
