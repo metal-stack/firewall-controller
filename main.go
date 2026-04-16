@@ -56,14 +56,15 @@ func init() {
 
 func main() {
 	var (
-		logLevel             string
-		isVersion            bool
-		metricsAddr          string
-		enableIDS            bool
-		enableSignatureCheck bool
-		hostsFile            string
-		firewallName         string
-		kubeconfigPath       = os.Getenv("KUBECONFIG")
+		logLevel               string
+		isVersion              bool
+		metricsAddr            string
+		enableIDS              bool
+		enableSignatureCheck   bool
+		hostsFile              string
+		firewallName           string
+		dnsCacheUpdateInterval time.Duration
+		kubeconfigPath         = os.Getenv("KUBECONFIG")
 	)
 
 	flag.StringVar(&logLevel, "log-level", "info", "the log level of the controller")
@@ -73,6 +74,7 @@ func main() {
 	flag.StringVar(&hostsFile, "hosts-file", "/etc/hosts", "The hosts file to manipulate for the droptailer.")
 	flag.BoolVar(&enableSignatureCheck, "enable-signature-check", true, "Set this to false to ignore signature checking.")
 	flag.StringVar(&firewallName, "firewall-name", "", "the name of the firewall resource in the seed cluster to reconcile (defaults to hostname)")
+	flag.DurationVar(&dnsCacheUpdateInterval, "dnscache-update-interval", 2*time.Second, "minimum interval between fqdn state configmap updates")
 
 	if _, err := os.Stat(seedKubeconfigPath); err == nil || os.IsExist(err) {
 		// controller-runtime registered this flag already, so we can use it
@@ -265,13 +267,14 @@ func main() {
 
 	// ClusterwideNetworkPolicy Reconciler
 	if err = (&controllers.ClusterwideNetworkPolicyReconciler{
-		SeedClient:    seedMgr.GetClient(),
-		ShootClient:   shootMgr.GetClient(),
-		Log:           ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicy"),
-		Ctx:           ctx,
-		Recorder:      shootMgr.GetEventRecorderFor("FirewallController"), // nolint:staticcheck
-		FirewallName:  firewallName,
-		SeedNamespace: seedNamespace,
+		SeedClient:             seedMgr.GetClient(),
+		ShootClient:            shootMgr.GetClient(),
+		Log:                    ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicy"),
+		Ctx:                    ctx,
+		Recorder:               shootMgr.GetEventRecorderFor("FirewallController"), // nolint:staticcheck
+		FirewallName:           firewallName,
+		SeedNamespace:          seedNamespace,
+		DNSCacheUpdateInterval: dnsCacheUpdateInterval,
 	}).SetupWithManager(shootMgr); err != nil {
 		l.Error("unable to create clusterwidenetworkpolicy controller", "error", err)
 		panic(err)

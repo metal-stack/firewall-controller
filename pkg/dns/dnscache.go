@@ -115,26 +115,29 @@ type cacheEntry struct {
 type DNSCache struct {
 	sync.RWMutex
 
-	log           logr.Logger
-	fqdnToEntry   map[string]cacheEntry
-	setNames      map[string]struct{}
-	dnsServerAddr string
-	shootClient   client.Client
-	ctx           context.Context
-	ipv4Enabled   bool
-	ipv6Enabled   bool
+	log                 logr.Logger
+	fqdnToEntry         map[string]cacheEntry
+	setNames            map[string]struct{}
+	dnsServerAddr       string
+	shootClient         client.Client
+	ctx                 context.Context
+	ipv4Enabled         bool
+	ipv6Enabled         bool
+	stateUpdateInterval time.Duration
+	lastStateUpdate     time.Time
 }
 
-func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool, shootClient client.Client, log logr.Logger) (*DNSCache, error) {
+func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool, stateUpdateInterval time.Duration, shootClient client.Client, log logr.Logger) (*DNSCache, error) {
 	c := DNSCache{
-		log:           log,
-		fqdnToEntry:   map[string]cacheEntry{},
-		setNames:      map[string]struct{}{},
-		dnsServerAddr: dns,
-		shootClient:   shootClient,
-		ctx:           ctx,
-		ipv4Enabled:   ipv4Enabled,
-		ipv6Enabled:   ipv6Enabled,
+		log:                 log,
+		fqdnToEntry:         map[string]cacheEntry{},
+		setNames:            map[string]struct{}{},
+		dnsServerAddr:       dns,
+		shootClient:         shootClient,
+		ctx:                 ctx,
+		ipv4Enabled:         ipv4Enabled,
+		ipv6Enabled:         ipv6Enabled,
+		stateUpdateInterval: stateUpdateInterval,
 	}
 
 	nn := types.NamespacedName{Name: fqdnStateConfigmapName, Namespace: fqdnStateNamespace}
@@ -169,6 +172,12 @@ func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool,
 
 // writeStateToConfigmap writes the whole DNS cache to the state configmap
 func (c *DNSCache) writeStateToConfigmap() error {
+	now := time.Now()
+	if !c.shouldWriteStateToConfigmap(now) {
+		c.log.V(4).Info("DEBUG skipping fqdnstate configmap update due to update interval", "interval", c.stateUpdateInterval)
+		return nil
+	}
+
 	c.RLock()
 	s, err := yaml.Marshal(c.fqdnToEntry)
 	c.RUnlock()
@@ -234,6 +243,22 @@ func (c *DNSCache) writeStateToConfigmap() error {
 	debugLog.Info("DEBUG no need to update cm, already up to date")
 
 	return nil
+}
+
+func (c *DNSCache) shouldWriteStateToConfigmap(now time.Time) bool {
+	c.Lock()
+	defer c.Unlock()
+
+	if c.stateUpdateInterval <= 0 {
+		return true
+	}
+
+	if !c.lastStateUpdate.IsZero() && now.Sub(c.lastStateUpdate) < c.stateUpdateInterval {
+		return false
+	}
+
+	c.lastStateUpdate = now
+	return true
 }
 
 // getSetsForFQDN returns sets for FQDN selector
