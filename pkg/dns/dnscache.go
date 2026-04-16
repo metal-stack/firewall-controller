@@ -124,7 +124,7 @@ type DNSCache struct {
 	ipv4Enabled         bool
 	ipv6Enabled         bool
 	stateUpdateInterval time.Duration
-	lastStateUpdate     time.Time
+	stateDirty          bool
 }
 
 func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool, stateUpdateInterval time.Duration, shootClient client.Client, log logr.Logger) (*DNSCache, error) {
@@ -167,17 +167,12 @@ func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool,
 	if err != nil {
 		c.log.Info("could not unmarshal state from fqdnstate configmap, ignoring content.", "error", err)
 	}
+	c.startStateSyncLoop()
 	return &c, nil
 }
 
 // writeStateToConfigmap writes the whole DNS cache to the state configmap
 func (c *DNSCache) writeStateToConfigmap() error {
-	now := time.Now()
-	if !c.shouldWriteStateToConfigmap(now) {
-		c.log.V(4).Info("DEBUG skipping fqdnstate configmap update due to update interval", "interval", c.stateUpdateInterval)
-		return nil
-	}
-
 	c.RLock()
 	s, err := yaml.Marshal(c.fqdnToEntry)
 	c.RUnlock()
@@ -224,6 +219,8 @@ func (c *DNSCache) writeStateToConfigmap() error {
 			return err
 		}
 
+		c.markStateSynced()
+
 		return nil
 	}
 
@@ -236,29 +233,13 @@ func (c *DNSCache) writeStateToConfigmap() error {
 		}
 
 		debugLog.Info("DEBUG updated cm", "old data", cm.Data, "new data", data)
+		c.markStateSynced()
 
 		return nil
 	}
 
 	debugLog.Info("DEBUG no need to update cm, already up to date")
-
 	return nil
-}
-
-func (c *DNSCache) shouldWriteStateToConfigmap(now time.Time) bool {
-	c.Lock()
-	defer c.Unlock()
-
-	if c.stateUpdateInterval <= 0 {
-		return true
-	}
-
-	if !c.lastStateUpdate.IsZero() && now.Sub(c.lastStateUpdate) < c.stateUpdateInterval {
-		return false
-	}
-
-	c.lastStateUpdate = now
-	return true
 }
 
 // getSetsForFQDN returns sets for FQDN selector
@@ -486,9 +467,7 @@ func (c *DNSCache) Update(lookupTime time.Time, qname string, msg *dnsgo.Msg, fq
 	}
 
 	if ipEntriesUpdated {
-		if err := c.writeStateToConfigmap(); err != nil {
-			c.log.V(4).Info("DEBUG could not write updated DNS cache to state configmap", "configmap", fqdnStateConfigmapName, "namespace", fqdnStateNamespace, "error", err)
-		}
+		c.markStateDirty()
 	}
 
 	return found, nil
@@ -620,4 +599,47 @@ func createRenderIPSetFromIPEntry(version IPVersion, entry *iPEntry) RenderIPSet
 		IPs:     ips,
 		Version: version,
 	}
+}
+
+func (c *DNSCache) startStateSyncLoop() {
+	if c.stateUpdateInterval <= 0 {
+		return
+	}
+
+	ticker := time.NewTicker(c.stateUpdateInterval)
+	go func() {
+		defer ticker.Stop()
+		for {
+			select {
+			case <-c.ctx.Done():
+				return
+			case <-ticker.C:
+				if !c.isStateDirty() {
+					continue
+				}
+				if err := c.writeStateToConfigmap(); err != nil {
+					c.log.V(4).Info("DEBUG periodic sync of fqdnstate configmap failed", "configmap", fqdnStateConfigmapName, "namespace", fqdnStateNamespace, "error", err)
+				}
+			}
+		}
+	}()
+}
+
+func (c *DNSCache) markStateDirty() {
+	c.Lock()
+	c.stateDirty = true
+	c.Unlock()
+}
+
+func (c *DNSCache) markStateSynced() {
+	c.Lock()
+	c.stateDirty = false
+	c.Unlock()
+}
+
+func (c *DNSCache) isStateDirty() bool {
+	c.RLock()
+	defer c.RUnlock()
+
+	return c.stateDirty
 }

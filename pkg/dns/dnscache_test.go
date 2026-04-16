@@ -475,23 +475,3 @@ func TestRace_ConcurrentMultipleReaders(t *testing.T) {
 	close(start)
 	wg.Wait()
 }
-
-func TestDNSCache_shouldWriteStateToConfigmap(t *testing.T) {
-	now := time.Now()
-
-	cache := &DNSCache{
-		stateUpdateInterval: 2 * time.Second,
-	}
-
-	if got := cache.shouldWriteStateToConfigmap(now); !got {
-		t.Fatalf("expected first write attempt to be allowed")
-	}
-
-	if got := cache.shouldWriteStateToConfigmap(now.Add(1500 * time.Millisecond)); got {
-		t.Fatalf("expected write attempt within interval to be throttled")
-	}
-
-	if got := cache.shouldWriteStateToConfigmap(now.Add(2 * time.Second)); !got {
-		t.Fatalf("expected write attempt at interval boundary to be allowed")
-	}
-}
