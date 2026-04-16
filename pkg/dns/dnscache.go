@@ -603,8 +603,10 @@ func createRenderIPSetFromIPEntry(version IPVersion, entry *iPEntry) RenderIPSet
 
 func (c *DNSCache) startStateSyncLoop() {
 	if c.stateUpdateInterval <= 0 {
+		c.log.Info("state update interval is set to 0 or negative, skipping state sync loop")
 		return
 	}
+	c.log.Info("starting fqdnstate sync loop", "interval", c.stateUpdateInterval)
 
 	ticker := time.NewTicker(c.stateUpdateInterval)
 	go func() {
