@@ -148,6 +148,8 @@ func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool,
 		cancel()
 	}()
 
+	c.startStateSyncLoop()
+
 	err := shootClient.Get(ctxWithTimeout, nn, scm)
 	if err != nil && !apierrors.IsNotFound(err) {
 		c.log.Error(err, "error reading fqndstate configmap")
@@ -167,7 +169,6 @@ func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool,
 	if err != nil {
 		c.log.Info("could not unmarshal state from fqdnstate configmap, ignoring content.", "error", err)
 	}
-	c.startStateSyncLoop()
 	return &c, nil
 }
 
