@@ -39,7 +39,7 @@ type DNSProxy struct {
 	handler DNSHandler
 }
 
-func NewDNSProxy(ctx context.Context, dns string, port *uint, stateUpdateInterval time.Duration, shootClient client.Client, log logr.Logger) (*DNSProxy, error) {
+func NewDNSProxy(ctx context.Context, dns string, port *uint, fqdnStateSyncInterval time.Duration, shootClient client.Client, log logr.Logger) (*DNSProxy, error) {
 	if dns == "" {
 		dns = defaultDNSServerAddr
 	}
@@ -59,7 +59,7 @@ func NewDNSProxy(ctx context.Context, dns string, port *uint, stateUpdateInterva
 	}
 
 	backgroundCtx, cancel := context.WithCancel(ctx)
-	cache, err := newDNSCache(backgroundCtx, dns, true, false, stateUpdateInterval, shootClient, log.WithName("DNS cache"))
+	cache, err := newDNSCache(backgroundCtx, dns, true, false, fqdnStateSyncInterval, shootClient, log.WithName("DNS cache"))
 	if err != nil {
 		cancel()
 		return nil, err

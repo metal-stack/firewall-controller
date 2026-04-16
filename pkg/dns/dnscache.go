@@ -115,29 +115,29 @@ type cacheEntry struct {
 type DNSCache struct {
 	sync.RWMutex
 
-	log                 logr.Logger
-	fqdnToEntry         map[string]cacheEntry
-	setNames            map[string]struct{}
-	dnsServerAddr       string
-	shootClient         client.Client
-	ctx                 context.Context
-	ipv4Enabled         bool
-	ipv6Enabled         bool
-	stateUpdateInterval time.Duration
-	stateDirty          bool
+	log                   logr.Logger
+	fqdnToEntry           map[string]cacheEntry
+	setNames              map[string]struct{}
+	dnsServerAddr         string
+	shootClient           client.Client
+	ctx                   context.Context
+	ipv4Enabled           bool
+	ipv6Enabled           bool
+	fqdnStateSyncInterval time.Duration
+	stateDirty            bool
 }
 
-func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool, stateUpdateInterval time.Duration, shootClient client.Client, log logr.Logger) (*DNSCache, error) {
+func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool, fqdnStateSyncInterval time.Duration, shootClient client.Client, log logr.Logger) (*DNSCache, error) {
 	c := DNSCache{
-		log:                 log,
-		fqdnToEntry:         map[string]cacheEntry{},
-		setNames:            map[string]struct{}{},
-		dnsServerAddr:       dns,
-		shootClient:         shootClient,
-		ctx:                 ctx,
-		ipv4Enabled:         ipv4Enabled,
-		ipv6Enabled:         ipv6Enabled,
-		stateUpdateInterval: stateUpdateInterval,
+		log:                   log,
+		fqdnToEntry:           map[string]cacheEntry{},
+		setNames:              map[string]struct{}{},
+		dnsServerAddr:         dns,
+		shootClient:           shootClient,
+		ctx:                   ctx,
+		ipv4Enabled:           ipv4Enabled,
+		ipv6Enabled:           ipv6Enabled,
+		fqdnStateSyncInterval: fqdnStateSyncInterval,
 	}
 
 	nn := types.NamespacedName{Name: fqdnStateConfigmapName, Namespace: fqdnStateNamespace}
@@ -148,7 +148,7 @@ func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool,
 		cancel()
 	}()
 
-	c.startStateSyncLoop()
+	c.startFQDNStateSyncLoop()
 
 	err := shootClient.Get(ctxWithTimeout, nn, scm)
 	if err != nil && !apierrors.IsNotFound(err) {
@@ -602,14 +602,14 @@ func createRenderIPSetFromIPEntry(version IPVersion, entry *iPEntry) RenderIPSet
 	}
 }
 
-func (c *DNSCache) startStateSyncLoop() {
-	if c.stateUpdateInterval <= 0 {
-		c.log.Info("state update interval is set to 0 or negative, skipping state sync loop")
+func (c *DNSCache) startFQDNStateSyncLoop() {
+	if c.fqdnStateSyncInterval <= 0 {
+		c.log.Info("fqdnstate sync interval is set to 0 or negative, skipping state sync loop")
 		return
 	}
-	c.log.Info("starting fqdnstate sync loop", "interval", c.stateUpdateInterval)
+	c.log.Info("starting fqdnstate sync loop", "interval", c.fqdnStateSyncInterval)
 
-	ticker := time.NewTicker(c.stateUpdateInterval)
+	ticker := time.NewTicker(c.fqdnStateSyncInterval)
 	go func() {
 		defer ticker.Stop()
 		for {
