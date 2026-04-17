@@ -74,7 +74,7 @@ func main() {
 	flag.StringVar(&hostsFile, "hosts-file", "/etc/hosts", "The hosts file to manipulate for the droptailer.")
 	flag.BoolVar(&enableSignatureCheck, "enable-signature-check", true, "Set this to false to ignore signature checking.")
 	flag.StringVar(&firewallName, "firewall-name", "", "the name of the firewall resource in the seed cluster to reconcile (defaults to hostname)")
-	flag.DurationVar(&fqdnStateSyncInterval, "fqdnstate-sync-interval", 2*time.Second, "minimum interval between fqdn state configmap syncs")
+	flag.DurationVar(&fqdnStateSyncInterval, "fqdnstate-sync-interval", 10*time.Second, "minimum interval between fqdn state configmap syncs")
 
 	if _, err := os.Stat(seedKubeconfigPath); err == nil || os.IsExist(err) {
 		// controller-runtime registered this flag already, so we can use it
