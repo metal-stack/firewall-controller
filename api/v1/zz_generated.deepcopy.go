@@ -216,11 +216,6 @@ func (in *NetworkPolicyPort) DeepCopyInto(out *NetworkPolicyPort) {
 		*out = new(corev1.Protocol)
 		**out = **in
 	}
-	if in.Port != nil {
-		in, out := &in.Port, &out.Port
-		*out = new(int32)
-		**out = **in
-	}
 	if in.EndPort != nil {
 		in, out := &in.EndPort, &out.EndPort
 		*out = new(int32)

@@ -39,15 +39,15 @@ func TestPolicySpec_Validate(t *testing.T) {
 					Ports: []NetworkPolicyPort{
 						{
 							Protocol: nil,
-							Port:     &port1,
+							Port:     port1,
 						},
 						{
 							Protocol: &tcp,
-							Port:     &port2,
+							Port:     port2,
 						},
 						{
 							Protocol: &udp,
-							Port:     &port2,
+							Port:     port2,
 						},
 					},
 				},
@@ -65,7 +65,7 @@ func TestPolicySpec_Validate(t *testing.T) {
 					Ports: []NetworkPolicyPort{
 						{
 							Protocol: &tcp,
-							Port:     &invalidPort,
+							Port:     invalidPort,
 						},
 					},
 				},

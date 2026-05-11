@@ -151,20 +151,24 @@ func clusterwideNetworkPolicyEgressToFQDNRules(
 
 func calculatePorts(ports []firewallv1.NetworkPolicyPort) (tcpPorts, udpPorts []string) {
 	for _, p := range ports {
-		proto := proto(p.Protocol)
-		portStr := ""
-		if p.Port != nil {
-			portStr = strconv.FormatInt(int64(*p.Port), 10)
-		}
+		var (
+			proto   = proto(p.Protocol)
+			portStr = strconv.FormatInt(int64(p.Port), 10)
+		)
+
 		if p.EndPort != nil {
 			portStr = fmt.Sprintf("%s-%d", portStr, *p.EndPort)
 		}
+
 		switch proto {
-		case "tcp":
-			tcpPorts = append(tcpPorts, portStr)
 		case "udp":
 			udpPorts = append(udpPorts, portStr)
+		case "tcp":
+			fallthrough
+		default:
+			tcpPorts = append(tcpPorts, portStr)
 		}
 	}
+
 	return tcpPorts, udpPorts
 }

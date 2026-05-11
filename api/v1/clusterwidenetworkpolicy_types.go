@@ -146,8 +146,7 @@ type NetworkPolicyPort struct {
 	Protocol *corev1.Protocol `json:"protocol,omitempty"`
 
 	// port represents the port on the given protocol.
-	// +optional
-	Port *int32 `json:"port,omitempty"`
+	Port int32 `json:"port,omitempty"`
 
 	// endPort indicates that the range of ports from port to endPort if set, inclusive,
 	// should be allowed by the policy. This field cannot be defined if the port field
@@ -244,7 +243,7 @@ func (p *PolicySpec) Validate() error {
 func validatePorts(ports []NetworkPolicyPort) error {
 	var errs []error
 	for _, p := range ports {
-		if p.Port != nil && (*p.Port > 65535 || *p.Port <= 0) {
+		if p.Port > 65535 || p.Port <= 0 {
 			errs = append(errs, fmt.Errorf("only ports between 0 and 65535 are allowed, but %v given", p.Port))
 		}
 

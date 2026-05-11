@@ -64,7 +64,7 @@ func TestConvert(t *testing.T) {
 						{
 							Ports: []firewallv1.NetworkPolicyPort{
 								{
-									Port:     &p.IntVal,
+									Port:     p.IntVal,
 									Protocol: &tcp,
 								},
 							},
@@ -171,7 +171,7 @@ func convert(np networking.NetworkPolicy) (*firewallv1.ClusterwideNetworkPolicy,
 		for _, p := range egress.Ports {
 			ports = append(ports, firewallv1.NetworkPolicyPort{
 				Protocol: p.Protocol,
-				Port:     &p.Port.IntVal,
+				Port:     p.Port.IntVal,
 				EndPort:  p.EndPort,
 			})
 		}

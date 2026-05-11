@@ -134,11 +134,11 @@ func TestSnatRules(t *testing.T) {
 									Ports: []firewallv1.NetworkPolicyPort{
 										{
 											Protocol: &tcp,
-											Port:     new(int32(53)),
+											Port:     int32(53),
 										},
 										{
 											Protocol: &udp,
-											Port:     new(int32(53)),
+											Port:     int32(53),
 										},
 									},
 								},

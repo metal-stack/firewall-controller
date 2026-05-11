@@ -45,15 +45,15 @@ func TestClusterwideNetworkPolicyRules(t *testing.T) {
 							Ports: []firewallv1.NetworkPolicyPort{
 								{
 									Protocol: &tcp,
-									Port:     new(int32(53)),
+									Port:     int32(53),
 								},
 								{
 									Protocol: &udp,
-									Port:     new(int32(53)),
+									Port:     int32(53),
 								},
 								{
 									Protocol: &tcp,
-									Port:     new(int32(443)),
+									Port:     int32(443),
 									EndPort:  new(int32(448)),
 								},
 							},
@@ -70,11 +70,11 @@ func TestClusterwideNetworkPolicyRules(t *testing.T) {
 							Ports: []firewallv1.NetworkPolicyPort{
 								{
 									Protocol: &tcp,
-									Port:     new(int32(80)),
+									Port:     int32(80),
 								},
 								{
 									Protocol: &tcp,
-									Port:     new(int32(443)),
+									Port:     int32(443),
 									EndPort:  new(int32(448)),
 								},
 							},
@@ -154,11 +154,11 @@ func TestClusterwideNetworkPolicyEgressRules(t *testing.T) {
 							Ports: []firewallv1.NetworkPolicyPort{
 								{
 									Protocol: &tcp,
-									Port:     new(int32(53)),
+									Port:     int32(53),
 								},
 								{
 									Protocol: &udp,
-									Port:     new(int32(53)),
+									Port:     int32(53),
 								},
 							},
 						},
@@ -194,11 +194,11 @@ func TestClusterwideNetworkPolicyEgressRules(t *testing.T) {
 							Ports: []firewallv1.NetworkPolicyPort{
 								{
 									Protocol: &tcp,
-									Port:     new(int32(53)),
+									Port:     int32(53),
 								},
 								{
 									Protocol: &udp,
-									Port:     new(int32(53)),
+									Port:     int32(53),
 								},
 							},
 						},
