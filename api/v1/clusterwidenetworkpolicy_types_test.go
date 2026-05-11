@@ -5,16 +5,17 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func TestPolicySpec_Validate(t *testing.T) {
-	tcp := corev1.ProtocolTCP
-	udp := corev1.ProtocolUDP
-	port1 := intstr.FromInt(8080)
-	port2 := intstr.FromInt(8081)
-	invalid := intstr.FromString("invalid")
-	invalidPort := intstr.FromInt(99999)
+	var (
+		tcp         = corev1.ProtocolTCP
+		udp         = corev1.ProtocolUDP
+		port1       = int32(8080)
+		port2       = int32(8081)
+		invalidPort = int32(99999)
+	)
+
 	tests := []struct {
 		name    string
 		Ingress []IngressRule
@@ -35,7 +36,7 @@ func TestPolicySpec_Validate(t *testing.T) {
 							Except: []string{"192.168.0.1/32"},
 						},
 					},
-					Ports: []networking.NetworkPolicyPort{
+					Ports: []NetworkPolicyPort{
 						{
 							Protocol: nil,
 							Port:     &port1,
@@ -53,30 +54,6 @@ func TestPolicySpec_Validate(t *testing.T) {
 			},
 		},
 		{
-			name: "invalid test",
-			Ingress: []IngressRule{
-				{
-					From: []networking.IPBlock{
-						{
-							CIDR:   "1.1.0.0/24",
-							Except: []string{"1.1.1.0/16"},
-						},
-						{
-							CIDR:   "192.168.0.1",
-							Except: []string{"192.168.0.2"},
-						},
-					},
-					Ports: []networking.NetworkPolicyPort{
-						{
-							Protocol: nil,
-							Port:     &invalid,
-						},
-					},
-				},
-			},
-			wantErr: true,
-		},
-		{
 			name: "invalid port",
 			Ingress: []IngressRule{
 				{
@@ -85,7 +62,7 @@ func TestPolicySpec_Validate(t *testing.T) {
 							CIDR: "1.1.0.0/24",
 						},
 					},
-					Ports: []networking.NetworkPolicyPort{
+					Ports: []NetworkPolicyPort{
 						{
 							Protocol: &tcp,
 							Port:     &invalidPort,

@@ -6,16 +6,10 @@ import (
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 	mocks "github.com/metal-stack/firewall-controller/v2/pkg/nftables/mocks/pkg/nftables"
 )
-
-func port(p int) *intstr.IntOrString {
-	intstr := intstr.FromInt(p)
-	return &intstr
-}
 
 func TestClusterwideNetworkPolicyRules(t *testing.T) {
 	tcp := corev1.ProtocolTCP
@@ -48,18 +42,18 @@ func TestClusterwideNetworkPolicyRules(t *testing.T) {
 									CIDR: "1.1.1.0/24",
 								},
 							},
-							Ports: []networking.NetworkPolicyPort{
+							Ports: []firewallv1.NetworkPolicyPort{
 								{
 									Protocol: &tcp,
-									Port:     port(53),
+									Port:     new(int32(53)),
 								},
 								{
 									Protocol: &udp,
-									Port:     port(53),
+									Port:     new(int32(53)),
 								},
 								{
 									Protocol: &tcp,
-									Port:     port(443),
+									Port:     new(int32(443)),
 									EndPort:  new(int32(448)),
 								},
 							},
@@ -73,14 +67,14 @@ func TestClusterwideNetworkPolicyRules(t *testing.T) {
 									Except: []string{"1.1.0.1"},
 								},
 							},
-							Ports: []networking.NetworkPolicyPort{
+							Ports: []firewallv1.NetworkPolicyPort{
 								{
 									Protocol: &tcp,
-									Port:     port(80),
+									Port:     new(int32(80)),
 								},
 								{
 									Protocol: &tcp,
-									Port:     port(443),
+									Port:     new(int32(443)),
 									EndPort:  new(int32(448)),
 								},
 							},
@@ -157,14 +151,14 @@ func TestClusterwideNetworkPolicyEgressRules(t *testing.T) {
 									CIDR: "1.1.1.0/24",
 								},
 							},
-							Ports: []networking.NetworkPolicyPort{
+							Ports: []firewallv1.NetworkPolicyPort{
 								{
 									Protocol: &tcp,
-									Port:     port(53),
+									Port:     new(int32(53)),
 								},
 								{
 									Protocol: &udp,
-									Port:     port(53),
+									Port:     new(int32(53)),
 								},
 							},
 						},
@@ -197,14 +191,14 @@ func TestClusterwideNetworkPolicyEgressRules(t *testing.T) {
 									MatchPattern: "*.test.com",
 								},
 							},
-							Ports: []networking.NetworkPolicyPort{
+							Ports: []firewallv1.NetworkPolicyPort{
 								{
 									Protocol: &tcp,
-									Port:     port(53),
+									Port:     new(int32(53)),
 								},
 								{
 									Protocol: &udp,
-									Port:     port(53),
+									Port:     new(int32(53)),
 								},
 							},
 						},

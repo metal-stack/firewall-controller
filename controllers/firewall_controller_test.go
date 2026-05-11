@@ -62,9 +62,9 @@ func TestConvert(t *testing.T) {
 				Spec: firewallv1.PolicySpec{
 					Egress: []firewallv1.EgressRule{
 						{
-							Ports: []networking.NetworkPolicyPort{
+							Ports: []firewallv1.NetworkPolicyPort{
 								{
-									Port:     &p,
+									Port:     &p.IntVal,
 									Protocol: &tcp,
 								},
 							},
@@ -166,8 +166,18 @@ func convert(np networking.NetworkPolicy) (*firewallv1.ClusterwideNetworkPolicy,
 		if len(newTos) == 0 {
 			continue
 		}
+
+		var ports []firewallv1.NetworkPolicyPort
+		for _, p := range egress.Ports {
+			ports = append(ports, firewallv1.NetworkPolicyPort{
+				Protocol: p.Protocol,
+				Port:     &p.Port.IntVal,
+				EndPort:  p.EndPort,
+			})
+		}
+
 		newEgresses = append(newEgresses, firewallv1.EgressRule{
-			Ports: egress.Ports,
+			Ports: ports,
 			To:    newTos,
 		})
 	}
