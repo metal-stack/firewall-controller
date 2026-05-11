@@ -8,7 +8,6 @@ import (
 
 	dnsgo "github.com/miekg/dns"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -144,7 +143,7 @@ type NetworkPolicyPort struct {
 	// protocol represents the protocol (TCP, UDP) which traffic must match.
 	// If not specified, this field defaults to TCP.
 	// +optional
-	Protocol *v1.Protocol `json:"protocol,omitempty"`
+	Protocol *corev1.Protocol `json:"protocol,omitempty"`
 
 	// port represents the port on the given protocol.
 	// +optional

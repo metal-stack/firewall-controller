@@ -2,6 +2,7 @@ package nftables
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
@@ -151,7 +152,10 @@ func clusterwideNetworkPolicyEgressToFQDNRules(
 func calculatePorts(ports []firewallv1.NetworkPolicyPort) (tcpPorts, udpPorts []string) {
 	for _, p := range ports {
 		proto := proto(p.Protocol)
-		portStr := fmt.Sprint(p.Port)
+		portStr := ""
+		if p.Port != nil {
+			portStr = strconv.FormatInt(int64(*p.Port), 10)
+		}
 		if p.EndPort != nil {
 			portStr = fmt.Sprintf("%s-%d", portStr, *p.EndPort)
 		}
