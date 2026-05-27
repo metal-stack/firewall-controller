@@ -41,6 +41,7 @@ func (r *FirewallMonitorAnnotationController) SetupWithManager(mgr ctrl.Manager)
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
 			return object.GetNamespace() == r.Namespace && object.GetName() == r.FirewallName
 		})).
+		Named("FirewallMonitorAnnotationController").
 		Complete(r)
 }
 

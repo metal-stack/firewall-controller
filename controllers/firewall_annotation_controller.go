@@ -40,6 +40,7 @@ func (r *FirewallAnnotationController) SetupWithManager(mgr ctrl.Manager) error 
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
 			return object.GetNamespace() == r.Namespace && object.GetName() == r.FirewallName
 		})).
+		Named("FirewallAnnotationController").
 		Complete(r)
 }
 
