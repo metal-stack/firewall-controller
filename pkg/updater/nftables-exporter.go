@@ -64,7 +64,7 @@ func (u *Updater) updateNFTablesExporter(ctx context.Context, f *firewallv2.Fire
 		return err
 	}
 
-	err = restart(ctx, "nftables-exporter.service")
+	err = Restart(ctx, "nftables-exporter.service")
 	if err != nil {
 		u.log.Error(err, "error restarting nftables-exporter")
 		return err
