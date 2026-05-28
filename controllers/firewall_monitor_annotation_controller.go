@@ -84,7 +84,7 @@ func (r *FirewallMonitorAnnotationController) Reconcile(ctx context.Context, req
 
 		// If the firewall-controller itself should be restarted, we have to first remove the annotation from the node.
 		// Otherwise, the annotation is never removed and it restarts itself indefinitely.
-		if serviceName == "firewall-controller.service" {
+		if serviceName == firewallControllerService {
 			restartFirewallController = true
 			continue
 		}
@@ -104,7 +104,7 @@ func (r *FirewallMonitorAnnotationController) Reconcile(ctx context.Context, req
 
 	if restartFirewallController {
 		r.Log.Info("restart firewall-controller")
-		if err := updater.Restart(ctx, "firewall-controller.service"); err != nil {
+		if err := updater.Restart(ctx, firewallControllerService); err != nil {
 			r.Log.Error(err, "error restarting firewall-controller")
 		}
 	}

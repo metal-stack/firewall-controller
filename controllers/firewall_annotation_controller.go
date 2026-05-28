@@ -18,6 +18,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+const firewallControllerService = "firewall-controller.service"
+
 type FirewallAnnotationController struct {
 	SeedClient   client.Client
 	FirewallName string
@@ -71,7 +73,7 @@ func (r *FirewallAnnotationController) Reconcile(ctx context.Context, req ctrl.R
 		}
 		// If the firewall-controller itself should be restarted, we have to first remove the annotation from the node.
 		// Otherwise, the annotation is never removed and it restarts itself indefinitely.
-		if serviceName == "firewall-controller.service" {
+		if serviceName == firewallControllerService {
 			restartFirewallController = true
 			continue
 		}
@@ -91,7 +93,7 @@ func (r *FirewallAnnotationController) Reconcile(ctx context.Context, req ctrl.R
 
 	if restartFirewallController {
 		r.Log.Info("restart firewall-controller")
-		if err := updater.Restart(ctx, "firewall-controller.service"); err != nil {
+		if err := updater.Restart(ctx, firewallControllerService); err != nil {
 			r.Log.Error(err, "error restarting firewall-controller")
 		}
 	}
