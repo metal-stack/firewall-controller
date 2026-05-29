@@ -8,7 +8,6 @@ import (
 
 	"github.com/go-logr/logr"
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
-	v2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	"github.com/metal-stack/firewall-controller/v2/pkg/updater"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -53,7 +52,7 @@ func (r *FirewallMonitorAnnotationController) SetupWithManager(mgr ctrl.Manager)
 			},
 		}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(object client.Object) bool {
-			return object.GetNamespace() == v2.FirewallShootNamespace && object.GetName() == r.FirewallName
+			return object.GetNamespace() == firewallv2.FirewallShootNamespace && object.GetName() == r.FirewallName
 		})).
 		Named("FirewallMonitorAnnotationController").
 		Complete(r)
@@ -98,7 +97,7 @@ func (r *FirewallMonitorAnnotationController) Reconcile(ctx context.Context, req
 		whitelist                 = systemdServiceRestartWhitelist
 	)
 
-	if overwrite, ok := fw.GetAnnotations()[v2.FirewallRestartSystemdServicesWhitelistAnnotation]; ok {
+	if overwrite, ok := fw.GetAnnotations()[firewallv2.FirewallRestartSystemdServicesWhitelistAnnotation]; ok {
 		whitelist = strings.Split(overwrite, ",")
 	}
 
