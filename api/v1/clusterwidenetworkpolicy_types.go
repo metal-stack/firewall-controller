@@ -21,8 +21,6 @@ const (
 	allowedDNSCharsREGroup                      = "[-a-zA-Z0-9_.]"
 	IPv4                              IPVersion = "ip"
 	IPv6                              IPVersion = "ip6"
-
-	AnnotationRestartSystemdServices = "firewall.metal-stack.io/restart-systemd-services"
 )
 
 // ClusterwideNetworkPolicy contains the desired state for a cluster wide network policy to be applied.

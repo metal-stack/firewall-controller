@@ -292,23 +292,13 @@ func main() {
 		panic(err)
 	}
 
-	// FirewallAnnotationReconciler
-	if err = (&controllers.FirewallAnnotationController{
-		SeedClient:   seedMgr.GetClient(),
-		Log:          ctrl.Log.WithName("controllers").WithName("FirewallAnnotation"),
-		FirewallName: firewallName,
-		Namespace:    seedNamespace,
-	}).SetupWithManager(seedMgr); err != nil {
-		l.Error("unable to create firewall annotation controller", "error", err)
-		panic(err)
-	}
-
 	// FirewallMonitorAnnotationReconciler
 	if err = (&controllers.FirewallMonitorAnnotationController{
-		ShootClient:  shootMgr.GetClient(),
-		Log:          ctrl.Log.WithName("controllers").WithName("FirewallMonitorAnnotation"),
-		FirewallName: firewallName,
-		Namespace:    firewallv2.FirewallShootNamespace,
+		ShootClient:   shootMgr.GetClient(),
+		SeedClient:    seedMgr.GetClient(),
+		Log:           ctrl.Log.WithName("controllers").WithName("FirewallMonitorAnnotation"),
+		FirewallName:  firewallName,
+		SeedNamespace: seedNamespace,
 	}).SetupWithManager(shootMgr); err != nil {
 		l.Error("unable to create firewall monitor annotation controller", "error", err)
 		panic(err)
