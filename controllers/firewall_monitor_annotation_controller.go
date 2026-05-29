@@ -9,8 +9,10 @@ import (
 	"github.com/go-logr/logr"
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	"github.com/metal-stack/firewall-controller/v2/pkg/updater"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,6 +39,7 @@ type FirewallMonitorAnnotationController struct {
 	FirewallName  string
 	SeedNamespace string
 	Log           logr.Logger
+	Recorder      record.EventRecorder
 }
 
 func (r *FirewallMonitorAnnotationController) SetupWithManager(mgr ctrl.Manager) error {
@@ -119,8 +122,23 @@ func (r *FirewallMonitorAnnotationController) Reconcile(ctx context.Context, req
 		}
 
 		r.Log.Info("restart service", "service-name", serviceName)
+
 		if err := updater.Restart(ctx, serviceName); err != nil {
+			r.Recorder.Event(
+				fwmon,
+				corev1.EventTypeWarning,
+				"ServiceRestarted",
+				fmt.Sprintf("systemd service restart of service %q failed: %s", serviceName, err),
+			)
+
 			r.Log.Error(err, "error restarting service", "service-name", serviceName)
+		} else {
+			r.Recorder.Event(
+				fwmon,
+				corev1.EventTypeNormal,
+				"ServiceRestarted",
+				fmt.Sprintf("systemd service %q was restarted through monitor annotation", serviceName),
+			)
 		}
 	}
 
@@ -134,8 +152,23 @@ func (r *FirewallMonitorAnnotationController) Reconcile(ctx context.Context, req
 
 	if restartFirewallController {
 		r.Log.Info("restart firewall-controller")
+
 		if err := updater.Restart(ctx, firewallControllerService); err != nil {
+			r.Recorder.Event(
+				fwmon,
+				corev1.EventTypeWarning,
+				"ServiceRestarted",
+				fmt.Sprintf("systemd service restart of service %q failed: %s", firewallControllerService, err),
+			)
+
 			r.Log.Error(err, "error restarting firewall-controller")
+		} else {
+			r.Recorder.Event(
+				fwmon,
+				corev1.EventTypeNormal,
+				"ServiceRestarted",
+				fmt.Sprintf("systemd service %q was restarted through monitor annotation", firewallControllerService),
+			)
 		}
 	}
 
