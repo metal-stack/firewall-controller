@@ -80,23 +80,17 @@ spec:
                             description: |-
                               endPort indicates that the range of ports from port to endPort if set, inclusive,
                               should be allowed by the policy. This field cannot be defined if the port field
-                              is not defined or if the port field is defined as a named (string) port.
+                              is not defined.
                               The endPort must be equal or greater than port.
                             format: int32
                             type: integer
                           port:
-                            anyOf:
-                            - type: integer
-                            - type: string
-                            description: |-
-                              port represents the port on the given protocol. This can either be a numerical or named
-                              port on a pod. If this field is not provided, this matches all port names and
-                              numbers.
-                              If present, only traffic on the specified protocol AND port will be matched.
-                            x-kubernetes-int-or-string: true
+                            description: port represents the port on the given protocol.
+                            format: int32
+                            type: integer
                           protocol:
                             description: |-
-                              protocol represents the protocol (TCP, UDP, or SCTP) which traffic must match.
+                              protocol represents the protocol (TCP, UDP) which traffic must match.
                               If not specified, this field defaults to TCP.
                             type: string
                         type: object
@@ -213,23 +207,17 @@ spec:
                             description: |-
                               endPort indicates that the range of ports from port to endPort if set, inclusive,
                               should be allowed by the policy. This field cannot be defined if the port field
-                              is not defined or if the port field is defined as a named (string) port.
+                              is not defined.
                               The endPort must be equal or greater than port.
                             format: int32
                             type: integer
                           port:
-                            anyOf:
-                            - type: integer
-                            - type: string
-                            description: |-
-                              port represents the port on the given protocol. This can either be a numerical or named
-                              port on a pod. If this field is not provided, this matches all port names and
-                              numbers.
-                              If present, only traffic on the specified protocol AND port will be matched.
-                            x-kubernetes-int-or-string: true
+                            description: port represents the port on the given protocol.
+                            format: int32
+                            type: integer
                           protocol:
                             description: |-
-                              protocol represents the protocol (TCP, UDP, or SCTP) which traffic must match.
+                              protocol represents the protocol (TCP, UDP) which traffic must match.
                               If not specified, this field defaults to TCP.
                             type: string
                         type: object

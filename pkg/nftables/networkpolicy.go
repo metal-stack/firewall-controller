@@ -2,9 +2,8 @@ package nftables
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
-
-	networkingv1 "k8s.io/api/networking/v1"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 )
@@ -150,19 +149,26 @@ func clusterwideNetworkPolicyEgressToFQDNRules(
 	return rules, fqdnState
 }
 
-func calculatePorts(ports []networkingv1.NetworkPolicyPort) (tcpPorts, udpPorts []string) {
+func calculatePorts(ports []firewallv1.NetworkPolicyPort) (tcpPorts, udpPorts []string) {
 	for _, p := range ports {
-		proto := proto(p.Protocol)
-		portStr := fmt.Sprint(p.Port)
+		var (
+			proto   = proto(p.Protocol)
+			portStr = strconv.FormatInt(int64(p.Port), 10)
+		)
+
 		if p.EndPort != nil {
-			portStr = fmt.Sprintf("%s-%d", p.Port, *p.EndPort)
+			portStr = fmt.Sprintf("%s-%d", portStr, *p.EndPort)
 		}
+
 		switch proto {
-		case "tcp":
-			tcpPorts = append(tcpPorts, portStr)
 		case "udp":
 			udpPorts = append(udpPorts, portStr)
+		case "tcp":
+			fallthrough
+		default:
+			tcpPorts = append(tcpPorts, portStr)
 		}
 	}
+
 	return tcpPorts, udpPorts
 }
