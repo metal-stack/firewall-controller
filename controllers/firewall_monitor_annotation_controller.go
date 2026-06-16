@@ -111,6 +111,12 @@ func (r *FirewallMonitorAnnotationController) Reconcile(ctx context.Context, req
 
 		if !slices.Contains(whitelist, serviceName) {
 			r.Log.Info("skipping service restart because not in whitelist", "service-name", serviceName)
+			r.Recorder.Event(
+				fwmon,
+				corev1.EventTypeWarning,
+				"ServiceRestarted",
+				fmt.Sprintf("systemd service restart of service %q skipped because it is not listed in whitelist annotation in the firewall: %v", serviceName, whitelist),
+			)
 			continue
 		}
 
