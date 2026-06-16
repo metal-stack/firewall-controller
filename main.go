@@ -299,7 +299,7 @@ func main() {
 		Log:           ctrl.Log.WithName("controllers").WithName("FirewallMonitorAnnotation"),
 		FirewallName:  firewallName,
 		SeedNamespace: seedNamespace,
-		Recorder:      shootMgr.GetEventRecorderFor("FirewallMonitorAnnotation"),
+		Recorder:      shootMgr.GetEventRecorderFor("FirewallMonitorAnnotation"), // nolint:staticcheck
 	}).SetupWithManager(shootMgr); err != nil {
 		l.Error("unable to create firewall monitor annotation controller", "error", err)
 		panic(err)
