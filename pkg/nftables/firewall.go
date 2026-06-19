@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 
 	"github.com/metal-stack/firewall-controller/v2/pkg/dns"
+	"github.com/metal-stack/os-installer/pkg/network"
+	netconf "github.com/metal-stack/os-installer/pkg/network"
 
 	"github.com/metal-stack/firewall-controller/v2/pkg/network"
 
@@ -20,7 +22,7 @@ import (
 	"k8s.io/client-go/tools/record"
 
 	mn "github.com/metal-stack/metal-lib/pkg/net"
-	"github.com/metal-stack/metal-networker/pkg/netconf"
+	"github.com/metal-stack/os-installer/pkg/network"
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
