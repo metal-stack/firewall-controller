@@ -8,11 +8,17 @@ import (
 	"go4.org/netipx"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func helpMustParseIPSet(ips []string) *netipx.IPSet {
 	res, _ := helper.BuildNetworksIPSet(ips)
 	return res
+}
+
+func port(p int) *intstr.IntOrString {
+	intstr := intstr.FromInt(p)
+	return &intstr
 }
 
 func TestServiceRules(t *testing.T) {

@@ -10,7 +10,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 type IPVersion string
@@ -100,7 +99,7 @@ type IngressRule struct {
 	// If this field is present and contains at least one item, then this rule allows
 	// traffic only if the traffic matches at least one port in the list.
 	// +optional
-	Ports []networking.NetworkPolicyPort `json:"ports,omitempty"`
+	Ports []NetworkPolicyPort `json:"ports,omitempty"`
 
 	// List of sources which should be able to access the cluster for this rule.
 	// Items in this list are combined using a logical OR operation. If this field is
@@ -120,7 +119,7 @@ type EgressRule struct {
 	// If this field is present and contains at least one item, then this rule allows
 	// traffic only if the traffic matches at least one port in the list.
 	// +optional
-	Ports []networking.NetworkPolicyPort `json:"ports,omitempty"`
+	Ports []NetworkPolicyPort `json:"ports,omitempty"`
 
 	// List of destinations for outgoing traffic of a cluster for this rule.
 	// Items in this list are combined using a logical OR operation. If this field is
@@ -137,6 +136,24 @@ type EgressRule struct {
 	// ToFQDNs rules can't contain To rules.
 	// +optional
 	ToFQDNs []FQDNSelector `json:"toFQDNs,omitempty"`
+}
+
+// NetworkPolicyPort describes a port to allow traffic on
+type NetworkPolicyPort struct {
+	// protocol represents the protocol (TCP, UDP) which traffic must match.
+	// If not specified, this field defaults to TCP.
+	// +optional
+	Protocol *corev1.Protocol `json:"protocol,omitempty"`
+
+	// port represents the port on the given protocol.
+	Port int32 `json:"port,omitempty"`
+
+	// endPort indicates that the range of ports from port to endPort if set, inclusive,
+	// should be allowed by the policy. This field cannot be defined if the port field
+	// is not defined.
+	// The endPort must be equal or greater than port.
+	// +optional
+	EndPort *int32 `json:"endPort,omitempty"`
 }
 
 // FQDNSelector describes rules for matching DNS names.
@@ -223,14 +240,10 @@ func (p *PolicySpec) Validate() error {
 	return errors.Join(errs...)
 }
 
-func validatePorts(ports []networking.NetworkPolicyPort) error {
+func validatePorts(ports []NetworkPolicyPort) error {
 	var errs []error
 	for _, p := range ports {
-		if p.Port != nil && p.Port.Type != intstr.Int {
-			errs = append(errs, fmt.Errorf("only int ports are supported, but %v given", p.Port))
-		}
-
-		if p.Port != nil && (p.Port.IntValue() > 65535 || p.Port.IntValue() <= 0) {
+		if p.Port > 65535 || p.Port <= 0 {
 			errs = append(errs, fmt.Errorf("only ports between 0 and 65535 are allowed, but %v given", p.Port))
 		}
 

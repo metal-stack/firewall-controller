@@ -295,6 +295,19 @@ func main() {
 		panic(err)
 	}
 
+	// FirewallMonitorAnnotationReconciler
+	if err = (&controllers.FirewallMonitorAnnotationController{
+		ShootClient:   shootMgr.GetClient(),
+		SeedClient:    seedMgr.GetClient(),
+		Log:           ctrl.Log.WithName("controllers").WithName("FirewallMonitorAnnotation"),
+		FirewallName:  firewallName,
+		SeedNamespace: seedNamespace,
+		Recorder:      shootMgr.GetEventRecorderFor("FirewallMonitorAnnotation"), // nolint:staticcheck
+	}).SetupWithManager(shootMgr); err != nil {
+		l.Error("unable to create firewall monitor annotation controller", "error", err)
+		panic(err)
+	}
+
 	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting firewall-controller", "version", v.V.String())
