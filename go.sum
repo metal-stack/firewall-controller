@@ -1,5 +1,3 @@
-buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260209202127-80ab13bee0bf.1 h1:PMmTMyvHScV9Mn8wc6ASge9uRcHy0jtqPd+fM35LmsQ=
-buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260209202127-80ab13bee0bf.1/go.mod h1:tvtbpgaVXZX4g6Pn+AnzFycuRK3MOz5HJfEGeEllXYM=
 github.com/Masterminds/semver/v3 v3.4.0 h1:Zog+i5UMtVoCU8oKka5P7i9q9HgrJeGzI9SA1Xbatp0=
 github.com/Masterminds/semver/v3 v3.4.0/go.mod h1:4V+yj/TJE1HU9XfppCwVMZq3I84lprf4nC11bSS5beM=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
@@ -126,16 +124,14 @@ github.com/mdlayher/netlink v1.11.2 h1:HKh2jqe+omdSWcQ88nrT7INE61B0NXfiSPFdgL4Yb
 github.com/mdlayher/netlink v1.11.2/go.mod h1:uT2Yc/QLaZubzDpZIBi9d4GoeLwtp3x1AMeqSRrK2sA=
 github.com/mdlayher/socket v0.6.1 h1:M7uj2NtuujUY4mYr1C57NmfNiRHbkKpnBxO856lsc3A=
 github.com/mdlayher/socket v0.6.1/go.mod h1:+/SGtqc9V+5dAuRgQsU0fGBI+oRDiW7O2Obx10OIWfg=
-github.com/metal-stack/api v0.0.56 h1:wrW2zUKAOQd2qsRMyEg4Km7jkI688OZGzqas9agxMro=
-github.com/metal-stack/api v0.0.56/go.mod h1:hEgtKVD7UnUwUExdA7pbFvVRxNRxSGUnU+bZce46//c=
 github.com/metal-stack/firewall-controller-manager v0.6.1 h1:JM5oCuye9GBY/QivK9qxY14hNh0xoidAGVkY7td8gnY=
 github.com/metal-stack/firewall-controller-manager v0.6.1/go.mod h1:bQjb3pVL3R6XPUqWA/WX8ktlzcgVYWDbsFANKcrW3FA=
 github.com/metal-stack/metal-go v0.43.3 h1:I6N+sea97ICBy/p4ZVGmca3MWV7bvGT5rY3JPnEuW0M=
 github.com/metal-stack/metal-go v0.43.3/go.mod h1:GSfXrAj55LGsUSMHWGDsmq5n056NG0yb1JM8bgfvKOw=
 github.com/metal-stack/metal-lib v0.25.1 h1:z14xNl59ueQavNvMG4wcIZGqVyosNlaNFcy8hUu3SCU=
 github.com/metal-stack/metal-lib v0.25.1/go.mod h1:FWviUPM7oH1CnmCwkyLjWpd3yuzf6NnR97Xf45P2/Fk=
-github.com/metal-stack/os-installer v0.3.1-0.20260619071037-4aa59da70c73 h1:DHbOmKebEv8/azgyAIuFjv6dqGqb4aJnPwCz4qmyIe0=
-github.com/metal-stack/os-installer v0.3.1-0.20260619071037-4aa59da70c73/go.mod h1:6xET9gtitJ822A34ibORwXv/EC1scvU/mYcdS3i6JxU=
+github.com/metal-stack/os-installer v0.2.1-0.20260619073856-4bde2f536e04 h1:KW+hhQAoYAgyTtv+x85gl5+aa7B96hF+UoAEcoWv7iU=
+github.com/metal-stack/os-installer v0.2.1-0.20260619073856-4bde2f536e04/go.mod h1:DIkBi59VCwaTfp2OLmtOuZOrxPRLT9ElGZTKCk5aB2M=
 github.com/metal-stack/v v1.0.3 h1:Sh2oBlnxrCUD+mVpzfC8HiqL045YWkxs0gpTvkjppqs=
 github.com/metal-stack/v v1.0.3/go.mod h1:YTahEu7/ishwpYKnp/VaW/7nf8+PInogkfGwLcGPdXg=
 github.com/miekg/dns v1.1.72 h1:vhmr+TF2A3tuoGNkLDFK9zi36F2LS+hKTRW0Uf8kbzI=
@@ -182,8 +178,6 @@ github.com/rogpeppe/go-internal v1.14.1 h1:UQB4HGPB6osV0SQTLymcB4TgvyWu6ZyliaW0t
 github.com/rogpeppe/go-internal v1.14.1/go.mod h1:MaRKkUm5W0goXpeCfT7UZI6fk/L7L7so1lCWt35ZSgc=
 github.com/sagikazarmark/locafero v0.11.0 h1:1iurJgmM9G3PA/I+wWYIOw/5SyBtxapeHDcg+AAIFXc=
 github.com/sagikazarmark/locafero v0.11.0/go.mod h1:nVIGvgyzw595SUSUE6tvCp3YYTeHs15MvlmU87WwIik=
-github.com/samber/lo v1.53.0 h1:t975lj2py4kJPQ6haz1QMgtId2gtmfktACxIXArw3HM=
-github.com/samber/lo v1.53.0/go.mod h1:4+MXEGsJzbKGaUEQFKBq2xtfuznW9oz/WrgyzMzRoM0=
 github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8 h1:+jumHNA0Wrelhe64i8F6HNlS8pkoyMv5sreGx2Ry5Rw=
 github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8/go.mod h1:3n1Cwaq1E1/1lhQhtRK2ts/ZwZEhjcQeJQ1RuC6Q/8U=
 github.com/spf13/afero v1.15.0 h1:b/YBCLWAJdFWJTN9cLhiXXcD7mzKn9Dm86dNnfyQw1I=
