@@ -5,7 +5,7 @@ It allows also to control the traffic rate going through, to limit network resou
 
 Additionally, an IDS is managed on the firewall to detect known network anomalies. [suricata](https://suricata.io/) is used for this purpose. Right now, only basic statistics about the amount of scanned packets is reported. In a future release, access to all alarms will be provided.
 
-This controller is typically setup through the [firewall-controller-manager](https://github.com/metal-stack/firewall-controller-manager) (FCM), which manages the lifecycle of metal-stack firewalls inside our [Gardener integration](https://docs.metal-stack.io/stable/overview/kubernetes/).
+This controller is typically setup through the [firewall-controller-manager](https://github.com/metal-stack/firewall-controller-manager) (FCM), which manages the lifecycle of metal-stack firewalls inside our [Gardener integration](https://metal-stack.io/docs/gardener).
 
 ## Architecture
 
