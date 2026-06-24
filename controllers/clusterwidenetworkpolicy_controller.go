@@ -43,9 +43,10 @@ type ClusterwideNetworkPolicyReconciler struct {
 	Ctx      context.Context
 	Recorder record.EventRecorder
 
-	Interval time.Duration
-	DnsProxy *dns.DNSProxy
-	SkipDNS  bool
+	Interval              time.Duration
+	FQDNStateSyncInterval time.Duration
+	DnsProxy              *dns.DNSProxy
+	SkipDNS               bool
 }
 
 // SetupWithManager configures this controller to run in schedule
@@ -145,7 +146,7 @@ func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
 
 	if enableDNS && r.DnsProxy == nil {
 		r.Log.Info("DNS Proxy is initialized")
-		if r.DnsProxy, err = dns.NewDNSProxy(r.Ctx, f.Spec.DNSServerAddress, f.Spec.DNSPort, r.ShootClient, ctrl.Log.WithName("DNS proxy")); err != nil {
+		if r.DnsProxy, err = dns.NewDNSProxy(r.Ctx, f.Spec.DNSServerAddress, f.Spec.DNSPort, r.FQDNStateSyncInterval, r.ShootClient, ctrl.Log.WithName("DNS proxy")); err != nil {
 			return fmt.Errorf("failed to init DNS proxy: %w", err)
 		}
 		go r.DnsProxy.Run()

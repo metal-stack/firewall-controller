@@ -115,26 +115,29 @@ type cacheEntry struct {
 type DNSCache struct {
 	sync.RWMutex
 
-	log           logr.Logger
-	fqdnToEntry   map[string]cacheEntry
-	setNames      map[string]struct{}
-	dnsServerAddr string
-	shootClient   client.Client
-	ctx           context.Context
-	ipv4Enabled   bool
-	ipv6Enabled   bool
+	log                   logr.Logger
+	fqdnToEntry           map[string]cacheEntry
+	setNames              map[string]struct{}
+	dnsServerAddr         string
+	shootClient           client.Client
+	ctx                   context.Context
+	ipv4Enabled           bool
+	ipv6Enabled           bool
+	fqdnStateSyncInterval time.Duration
+	stateDirty            bool
 }
 
-func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool, shootClient client.Client, log logr.Logger) (*DNSCache, error) {
+func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool, fqdnStateSyncInterval time.Duration, shootClient client.Client, log logr.Logger) (*DNSCache, error) {
 	c := DNSCache{
-		log:           log,
-		fqdnToEntry:   map[string]cacheEntry{},
-		setNames:      map[string]struct{}{},
-		dnsServerAddr: dns,
-		shootClient:   shootClient,
-		ctx:           ctx,
-		ipv4Enabled:   ipv4Enabled,
-		ipv6Enabled:   ipv6Enabled,
+		log:                   log,
+		fqdnToEntry:           map[string]cacheEntry{},
+		setNames:              map[string]struct{}{},
+		dnsServerAddr:         dns,
+		shootClient:           shootClient,
+		ctx:                   ctx,
+		ipv4Enabled:           ipv4Enabled,
+		ipv6Enabled:           ipv6Enabled,
+		fqdnStateSyncInterval: fqdnStateSyncInterval,
 	}
 
 	nn := types.NamespacedName{Name: fqdnStateConfigmapName, Namespace: fqdnStateNamespace}
@@ -150,20 +153,19 @@ func newDNSCache(ctx context.Context, dns string, ipv4Enabled, ipv6Enabled bool,
 		c.log.Error(err, "error reading fqndstate configmap")
 		return nil, err
 	}
-	if scm.Data == nil {
+	if apierrors.IsNotFound(err) || scm.Data == nil {
 		c.log.V(4).Info("DEBUG fqdnstate cm not found or contains no data", "cm", scm)
-		return &c, nil
-
-	}
-	if scm.Data[fqdnStateConfigmapKey] == "" {
+	} else if scm.Data[fqdnStateConfigmapKey] == "" {
 		c.log.Error(fmt.Errorf("error reading fqdnstate configmap, ignoring content"), "fqdnstate configmap does not contain the right key", "configmap", scm, "key", fqdnStateConfigmapKey)
-		return &c, nil
+	} else {
+		c.log.V(4).Info("DEBUG state stored in fqdnstate cm, trying to unmarshal", fqdnStateConfigmapKey, scm.Data[fqdnStateConfigmapKey])
+		err = yaml.UnmarshalStrict([]byte(scm.Data[fqdnStateConfigmapKey]), &c.fqdnToEntry)
+		if err != nil {
+			c.log.Info("could not unmarshal state from fqdnstate configmap, ignoring content.", "error", err)
+		}
 	}
-	c.log.V(4).Info("DEBUG state stored in fqdnstate cm, trying to unmarshal", fqdnStateConfigmapKey, scm.Data[fqdnStateConfigmapKey])
-	err = yaml.UnmarshalStrict([]byte(scm.Data[fqdnStateConfigmapKey]), &c.fqdnToEntry)
-	if err != nil {
-		c.log.Info("could not unmarshal state from fqdnstate configmap, ignoring content.", "error", err)
-	}
+
+	c.startFQDNStateSyncLoop()
 	return &c, nil
 }
 
@@ -215,6 +217,8 @@ func (c *DNSCache) writeStateToConfigmap() error {
 			return err
 		}
 
+		c.markStateSynced()
+
 		return nil
 	}
 
@@ -227,12 +231,12 @@ func (c *DNSCache) writeStateToConfigmap() error {
 		}
 
 		debugLog.Info("DEBUG updated cm", "old data", cm.Data, "new data", data)
+		c.markStateSynced()
 
 		return nil
 	}
 
 	debugLog.Info("DEBUG no need to update cm, already up to date")
-
 	return nil
 }
 
@@ -461,9 +465,7 @@ func (c *DNSCache) Update(lookupTime time.Time, qname string, msg *dnsgo.Msg, fq
 	}
 
 	if ipEntriesUpdated {
-		if err := c.writeStateToConfigmap(); err != nil {
-			c.log.V(4).Info("DEBUG could not write updated DNS cache to state configmap", "configmap", fqdnStateConfigmapName, "namespace", fqdnStateNamespace, "error", err)
-		}
+		c.markStateDirty()
 	}
 
 	return found, nil
@@ -595,4 +597,49 @@ func createRenderIPSetFromIPEntry(version IPVersion, entry *iPEntry) RenderIPSet
 		IPs:     ips,
 		Version: version,
 	}
+}
+
+func (c *DNSCache) startFQDNStateSyncLoop() {
+	if c.fqdnStateSyncInterval <= 0 {
+		c.log.Info("fqdnstate sync interval is set to 0 or negative, skipping state sync loop")
+		return
+	}
+	c.log.Info("starting fqdnstate sync loop", "interval", c.fqdnStateSyncInterval)
+
+	ticker := time.NewTicker(c.fqdnStateSyncInterval)
+	go func() {
+		defer ticker.Stop()
+		for {
+			select {
+			case <-c.ctx.Done():
+				return
+			case <-ticker.C:
+				if !c.isStateDirty() {
+					continue
+				}
+				if err := c.writeStateToConfigmap(); err != nil {
+					c.log.V(4).Info("DEBUG periodic sync of fqdnstate configmap failed", "configmap", fqdnStateConfigmapName, "namespace", fqdnStateNamespace, "error", err)
+				}
+			}
+		}
+	}()
+}
+
+func (c *DNSCache) markStateDirty() {
+	c.Lock()
+	c.stateDirty = true
+	c.Unlock()
+}
+
+func (c *DNSCache) markStateSynced() {
+	c.Lock()
+	c.stateDirty = false
+	c.Unlock()
+}
+
+func (c *DNSCache) isStateDirty() bool {
+	c.RLock()
+	defer c.RUnlock()
+
+	return c.stateDirty
 }
