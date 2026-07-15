@@ -193,7 +193,7 @@ Status:
 There are two exporters running on the firewall to report essential metrics from this machine:
 
 - node-exporter for machine specific metrics like cpu, ram and disk usage, see [node-exporter](https://github.com/prometheus/node_exporter) for details.
-- nftables-exporter for nftables metrics, see [nftables-exporter](https://github.com/Sheridan/nftables_exporter)
+- nftables-exporter for nftables metrics, see [nftables-exporter](https://github.com/metal-stack/nftables-exporter).
 
 Both exporters are exposed as services:
 
