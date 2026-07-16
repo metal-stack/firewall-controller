@@ -13,7 +13,7 @@ require (
 	github.com/metal-stack/firewall-controller-manager v0.6.1
 	github.com/metal-stack/metal-go v0.43.3
 	github.com/metal-stack/metal-lib v0.25.1
-	github.com/metal-stack/metal-networker v0.47.0
+	github.com/metal-stack/os-installer v0.2.1-0.20260619073856-4bde2f536e04
 	github.com/metal-stack/v v1.0.3
 	github.com/miekg/dns v1.1.72
 	github.com/stretchr/testify v1.11.1
@@ -69,7 +69,6 @@ require (
 	github.com/mattn/go-isatty v0.0.22 // indirect
 	github.com/mdlayher/netlink v1.11.2 // indirect
 	github.com/mdlayher/socket v0.6.1 // indirect
-	github.com/metal-stack/metal-hammer v0.13.17 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect

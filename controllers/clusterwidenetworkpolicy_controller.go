@@ -181,7 +181,7 @@ func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
 //	DNS Proxy is ON and Firewall machine is rebooted.
 //
 // There will be at least 2 problems:
-//  1. When it's rebooted, metal-networker will generate basic nftables config and apply it.
+//  1. When it's rebooted, os-installer will generate basic nftables config and apply it.
 //     In basic config there's now DNAT rules required for DNS Proxy.
 //  2. DNS Proxy is started by CWNP controller, and it will not be started until some CWNP resource is created/updated/deleted.
 func (r *ClusterwideNetworkPolicyReconciler) getReconciliationTicker(scheduleChan chan<- event.TypedGenericEvent[*firewallv1.ClusterwideNetworkPolicy]) manager.RunnableFunc {

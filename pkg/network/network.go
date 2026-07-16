@@ -9,7 +9,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	"github.com/metal-stack/metal-go/api/models"
-	"github.com/metal-stack/metal-networker/pkg/netconf"
+	netconf "github.com/metal-stack/os-installer/pkg/network"
 )
 
 const (
