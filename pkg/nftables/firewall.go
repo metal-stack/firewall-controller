@@ -203,7 +203,14 @@ func (f *Firewall) ReconcileNetconfTables() error {
 func (f *Firewall) getConfiguredIPs(networkID string) []string {
 	var ips []string
 	for _, nw := range osnet.New(f.allocation).AllocationNetworks() {
-		ips = append(ips, nw.Ips...)
+		if nw.Network != networkID {
+			continue
+		}
+		for _, ip := range nw.Ips {
+			// Ensure all ips are formatted equally with the stringer as otherwise ipv6 ips may differ.
+			parsed := netip.MustParseAddr(ip)
+			ips = append(ips, parsed.String())
+		}
 	}
 	return ips
 }
@@ -237,6 +244,8 @@ func (f *Firewall) validate(file string) error {
 	return nil
 }
 
+var ipv6linklocal = netip.MustParsePrefix("fe80::/10")
+
 func (f *Firewall) reconcileIfaceAddresses() error {
 	var errs []error
 
@@ -262,13 +271,12 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 		linkName := fmt.Sprintf("vlan%d", *n.Vrf)
 		link, err := netlink.LinkByName(linkName)
 		if err != nil {
-			var notFound netlink.LinkNotFoundError
-			if errors.As(err, &notFound) {
+			if _, ok := errors.AsType[netlink.LinkNotFoundError](err); ok {
 				f.log.Info("skipping link because not found", "name", linkName)
 			}
 			return fmt.Errorf("unable to detect link by name: %w", err)
 		}
-		addrs, err := netlink.AddrList(link, netlink.FAMILY_V4)
+		addrs, err := netlink.AddrList(link, netlink.FAMILY_ALL)
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -276,7 +284,16 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 
 		actualIPs := sets.NewString()
 		for _, addr := range addrs {
-			actualIPs.Insert(addr.IP.String())
+			parsed, err := netip.ParseAddr(addr.IP.String())
+			if err != nil {
+				return fmt.Errorf("unable to parse local address:%s err:%w", addr.IP.String(), err)
+			}
+			if ipv6linklocal.Contains(parsed) {
+				f.log.Info("skipping ipv6 link local address", "address", parsed.String())
+				continue
+			}
+
+			actualIPs.Insert(parsed.String())
 		}
 
 		toAdd := wantedIPs.Difference(actualIPs)

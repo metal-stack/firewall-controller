@@ -98,7 +98,7 @@ func slurpFile(url string) (string, error) {
 
 const done = "done"
 
-func restart(ctx context.Context, unitName string) error {
+func Restart(ctx context.Context, unitName string) error {
 	dbc, err := dbus.NewWithContext(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to connect to dbus: %w", err)

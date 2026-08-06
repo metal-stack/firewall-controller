@@ -16,6 +16,11 @@ func helpMustParseIPSet(ips []string) *netipx.IPSet {
 	return res
 }
 
+func port(p int) *intstr.IntOrString {
+	intstr := intstr.FromInt(p)
+	return &intstr
+}
+
 func TestServiceRules(t *testing.T) {
 	type want struct {
 		ingress   nftablesRules

@@ -8,8 +8,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	mn "github.com/metal-stack/metal-lib/pkg/net"
 	corev1 "k8s.io/api/core/v1"
-	networking "k8s.io/api/networking/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
@@ -133,14 +131,14 @@ func TestSnatRules(t *testing.T) {
 											MatchPattern: "*.test.com",
 										},
 									},
-									Ports: []networking.NetworkPolicyPort{
+									Ports: []firewallv1.NetworkPolicyPort{
 										{
 											Protocol: &tcp,
-											Port:     new(intstr.FromInt(53)),
+											Port:     int32(53),
 										},
 										{
 											Protocol: &udp,
-											Port:     new(intstr.FromInt(53)),
+											Port:     int32(53),
 										},
 									},
 								},
