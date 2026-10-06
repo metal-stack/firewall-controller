@@ -12,8 +12,10 @@ import (
 )
 
 func TestClusterwideNetworkPolicyRules(t *testing.T) {
-	tcp := corev1.ProtocolTCP
-	udp := corev1.ProtocolUDP
+	var (
+		tcp = corev1.ProtocolTCP
+		udp = corev1.ProtocolUDP
+	)
 
 	type want struct {
 		ingress   nftablesRules

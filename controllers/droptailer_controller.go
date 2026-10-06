@@ -19,8 +19,6 @@ import (
 	"github.com/txn2/txeh"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -116,7 +114,7 @@ func (r *DroptailerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 			r.Log.Info("triggering reconcile because droptailer secret was changed and droptailer pod is present")
 
-			return []reconcile.Request{ctrl.Request{NamespacedName: types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}}}
+			return []reconcile.Request{ctrl.Request{Name: pod.Name, Namespace: pod.Namespace}}
 		}), builder.WithPredicates(droptailerSecretPredicate)).
 		Complete(r)
 }
@@ -141,10 +139,8 @@ func (r *DroptailerReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      secretName,
-			Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
-		},
+		Name:      secretName,
+		Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
 	}
 	if err := r.ShootClient.Get(ctx, client.ObjectKeyFromObject(secret), secret); err != nil {
 		return ctrl.Result{}, err

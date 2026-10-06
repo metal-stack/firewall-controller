@@ -15,7 +15,6 @@ import (
 	"github.com/go-logr/logr"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -83,10 +82,8 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ct
 	}
 
 	f := &firewallv2.Firewall{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      r.FirewallName,
-			Namespace: r.SeedNamespace,
-		},
+		Name:      r.FirewallName,
+		Namespace: r.SeedNamespace,
 	}
 	if err := r.SeedClient.Get(ctx, client.ObjectKeyFromObject(f), f); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
