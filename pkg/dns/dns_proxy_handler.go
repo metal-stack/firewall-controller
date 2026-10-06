@@ -33,8 +33,8 @@ type DNSProxyHandler struct {
 
 func NewDNSProxyHandler(log logr.Logger, cache *DNSCache) *DNSProxyHandler {
 	// Init DNS clients
-	udpClient := &dnsgo.Client{Net: "udp", Timeout: dnsTimeout, SingleInflight: false}
-	tcpClient := &dnsgo.Client{Net: "tcp", Timeout: dnsTimeout, SingleInflight: false}
+	udpClient := &dnsgo.Client{Net: "udp", Timeout: dnsTimeout}
+	tcpClient := &dnsgo.Client{Net: "tcp", Timeout: dnsTimeout}
 
 	return &DNSProxyHandler{
 		log:           log.WithName("DNS handler"),
