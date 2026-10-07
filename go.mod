@@ -1,6 +1,6 @@
 module github.com/metal-stack/firewall-controller/v2
 
-go 1.27.0
+go 1.27
 
 require (
 	github.com/Masterminds/semver/v3 v3.5.0
