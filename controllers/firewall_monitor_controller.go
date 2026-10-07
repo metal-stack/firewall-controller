@@ -88,10 +88,8 @@ func (r *FirewallMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		mon := &firewallv2.FirewallMonitor{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      r.FirewallName,
-				Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
-			},
+			Name:      r.FirewallName,
+			Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
 		}
 
 		if err := r.ShootClient.Get(ctx, client.ObjectKeyFromObject(mon), mon); err != nil {

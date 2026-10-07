@@ -11,7 +11,6 @@ import (
 	"github.com/metal-stack/firewall-controller/v2/pkg/updater"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -64,10 +63,8 @@ func (r *FirewallMonitorAnnotationController) SetupWithManager(mgr ctrl.Manager)
 func (r *FirewallMonitorAnnotationController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var (
 		fw = &firewallv2.Firewall{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      r.FirewallName,
-				Namespace: r.SeedNamespace,
-			},
+			Name:      r.FirewallName,
+			Namespace: r.SeedNamespace,
 		}
 		fwmon = &firewallv2.FirewallMonitor{}
 	)
