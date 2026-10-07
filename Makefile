@@ -3,7 +3,7 @@ GITVERSION := $(shell git describe --long --all)
 BUILDDATE := $(shell date -Iseconds)
 VERSION := $(or ${VERSION},$(shell git describe --tags --exact-match 2> /dev/null || git symbolic-ref -q --short HEAD || git rev-parse --short HEAD))
 
-CONTROLLER_TOOLS_VERSION ?= v0.18.0
+CONTROLLER_TOOLS_VERSION ?= v0.21.0
 LOCALBIN ?= $(shell pwd)/bin
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 MOCKERY ?= $(LOCALBIN)/mockery
@@ -89,4 +89,4 @@ go-mocks:
 		--tmpfs /.cache:uid=$$(id -u),gid=$$(id -g) \
 		-w /work \
 		-v ${PWD}:/work \
-		vektra/mockery:v3.6.4
+		vektra/mockery:v3.8.0
