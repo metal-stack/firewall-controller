@@ -16,10 +16,19 @@ func NewFQDNCache(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *FQDNCache {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &FQDNCache{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -116,7 +125,7 @@ type FQDNCache_GetSetsForFQDN_Call struct {
 
 // GetSetsForFQDN is a helper method to define mock.On call
 //   - fqdn v1.FQDNSelector
-func (_e *FQDNCache_Expecter) GetSetsForFQDN(fqdn interface{}) *FQDNCache_GetSetsForFQDN_Call {
+func (_e *FQDNCache_Expecter) GetSetsForFQDN(fqdn any) *FQDNCache_GetSetsForFQDN_Call {
 	return &FQDNCache_GetSetsForFQDN_Call{Call: _e.mock.On("GetSetsForFQDN", fqdn)}
 }
 
@@ -169,7 +178,7 @@ type FQDNCache_GetSetsForRendering_Call struct {
 
 // GetSetsForRendering is a helper method to define mock.On call
 //   - fqdns []v1.FQDNSelector
-func (_e *FQDNCache_Expecter) GetSetsForRendering(fqdns interface{}) *FQDNCache_GetSetsForRendering_Call {
+func (_e *FQDNCache_Expecter) GetSetsForRendering(fqdns any) *FQDNCache_GetSetsForRendering_Call {
 	return &FQDNCache_GetSetsForRendering_Call{Call: _e.mock.On("GetSetsForRendering", fqdns)}
 }
 
