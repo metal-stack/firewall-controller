@@ -238,9 +238,9 @@ func main() {
 	}
 	l.Info("detected frr", "version", frrVersion.String())
 
-	allocation, err := getMachineAllocation()
+	allocation, err := getMachineAllocation(fw)
 	if err != nil {
-		l.Error("reading machine allocation", "error", err)
+		l.Error("converting machine allocation from firewall spec", "error", err)
 		panic(err)
 	}
 	defaultRouteNetwork, err := osnet.New(allocation).GetDefaultRouteNetwork()
@@ -524,10 +524,10 @@ func getMachineAllocation(f *firewallv2.Firewall) (*apiv2.MachineAllocation, err
 		Hostname:       hostname,
 		AllocationType: apiv2.MachineAllocationType_MACHINE_ALLOCATION_TYPE_FIREWALL,
 		// FirewallRules:  firewallRules,
-		Networks:       networks,
+		Networks: networks,
 		// DnsServers:     dnsservers,
 		// NtpServers:     ntpservers,
-		Vpn:            vpn,
+		Vpn: vpn,
 	}
 
 	return machineAllocation, nil
