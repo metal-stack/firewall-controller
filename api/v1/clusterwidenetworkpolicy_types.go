@@ -287,7 +287,3 @@ func validateIPBlocks(blocks []networking.IPBlock) error {
 	}
 	return errors.Join(errs...)
 }
-
-func init() {
-	SchemeBuilder.Register(&ClusterwideNetworkPolicy{}, &ClusterwideNetworkPolicyList{})
-}
