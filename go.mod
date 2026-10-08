@@ -11,7 +11,7 @@ require (
 	github.com/google/nftables v0.3.0
 	github.com/ks2211/go-suricata v0.0.0-20200823200910-986ce1470707
 	github.com/metal-stack/api v0.8.0
-	github.com/metal-stack/firewall-controller-manager v0.6.1
+	github.com/metal-stack/firewall-controller-manager v0.6.2-0.20261008064416-b3a49d67b7bf
 	github.com/metal-stack/metal-lib v0.26.3
 	github.com/metal-stack/os-installer v0.3.1
 	github.com/metal-stack/v v1.0.3
@@ -50,7 +50,7 @@ require (
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
 	github.com/flatcar/ignition v0.36.2 // indirect
 	github.com/fsnotify/fsnotify v1.10.1 // indirect
-	github.com/fxamacker/cbor/v2 v2.9.4 // indirect
+	github.com/fxamacker/cbor/v2 v2.9.6 // indirect
 	github.com/go-openapi/jsonpointer v1.0.2 // indirect
 	github.com/go-openapi/jsonreference v1.0.3 // indirect
 	github.com/go-openapi/swag v0.29.2 // indirect

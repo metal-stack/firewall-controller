@@ -36,8 +36,6 @@ import (
 	"github.com/metal-stack/firewall-controller/v2/pkg/sysctl"
 	"github.com/metal-stack/firewall-controller/v2/pkg/updater"
 
-	installerv1 "github.com/metal-stack/os-installer/api/v1"
-	"github.com/metal-stack/os-installer/pkg/installer"
 	osnet "github.com/metal-stack/os-installer/pkg/network"
 	// +kubebuilder:scaffold:imports
 )
@@ -405,115 +403,83 @@ func getSeedNamespace(rawKubeconfig []byte) (string, error) {
 	return "", fmt.Errorf("unable to figure out seed namespace from kubeconfig")
 }
 
-func getMachineAllocation() (*apiv2.MachineAllocation, error) {
-	// TODO: check what we can take from the Firewall Object
-	_, err := os.Stat(installerv1.MachineAllocationPath)
-	if errors.Is(err, os.ErrNotExist) {
-		_, err = os.Stat(installerv1.LegacyInstallPath)
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("neither %s nor %s exists, exiting", installerv1.MachineAllocationPath, installerv1.LegacyInstallPath)
-		}
-		// /etc/metal/install.yaml exists but /etc/metal/machine-allocation does not
-		legacyInstallConfig, err := installer.ReadLegacyInstallYaml()
-		if err != nil {
-			return nil, err
-		}
-
-		return convertLegacyInstallConfig(legacyInstallConfig)
-	}
-
-	_, allocation, err := installer.ReadConfigurations()
-	if err != nil {
-		return nil, err
-	}
-
-	return allocation, nil
-}
-
-func convertLegacyInstallConfig(config *installerv1.InstallerConfig) (*apiv2.MachineAllocation, error) {
+func getMachineAllocation(f *firewallv2.Firewall) (*apiv2.MachineAllocation, error) {
 	var vpn *apiv2.MachineVPN
-	if config.VPN != nil {
+	if f.Status.VPN != nil {
 		vpn = &apiv2.MachineVPN{
-			ControlPlaneAddress: pointer.SafeDeref(config.VPN.Address),
-			AuthKey:             pointer.SafeDeref(config.VPN.AuthKey),
-			Connected:           pointer.SafeDeref(config.VPN.Connected),
+			ControlPlaneAddress: pointer.SafeDeref(&f.Status.VPN.ControlPlaneAddress),
 		}
 	}
 
-	allocationType := apiv2.MachineAllocationType_MACHINE_ALLOCATION_TYPE_MACHINE
-	if config.Role == "firewall" {
-		allocationType = apiv2.MachineAllocationType_MACHINE_ALLOCATION_TYPE_FIREWALL
-	}
+	// var dnsservers []*apiv2.DNSServer
+	// for _, dns := range config.DNSServers {
+	// 	dnsservers = append(dnsservers, &apiv2.DNSServer{
+	// 		Ip: pointer.SafeDeref(dns.IP),
+	// 	})
+	// }
+	// var ntpservers []*apiv2.NTPServer
+	// for _, ntp := range config.NTPServers {
+	// 	ntpservers = append(ntpservers, &apiv2.NTPServer{
+	// 		Address: pointer.SafeDeref(ntp.Address),
+	// 	})
+	// }
 
-	var dnsservers []*apiv2.DNSServer
-	for _, dns := range config.DNSServers {
-		dnsservers = append(dnsservers, &apiv2.DNSServer{
-			Ip: pointer.SafeDeref(dns.IP),
-		})
-	}
-	var ntpservers []*apiv2.NTPServer
-	for _, ntp := range config.NTPServers {
-		ntpservers = append(ntpservers, &apiv2.NTPServer{
-			Address: pointer.SafeDeref(ntp.Address),
-		})
-	}
+	// var firewallRules *apiv2.FirewallRules
+	// if config.FirewallRules != nil {
+	// 	var egressrules []*apiv2.FirewallEgressRule
 
-	var firewallRules *apiv2.FirewallRules
-	if config.FirewallRules != nil {
-		var egressrules []*apiv2.FirewallEgressRule
+	// 	for _, egress := range config.FirewallRules.Egress {
+	// 		var proto apiv2.IPProtocol
+	// 		if egress.Protocol == "tcp" {
+	// 			proto = apiv2.IPProtocol_IP_PROTOCOL_TCP
+	// 		}
+	// 		if egress.Protocol == "udp" {
+	// 			proto = apiv2.IPProtocol_IP_PROTOCOL_UDP
+	// 		}
+	// 		var ports []uint32
+	// 		for _, port := range egress.Ports {
+	// 			ports = append(ports, uint32(port))
+	// 		}
 
-		for _, egress := range config.FirewallRules.Egress {
-			var proto apiv2.IPProtocol
-			if egress.Protocol == "tcp" {
-				proto = apiv2.IPProtocol_IP_PROTOCOL_TCP
-			}
-			if egress.Protocol == "udp" {
-				proto = apiv2.IPProtocol_IP_PROTOCOL_UDP
-			}
-			var ports []uint32
-			for _, port := range egress.Ports {
-				ports = append(ports, uint32(port))
-			}
+	// 		egressrules = append(egressrules, &apiv2.FirewallEgressRule{
+	// 			Comment:  egress.Comment,
+	// 			Protocol: proto,
+	// 			Ports:    ports,
+	// 			To:       egress.To,
+	// 		})
+	// 	}
 
-			egressrules = append(egressrules, &apiv2.FirewallEgressRule{
-				Comment:  egress.Comment,
-				Protocol: proto,
-				Ports:    ports,
-				To:       egress.To,
-			})
-		}
+	// 	var ingressrules []*apiv2.FirewallIngressRule
+	// 	for _, ingress := range config.FirewallRules.Ingress {
+	// 		var proto apiv2.IPProtocol
+	// 		if ingress.Protocol == "tcp" {
+	// 			proto = apiv2.IPProtocol_IP_PROTOCOL_TCP
+	// 		}
+	// 		if ingress.Protocol == "udp" {
+	// 			proto = apiv2.IPProtocol_IP_PROTOCOL_UDP
+	// 		}
+	// 		var ports []uint32
+	// 		for _, port := range ingress.Ports {
+	// 			ports = append(ports, uint32(port))
+	// 		}
 
-		var ingressrules []*apiv2.FirewallIngressRule
-		for _, ingress := range config.FirewallRules.Ingress {
-			var proto apiv2.IPProtocol
-			if ingress.Protocol == "tcp" {
-				proto = apiv2.IPProtocol_IP_PROTOCOL_TCP
-			}
-			if ingress.Protocol == "udp" {
-				proto = apiv2.IPProtocol_IP_PROTOCOL_UDP
-			}
-			var ports []uint32
-			for _, port := range ingress.Ports {
-				ports = append(ports, uint32(port))
-			}
+	// 		ingressrules = append(ingressrules, &apiv2.FirewallIngressRule{
+	// 			Comment:  ingress.Comment,
+	// 			Protocol: proto,
+	// 			Ports:    ports,
+	// 			To:       ingress.To,
+	// 			From:     ingress.From,
+	// 		})
+	// 	}
 
-			ingressrules = append(ingressrules, &apiv2.FirewallIngressRule{
-				Comment:  ingress.Comment,
-				Protocol: proto,
-				Ports:    ports,
-				To:       ingress.To,
-				From:     ingress.From,
-			})
-		}
-
-		firewallRules = &apiv2.FirewallRules{
-			Egress:  egressrules,
-			Ingress: ingressrules,
-		}
-	}
+	// 	firewallRules = &apiv2.FirewallRules{
+	// 		Egress:  egressrules,
+	// 		Ingress: ingressrules,
+	// 	}
+	// }
 
 	var networks []*apiv2.MachineNetwork
-	for _, nw := range config.Networks {
+	for _, nw := range f.Status.FirewallNetworks {
 
 		natType := apiv2.NATType_NAT_TYPE_NONE
 		if nw.Nat != nil && *nw.Nat {
@@ -521,7 +487,7 @@ func convertLegacyInstallConfig(config *installerv1.InstallerConfig) (*apiv2.Mac
 		}
 
 		var networkType apiv2.NetworkType
-		switch pointer.SafeDeref(nw.Networktypev2) {
+		switch pointer.SafeDeref(nw.NetworkTypeV2) {
 		case "external":
 			networkType = apiv2.NetworkType_NETWORK_TYPE_EXTERNAL
 		case "underlay":
@@ -537,30 +503,30 @@ func convertLegacyInstallConfig(config *installerv1.InstallerConfig) (*apiv2.Mac
 		}
 
 		networks = append(networks, &apiv2.MachineNetwork{
-			Network:             pointer.SafeDeref(nw.Networkid),
+			Network:             pointer.SafeDeref(nw.NetworkID),
 			Prefixes:            nw.Prefixes,
-			DestinationPrefixes: nw.Destinationprefixes,
-			Ips:                 nw.Ips,
+			DestinationPrefixes: nw.DestinationPrefixes,
+			Ips:                 nw.IPs,
 			Vrf:                 uint64(pointer.SafeDeref(nw.Vrf)),
-			Asn:                 uint32(pointer.SafeDeref(nw.Asn)),
-			// FIXME This is most probably empty as well, but can be taken from
-			// firewall.Status.FirewallNetworks.Project which must be added there
-			Project:     nw.Projectid,
-			NatType:     natType,
-			NetworkType: networkType,
+			Asn:                 uint32(pointer.SafeDeref(nw.ASN)),
+			Project:             nw.Project,
+			NatType:             natType,
+			NetworkType:         networkType,
 		})
 	}
 
+	hostname, err := os.Hostname()
+	if err != nil {
+		return nil, err
+	}
 	machineAllocation := &apiv2.MachineAllocation{
-		// FIXME Project of the machine is not stored in old install.yaml
-		// Maybe we take it from firewallv2.Firewall.Spec.Project ?
-		// Project:        config.Projectid,
-		Hostname:       config.Hostname,
-		AllocationType: allocationType,
-		FirewallRules:  firewallRules,
+		Project:        f.Spec.Project,
+		Hostname:       hostname,
+		AllocationType: apiv2.MachineAllocationType_MACHINE_ALLOCATION_TYPE_FIREWALL,
+		// FirewallRules:  firewallRules,
 		Networks:       networks,
-		DnsServers:     dnsservers,
-		NtpServers:     ntpservers,
+		// DnsServers:     dnsservers,
+		// NtpServers:     ntpservers,
 		Vpn:            vpn,
 	}
 
