@@ -411,73 +411,6 @@ func getMachineAllocation(f *firewallv2.Firewall) (*apiv2.MachineAllocation, err
 		}
 	}
 
-	// var dnsservers []*apiv2.DNSServer
-	// for _, dns := range config.DNSServers {
-	// 	dnsservers = append(dnsservers, &apiv2.DNSServer{
-	// 		Ip: pointer.SafeDeref(dns.IP),
-	// 	})
-	// }
-	// var ntpservers []*apiv2.NTPServer
-	// for _, ntp := range config.NTPServers {
-	// 	ntpservers = append(ntpservers, &apiv2.NTPServer{
-	// 		Address: pointer.SafeDeref(ntp.Address),
-	// 	})
-	// }
-
-	// var firewallRules *apiv2.FirewallRules
-	// if config.FirewallRules != nil {
-	// 	var egressrules []*apiv2.FirewallEgressRule
-
-	// 	for _, egress := range config.FirewallRules.Egress {
-	// 		var proto apiv2.IPProtocol
-	// 		if egress.Protocol == "tcp" {
-	// 			proto = apiv2.IPProtocol_IP_PROTOCOL_TCP
-	// 		}
-	// 		if egress.Protocol == "udp" {
-	// 			proto = apiv2.IPProtocol_IP_PROTOCOL_UDP
-	// 		}
-	// 		var ports []uint32
-	// 		for _, port := range egress.Ports {
-	// 			ports = append(ports, uint32(port))
-	// 		}
-
-	// 		egressrules = append(egressrules, &apiv2.FirewallEgressRule{
-	// 			Comment:  egress.Comment,
-	// 			Protocol: proto,
-	// 			Ports:    ports,
-	// 			To:       egress.To,
-	// 		})
-	// 	}
-
-	// 	var ingressrules []*apiv2.FirewallIngressRule
-	// 	for _, ingress := range config.FirewallRules.Ingress {
-	// 		var proto apiv2.IPProtocol
-	// 		if ingress.Protocol == "tcp" {
-	// 			proto = apiv2.IPProtocol_IP_PROTOCOL_TCP
-	// 		}
-	// 		if ingress.Protocol == "udp" {
-	// 			proto = apiv2.IPProtocol_IP_PROTOCOL_UDP
-	// 		}
-	// 		var ports []uint32
-	// 		for _, port := range ingress.Ports {
-	// 			ports = append(ports, uint32(port))
-	// 		}
-
-	// 		ingressrules = append(ingressrules, &apiv2.FirewallIngressRule{
-	// 			Comment:  ingress.Comment,
-	// 			Protocol: proto,
-	// 			Ports:    ports,
-	// 			To:       ingress.To,
-	// 			From:     ingress.From,
-	// 		})
-	// 	}
-
-	// 	firewallRules = &apiv2.FirewallRules{
-	// 		Egress:  egressrules,
-	// 		Ingress: ingressrules,
-	// 	}
-	// }
-
 	var networks []*apiv2.MachineNetwork
 	for _, nw := range f.Status.FirewallNetworks {
 
@@ -523,8 +456,9 @@ func getMachineAllocation(f *firewallv2.Firewall) (*apiv2.MachineAllocation, err
 		Project:        f.Spec.Project,
 		Hostname:       hostname,
 		AllocationType: apiv2.MachineAllocationType_MACHINE_ALLOCATION_TYPE_FIREWALL,
+		Networks:       networks,
+		// TODO the following properties are not required during reconciliation
 		// FirewallRules:  firewallRules,
-		Networks: networks,
 		// DnsServers:     dnsservers,
 		// NtpServers:     ntpservers,
 		Vpn: vpn,
