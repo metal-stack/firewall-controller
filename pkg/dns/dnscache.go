@@ -178,10 +178,8 @@ func (c *DNSCache) writeStateToConfigmap() error {
 
 	var (
 		cm = &v1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      fqdnStateConfigmapName,
-				Namespace: fqdnStateNamespace,
-			},
+			Name:      fqdnStateConfigmapName,
+			Namespace: fqdnStateNamespace,
 		}
 
 		data = map[string]string{
