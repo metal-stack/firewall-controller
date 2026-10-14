@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/metal-stack/api/go/enum"
 	apiv2 "github.com/metal-stack/api/go/metalstack/api/v2"
 	"github.com/metal-stack/metal-lib/pkg/pointer"
 	"github.com/metal-stack/v"
@@ -419,20 +420,9 @@ func getMachineAllocation(f *firewallv2.Firewall) (*apiv2.MachineAllocation, err
 			natType = apiv2.NATType_NAT_TYPE_IPV4_MASQUERADE
 		}
 
-		var networkType apiv2.NetworkType
-		switch pointer.SafeDeref(nw.NetworkTypeV2) {
-		case "external":
-			networkType = apiv2.NetworkType_NETWORK_TYPE_EXTERNAL
-		case "underlay":
-			networkType = apiv2.NetworkType_NETWORK_TYPE_UNDERLAY
-		case "super":
-			networkType = apiv2.NetworkType_NETWORK_TYPE_SUPER
-		case "super-namespaced":
-			networkType = apiv2.NetworkType_NETWORK_TYPE_SUPER_NAMESPACED
-		case "child":
-			networkType = apiv2.NetworkType_NETWORK_TYPE_CHILD
-		case "child-shared":
-			networkType = apiv2.NetworkType_NETWORK_TYPE_CHILD_SHARED
+		networkType, err := enum.GetEnum[apiv2.NetworkType](pointer.SafeDeref(nw.NetworkTypeV2))
+		if err != nil {
+			return nil, err
 		}
 
 		networks = append(networks, &apiv2.MachineNetwork{
