@@ -39,7 +39,6 @@ type DroptailerReconciler struct {
 
 	HostsFile string
 
-	// FIXME is not filled properly
 	certificateBase string
 	oldPodIP        string
 	hosts           *txeh.Hosts
@@ -69,7 +68,7 @@ func (r *DroptailerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.hosts = hosts
 	certificateBase := os.Getenv("DROPTAILER_CLIENT_CERTIFICATE_BASE")
 
-	if certificateBase == "" {
+	if certificateBase != "" {
 		r.certificateBase = certificateBase
 	}
 

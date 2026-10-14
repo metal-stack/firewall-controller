@@ -180,7 +180,7 @@ func (f *Firewall) Reconcile() (updated bool, err error) {
 }
 
 func (f *Firewall) ReconcileNetconfTables() error {
-	f.allocation.Networks = network.GetNewNetworks(f.firewall, f.allocation.Networks)
+	f.allocation.Networks = network.GetNewNetworks(f.log, f.firewall, f.allocation.Networks)
 
 	changed, err := nftables.Render(context.Background(), &nftables.Config{
 		Log:            slog.New(logr.ToSlogHandler(f.log)),
@@ -273,6 +273,7 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 		if err != nil {
 			if _, ok := errors.AsType[netlink.LinkNotFoundError](err); ok {
 				f.log.Info("skipping link because not found", "name", linkName)
+				continue
 			}
 			return fmt.Errorf("unable to detect link by name: %w", err)
 		}

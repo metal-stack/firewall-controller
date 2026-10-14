@@ -267,7 +267,7 @@ func validateIPBlocks(blocks []networking.IPBlock) error {
 		}
 
 		for _, e := range b.Except {
-			exceptIP, exceptNet, err := net.ParseCIDR(b.CIDR)
+			exceptIP, exceptNet, err := net.ParseCIDR(e)
 			if err != nil {
 				errs = append(errs, fmt.Errorf("%v is not a valid IP CIDR", e))
 				continue
@@ -280,7 +280,7 @@ func validateIPBlocks(blocks []networking.IPBlock) error {
 
 			blockSize, _ := blockNet.Mask.Size()
 			exceptSize, _ := exceptNet.Mask.Size()
-			if exceptSize > blockSize {
+			if exceptSize < blockSize {
 				errs = append(errs, fmt.Errorf("netmask size of network to be excluded must be smaller than netmask of the block CIDR"))
 			}
 		}

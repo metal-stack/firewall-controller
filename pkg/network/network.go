@@ -2,6 +2,7 @@ package network
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -11,6 +12,7 @@ import (
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	"github.com/metal-stack/os-installer/pkg/frr"
 	osnet "github.com/metal-stack/os-installer/pkg/network"
+	"google.golang.org/protobuf/proto"
 )
 
 type network struct {
@@ -26,7 +28,7 @@ func NewNetwork(log logr.Logger, allocation *apiv2.MachineAllocation) *network {
 }
 
 // GetNewNetworks returns updated network models
-func GetNewNetworks(f *firewallv2.Firewall, oldNetworks []*apiv2.MachineNetwork) []*apiv2.MachineNetwork {
+func GetNewNetworks(log logr.Logger, f *firewallv2.Firewall, oldNetworks []*apiv2.MachineNetwork) []*apiv2.MachineNetwork {
 	networkMap := map[string]firewallv2.FirewallNetwork{}
 	for _, n := range f.Status.FirewallNetworks {
 		if n.NetworkType == nil {
@@ -41,9 +43,13 @@ func GetNewNetworks(f *firewallv2.Firewall, oldNetworks []*apiv2.MachineNetwork)
 			continue
 		}
 
-		newNet := n
-		newNet.Prefixes = networkMap[n.Network].Prefixes
-		newNetworks = append(newNetworks, newNet)
+		newNet := proto.CloneOf(n)
+		if newNetwork, ok := networkMap[n.Network]; ok {
+			newNet.Prefixes = newNetwork.Prefixes
+			newNetworks = append(newNetworks, newNet)
+		} else {
+			log.Error(errors.New("network not present firewall networks"), "network", n.Network)
+		}
 	}
 
 	return newNetworks
@@ -52,7 +58,7 @@ func GetNewNetworks(f *firewallv2.Firewall, oldNetworks []*apiv2.MachineNetwork)
 // ReconcileNetwork reconciles the network settings for a firewall
 // Changes both the FRR-Configuration and Nftable rules when network prefixes or FRR template changes
 func (n *network) ReconcileNetwork(f *firewallv2.Firewall, frrVersion *semver.Version) (bool, error) {
-	n.allocation.Networks = GetNewNetworks(f, n.allocation.Networks)
+	n.allocation.Networks = GetNewNetworks(n.log, f, n.allocation.Networks)
 
 	changed, err := frr.Render(context.Background(), &frr.Config{
 		Log:        slog.New(logr.ToSlogHandler(n.log)),
