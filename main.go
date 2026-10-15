@@ -244,6 +244,9 @@ func main() {
 		l.Error("converting machine allocation from firewall spec", "error", err)
 		panic(err)
 	}
+
+	l.Info("machine allocation", "allocation", allocation)
+
 	defaultRouteNetwork, err := osnet.New(allocation).GetDefaultRouteNetwork()
 	if err != nil {
 		l.Error("unable to get a default route network", "error", err)
