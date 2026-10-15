@@ -11,7 +11,7 @@ require (
 	github.com/google/nftables v0.3.0
 	github.com/ks2211/go-suricata v0.0.0-20200823200910-986ce1470707
 	github.com/metal-stack/api v0.8.1
-	github.com/metal-stack/firewall-controller-manager v0.6.2-0.20261008064416-b3a49d67b7bf
+	github.com/metal-stack/firewall-controller-manager v0.6.2-0.20261013093056-8814016e6683
 	github.com/metal-stack/metal-lib v0.26.3
 	github.com/metal-stack/os-installer v0.3.1
 	github.com/metal-stack/v v1.0.3
@@ -57,6 +57,7 @@ require (
 	github.com/go-openapi/swag/stringutils v0.29.2 // indirect
 	github.com/go-openapi/swag/typeutils v0.29.2 // indirect
 	github.com/go-openapi/swag/yamlutils v0.29.2 // indirect
+	github.com/go-openapi/testify/enable/yaml/v2 v2.8.0 // indirect
 	github.com/godbus/dbus/v5 v5.2.4 // indirect
 	github.com/google/gnostic-models v0.7.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
