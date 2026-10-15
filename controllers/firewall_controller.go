@@ -60,12 +60,12 @@ type FirewallReconciler struct {
 const (
 	reconciliationInterval = 10 * time.Second
 
-	nftablesExporterService   = "node-exporter"
-	nftablesExporterNamedPort = "nodeexporter"
-	nftablesExporterPort      = 9100
-	nodeExporterService       = "nftables-exporter"
-	nodeExporterNamedPort     = "nftexporter"
-	nodeExporterPort          = 9630
+	nodeExporterService       = "node-exporter"
+	nodeExporterNamedPort     = "nodeexporter"
+	nodeExporterPort          = 9100
+	nftablesExporterService   = "nftables-exporter"
+	nftablesExporterNamedPort = "nftexporter"
+	nftablesExporterPort      = 9630
 	exporterLabelKey          = "app"
 )
 
@@ -175,14 +175,14 @@ type firewallService struct {
 func (r *FirewallReconciler) reconcileFirewallServices(ctx context.Context, f *firewallv2.Firewall) error {
 	services := []firewallService{
 		{
-			name:      nodeExporterService,
-			port:      nodeExporterPort,
-			namedPort: nodeExporterNamedPort,
-		},
-		{
 			name:      nftablesExporterService,
 			port:      nftablesExporterPort,
 			namedPort: nftablesExporterNamedPort,
+		},
+		{
+			name:      nodeExporterService,
+			port:      nodeExporterPort,
+			namedPort: nodeExporterNamedPort,
 		},
 	}
 
