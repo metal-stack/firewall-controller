@@ -280,8 +280,8 @@ func validateIPBlocks(blocks []networking.IPBlock) error {
 
 			blockSize, _ := blockNet.Mask.Size()
 			exceptSize, _ := exceptNet.Mask.Size()
-			if exceptSize < blockSize {
-				errs = append(errs, fmt.Errorf("netmask size of network to be excluded must be smaller than netmask of the block CIDR"))
+			if exceptSize <= blockSize {
+				errs = append(errs, fmt.Errorf("netmask size of network to be excluded %q must be greater than netmask of the block CIDR %q", exceptNet.String(), blockNet.String()))
 			}
 		}
 	}

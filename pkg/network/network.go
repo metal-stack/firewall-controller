@@ -15,17 +15,10 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type network struct {
-	log        logr.Logger
-	allocation *apiv2.MachineAllocation
-}
-
-func NewNetwork(log logr.Logger, allocation *apiv2.MachineAllocation) *network {
-	return &network{
-		log:        log,
-		allocation: allocation,
-	}
-}
+const (
+	MetalNetworkerConfig = "/etc/metal/install.yaml"
+	frrConfig            = "/etc/frr/frr.conf"
+)
 
 // GetNewNetworks returns updated network models
 func GetNewNetworks(log logr.Logger, f *firewallv2.Firewall, oldNetworks []*apiv2.MachineNetwork) []*apiv2.MachineNetwork {
@@ -57,14 +50,14 @@ func GetNewNetworks(log logr.Logger, f *firewallv2.Firewall, oldNetworks []*apiv
 
 // ReconcileNetwork reconciles the network settings for a firewall
 // Changes both the FRR-Configuration and Nftable rules when network prefixes or FRR template changes
-func (n *network) ReconcileNetwork(f *firewallv2.Firewall, frrVersion *semver.Version) (bool, error) {
-	n.allocation.Networks = GetNewNetworks(n.log, f, n.allocation.Networks)
+func ReconcileNetwork(log logr.Logger, f *firewallv2.Firewall, allocation *apiv2.MachineAllocation, frrVersion *semver.Version) (bool, error) {
+	allocation.Networks = GetNewNetworks(log, f, allocation.Networks)
 
 	changed, err := frr.Render(context.Background(), &frr.Config{
-		Log:        slog.New(logr.ToSlogHandler(n.log)),
+		Log:        slog.New(logr.ToSlogHandler(log)),
 		Reload:     true,
 		Validate:   true,
-		Network:    osnet.New(n.allocation),
+		Network:    osnet.New(allocation),
 		FRRVersion: frrVersion,
 	})
 	if err != nil {
