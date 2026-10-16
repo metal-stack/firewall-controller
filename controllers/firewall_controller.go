@@ -58,12 +58,12 @@ type FirewallReconciler struct {
 const (
 	reconciliationInterval = 10 * time.Second
 
-	nftablesExporterService   = "node-exporter"
-	nftablesExporterNamedPort = "nodeexporter"
-	nftablesExporterPort      = 9100
-	nodeExporterService       = "nftables-exporter"
-	nodeExporterNamedPort     = "nftexporter"
-	nodeExporterPort          = 9630
+	nodeExporterService       = "node-exporter"
+	nodeExporterNamedPort     = "nodeexporter"
+	nodeExporterPort          = 9100
+	nftablesExporterService   = "nftables-exporter"
+	nftablesExporterNamedPort = "nftexporter"
+	nftablesExporterPort      = 9630
 	exporterLabelKey          = "app"
 )
 
@@ -90,7 +90,12 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		if apierrors.IsNotFound(err) {
 			r.Log.Info("flushing k8s firewall rules")
 
-			defaultFw := nftables.NewFirewall(&firewallv2.Firewall{}, &firewallv1.ClusterwideNetworkPolicyList{}, &corev1.ServiceList{}, nil, logr.Discard(), r.Recorder)
+			defaultFw := nftables.NewFirewall(
+				&firewallv2.Firewall{},
+				&firewallv1.ClusterwideNetworkPolicyList{},
+				&corev1.ServiceList{}, nil, logr.Discard(),
+				r.Recorder,
+			)
 
 			flushErr := defaultFw.Flush()
 			if flushErr != nil {
@@ -119,7 +124,7 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	r.Log.Info("reconciling network settings")
 
 	var errs []error
-	changed, err := network.ReconcileNetwork(f, r.FrrVersion)
+	changed, err := network.ReconcileNetwork(r.Log, f, r.FrrVersion)
 	if changed && err == nil {
 		r.recordFirewallEvent(f, corev1.EventTypeNormal, "Network settings", "reconciliation succeeded (frr.conf)")
 	} else if changed && err != nil {

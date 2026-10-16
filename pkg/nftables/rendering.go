@@ -12,6 +12,7 @@ import (
 	"github.com/metal-stack/firewall-controller/v2/pkg/dns"
 	"github.com/metal-stack/firewall-controller/v2/pkg/helper"
 	"go4.org/netipx"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // firewallRenderingData holds the data available in the nftables template
@@ -28,8 +29,12 @@ type firewallRenderingData struct {
 func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
 	ingress, egress := nftablesRules{}, nftablesRules{}
 	for ind, np := range f.clusterwideNetworkPolicies.Items {
-		err := np.Spec.Validate()
-		if err != nil {
+		if err := np.Spec.Validate(); err != nil {
+			f.log.Error(err, "skipping cluster wide network policy with invalid spec", "name", np.Name, "namespace", np.Namespace)
+			if f.recorder != nil {
+				f.recorder.Event(&np, corev1.EventTypeWarning, "Inapplicable",
+					fmt.Sprintf("cluster wide network policy is not valid and will be skipped: %v", err))
+			}
 			continue
 		}
 

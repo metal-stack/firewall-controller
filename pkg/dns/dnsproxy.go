@@ -3,6 +3,7 @@ package dns
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"strconv"
 	"time"
@@ -22,26 +23,35 @@ const (
 	defaultDNSPort uint = 53
 )
 
-type DNSHandler interface {
-	ServeDNS(w dnsgo.ResponseWriter, r *dnsgo.Msg)
-	UpdateDNSServerAddr(addr string) error
-}
+type (
+	DNSHandler interface {
+		ServeDNS(w dnsgo.ResponseWriter, r *dnsgo.Msg)
+		UpdateDNSServerAddr(addr string) error
+	}
 
-type DNSProxy struct {
-	log        logr.Logger
-	ctx        context.Context
-	cancelFunc context.CancelFunc
-	cache      *DNSCache
+	DNSProxy struct {
+		log        logr.Logger
+		ctx        context.Context
+		cancelFunc context.CancelFunc
+		cache      *DNSCache
 
-	udpServer *dnsgo.Server
-	tcpServer *dnsgo.Server
+		udpServer *dnsgo.Server
+		tcpServer *dnsgo.Server
 
-	handler DNSHandler
-}
+		handler DNSHandler
+	}
 
-func NewDNSProxy(ctx context.Context, dns string, port *uint, shootClient client.Client, log logr.Logger) (*DNSProxy, error) {
-	if dns == "" {
-		dns = defaultDNSServerAddr
+	DNSProxyConfig struct {
+		DNSServer   string
+		Port        *uint
+		ShootClient client.Client
+		Log         logr.Logger
+	}
+)
+
+func NewDNSProxy(ctx context.Context, cfg *DNSProxyConfig) (*DNSProxy, error) {
+	if cfg.DNSServer == "" {
+		cfg.DNSServer = defaultDNSServerAddr
 	}
 
 	host, err := getHost()
@@ -50,27 +60,27 @@ func NewDNSProxy(ctx context.Context, dns string, port *uint, shootClient client
 	}
 
 	p := defaultDNSPort
-	if port != nil {
-		p = *port
+	if cfg.Port != nil {
+		p = *cfg.Port
 	}
-	udpConn, tcpListener, err := bindToPort(host, int(p), log) // nolint:gosec
+	udpConn, tcpListener, err := bindToPort(host, int(p), cfg.Log) // nolint:gosec
 	if err != nil {
 		return nil, fmt.Errorf("failed to bind to port: %w", err)
 	}
 
 	backgroundCtx, cancel := context.WithCancel(ctx)
-	cache, err := newDNSCache(backgroundCtx, dns, true, false, shootClient, log.WithName("DNS cache"))
+	cache, err := newDNSCache(backgroundCtx, cfg.DNSServer, true, false, cfg.ShootClient, cfg.Log.WithName("DNS cache"))
 	if err != nil {
 		cancel()
 		return nil, err
 	}
-	handler := NewDNSProxyHandler(log, cache)
+	handler := NewDNSProxyHandler(cfg.Log, cache)
 
 	udpServer := &dnsgo.Server{PacketConn: udpConn, Addr: udpConn.LocalAddr().String(), Net: "udp", Handler: handler}
 	tcpServer := &dnsgo.Server{Listener: tcpListener, Addr: udpConn.LocalAddr().String(), Net: "tcp", Handler: handler}
 
 	return &DNSProxy{
-		log:        log,
+		log:        cfg.Log,
 		ctx:        backgroundCtx,
 		cancelFunc: cancel,
 		cache:      cache,
@@ -141,7 +151,7 @@ func (p *DNSProxy) CacheAddr() (string, error) {
 }
 
 func getHost() (string, error) {
-	c, err := netconf.New(network.GetLogger(), network.MetalNetworkerConfig)
+	c, err := netconf.New(slog.Default(), network.MetalNetworkerConfig)
 	if err != nil || c == nil {
 		return "", fmt.Errorf("failed to init networker config: %w", err)
 	}
