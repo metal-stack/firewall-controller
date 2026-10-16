@@ -1,8 +1,10 @@
 package v1
 
 import (
+	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
 )
@@ -20,7 +22,7 @@ func TestPolicySpec_Validate(t *testing.T) {
 		name    string
 		Ingress []IngressRule
 		Egress  []EgressRule
-		wantErr bool
+		wantErr error
 	}{
 		{
 			name: "simple test",
@@ -52,6 +54,7 @@ func TestPolicySpec_Validate(t *testing.T) {
 					},
 				},
 			},
+			wantErr: errors.New("netmask size of network to be excluded \"192.168.0.1/32\" must be greater than netmask of the block CIDR \"192.168.0.1/32\""),
 		},
 		{
 			name: "invalid port",
@@ -70,7 +73,7 @@ func TestPolicySpec_Validate(t *testing.T) {
 					},
 				},
 			},
-			wantErr: true,
+			wantErr: errors.New("only ports between 0 and 65535 are allowed, but 99999 given"),
 		},
 	}
 	for _, tt := range tests {
@@ -79,8 +82,9 @@ func TestPolicySpec_Validate(t *testing.T) {
 				Ingress: tt.Ingress,
 				Egress:  tt.Egress,
 			}
-			if err := p.Validate(); (err != nil) != tt.wantErr {
-				t.Errorf("PolicySpec.Validate() error = %v, wantErr %v", err, tt.wantErr)
+			err := p.Validate()
+			if tt.wantErr != nil {
+				assert.EqualError(t, err, tt.wantErr.Error())
 			}
 		})
 	}

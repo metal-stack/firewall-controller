@@ -4,6 +4,7 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/netip"
 	"os"
 	"os/exec"
@@ -173,12 +174,12 @@ func (f *Firewall) Reconcile() (updated bool, err error) {
 }
 
 func (f *Firewall) ReconcileNetconfTables() error {
-	c, err := netconf.New(network.GetLogger(), network.MetalNetworkerConfig)
+	c, err := netconf.New(slog.Default(), network.MetalNetworkerConfig)
 	if err != nil || c == nil {
 		return fmt.Errorf("failed to init networker config: %w", err)
 	}
 
-	c.Networks = network.GetNewNetworks(f.firewall, c.Networks)
+	c.Networks = network.GetNewNetworks(f.log, f.firewall, c.Networks)
 
 	configurator, err := netconf.NewConfigurator(netconf.Firewall, *c, f.enableDNS)
 	if err != nil {
@@ -190,7 +191,7 @@ func (f *Firewall) ReconcileNetconfTables() error {
 }
 
 func getConfiguredIPs(networkID string) []string {
-	c, err := netconf.New(network.GetLogger(), network.MetalNetworkerConfig)
+	c, err := netconf.New(slog.Default(), network.MetalNetworkerConfig)
 	if err != nil || c == nil {
 		return nil
 	}

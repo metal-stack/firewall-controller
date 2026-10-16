@@ -16,11 +16,6 @@ func helpMustParseIPSet(ips []string) *netipx.IPSet {
 	return res
 }
 
-func port(p int) *intstr.IntOrString {
-	intstr := intstr.FromInt(p)
-	return &intstr
-}
-
 func TestServiceRules(t *testing.T) {
 	type want struct {
 		ingress   nftablesRules
@@ -45,7 +40,7 @@ func TestServiceRules(t *testing.T) {
 					Ports: []corev1.ServicePort{
 						{
 							Port:       443,
-							TargetPort: *port(30443),
+							TargetPort: intstr.FromInt(30443),
 							Protocol:   corev1.ProtocolTCP,
 						},
 					},
@@ -78,7 +73,7 @@ func TestServiceRules(t *testing.T) {
 					Ports: []corev1.ServicePort{
 						{
 							Port:       443,
-							TargetPort: *port(30443),
+							TargetPort: intstr.FromInt(30443),
 							Protocol:   corev1.ProtocolTCP,
 						},
 					},
@@ -94,7 +89,7 @@ func TestServiceRules(t *testing.T) {
 					Ports: []corev1.ServicePort{
 						{
 							Port:       443,
-							TargetPort: *port(30443),
+							TargetPort: intstr.FromInt(30443),
 							Protocol:   corev1.ProtocolTCP,
 						},
 					},
@@ -115,7 +110,7 @@ func TestServiceRules(t *testing.T) {
 					Ports: []corev1.ServicePort{
 						{
 							Port:       443,
-							TargetPort: *port(30443),
+							TargetPort: intstr.FromInt(30443),
 							Protocol:   corev1.ProtocolTCP,
 						},
 					},
@@ -153,7 +148,7 @@ func TestServiceRules(t *testing.T) {
 					Ports: []corev1.ServicePort{
 						{
 							Port:       443,
-							TargetPort: *port(30443),
+							TargetPort: intstr.FromInt(30443),
 							Protocol:   corev1.ProtocolTCP,
 						},
 					},
@@ -191,7 +186,7 @@ func TestServiceRules(t *testing.T) {
 					Ports: []corev1.ServicePort{
 						{
 							Port:       443,
-							TargetPort: *port(30443),
+							TargetPort: intstr.FromInt(30443),
 							Protocol:   corev1.ProtocolTCP,
 						},
 					},

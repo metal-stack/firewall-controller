@@ -121,7 +121,7 @@ func main() {
 
 	if kubeconfigPath == "" {
 		l.Error("kubeconfig path is empty, aborting")
-		panic(err)
+		panic(fmt.Errorf("kubeconfig path is empty"))
 	}
 
 	seedClient, err := controllerclient.New(seedConfig, controllerclient.Options{
