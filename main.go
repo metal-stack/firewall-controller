@@ -411,6 +411,7 @@ func getMachineAllocation(f *firewallv2.Firewall) (*apiv2.MachineAllocation, err
 	var vpn *apiv2.MachineVPN
 	if f.Status.VPN != nil {
 		vpn = &apiv2.MachineVPN{
+			// Authkey is omitted for security reasons
 			ControlPlaneAddress: pointer.SafeDeref(&f.Status.VPN.ControlPlaneAddress),
 		}
 	}
