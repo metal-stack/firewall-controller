@@ -179,7 +179,7 @@ func (f *Firewall) Reconcile() (updated bool, err error) {
 	return true, nil
 }
 
-func (f *Firewall) ReconcileNetconfTables() error {
+func (f *Firewall) ReconcileNfTables() error {
 	f.allocation.Networks = network.GetNewNetworks(f.log, f.firewall, f.allocation.Networks)
 
 	changed, err := nftables.Render(context.Background(), &nftables.Config{

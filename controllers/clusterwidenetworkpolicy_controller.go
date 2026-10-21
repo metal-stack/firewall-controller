@@ -140,7 +140,7 @@ func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
 
 	enableDNS := len(cwnps.GetFQDNs()) > 0
 
-	if err := nftablesFirewall.ReconcileNetconfTables(); err != nil {
+	if err := nftablesFirewall.ReconcileNfTables(); err != nil {
 		return fmt.Errorf("failed to reconcile nftables for DNS proxy: %w", err)
 	}
 
