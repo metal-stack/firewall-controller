@@ -39,6 +39,7 @@ type FirewallReconciler struct {
 
 	Recorder record.EventRecorder
 	Log      logr.Logger
+	Ctx      context.Context
 	Scheme   *runtime.Scheme
 
 	Updater      *updater.Updater
@@ -57,12 +58,12 @@ type FirewallReconciler struct {
 const (
 	reconciliationInterval = 10 * time.Second
 
-	nftablesExporterService   = "node-exporter"
-	nftablesExporterNamedPort = "nodeexporter"
-	nftablesExporterPort      = 9100
-	nodeExporterService       = "nftables-exporter"
-	nodeExporterNamedPort     = "nftexporter"
-	nodeExporterPort          = 9630
+	nodeExporterService       = "node-exporter"
+	nodeExporterNamedPort     = "nodeexporter"
+	nodeExporterPort          = 9100
+	nftablesExporterService   = "nftables-exporter"
+	nftablesExporterNamedPort = "nftexporter"
+	nftablesExporterPort      = 9630
 	exporterLabelKey          = "app"
 )
 
@@ -89,7 +90,12 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		if apierrors.IsNotFound(err) {
 			r.Log.Info("flushing k8s firewall rules")
 
-			defaultFw := nftables.NewFirewall(&firewallv2.Firewall{}, &firewallv1.ClusterwideNetworkPolicyList{}, &corev1.ServiceList{}, nil, logr.Discard(), r.Recorder)
+			defaultFw := nftables.NewFirewall(
+				&firewallv2.Firewall{},
+				&firewallv1.ClusterwideNetworkPolicyList{},
+				&corev1.ServiceList{}, nil, logr.Discard(),
+				r.Recorder,
+			)
 
 			flushErr := defaultFw.Flush()
 			if flushErr != nil {
@@ -118,7 +124,7 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	r.Log.Info("reconciling network settings")
 
 	var errs []error
-	changed, err := network.ReconcileNetwork(f, r.FrrVersion)
+	changed, err := network.ReconcileNetwork(r.Log, f, r.FrrVersion)
 	if changed && err == nil {
 		r.recordFirewallEvent(f, corev1.EventTypeNormal, "Network settings", "reconciliation succeeded (frr.conf)")
 	} else if changed && err != nil {
@@ -211,6 +217,7 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 					Protocol:   corev1.ProtocolTCP,
 					Port:       s.port,
 					TargetPort: intstr.FromString(s.namedPort),
+					Name:       s.namedPort,
 				},
 			},
 		},
@@ -234,7 +241,6 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 
 	var privateNet *firewallv2.FirewallNetwork
 	for _, n := range f.Status.FirewallNetworks {
-		n := n
 		if n.NetworkType == nil {
 			continue
 		}
@@ -255,8 +261,12 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 		return fmt.Errorf("private firewall network contains no ip")
 	}
 
+	// keep endpoints, even if the endpoint API is deprecated, since default prometheus-operator setups still use endpoints
+	// for service discovery instead of endpoint slices
+	//nolint:staticcheck // SA1019
 	endpoints := corev1.Endpoints{
 		ObjectMeta: meta,
+		//nolint:staticcheck // SA1019
 		Subsets: []corev1.EndpointSubset{
 			{
 				Addresses: []corev1.EndpointAddress{
@@ -275,6 +285,7 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 		},
 	}
 
+	//nolint:staticcheck // SA1019
 	var currentEndpoints corev1.Endpoints
 	err = r.ShootClient.Get(ctx, nn, &currentEndpoints)
 	if err != nil && !apierrors.IsNotFound(err) {
@@ -283,10 +294,7 @@ func (r *FirewallReconciler) reconcileFirewallService(ctx context.Context, s fir
 
 	if apierrors.IsNotFound(err) {
 		err = r.ShootClient.Create(ctx, &endpoints)
-		if err != nil {
-			return err
-		}
-		return nil
+		return err
 	}
 
 	if !reflect.DeepEqual(currentEndpoints.Subsets, endpoints.Subsets) {

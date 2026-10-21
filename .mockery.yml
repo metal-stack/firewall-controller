@@ -1,0 +1,10 @@
+---
+all: true
+recursive: true
+include-auto-generated: true
+dir: 'pkg/nftables/mocks/{{.InterfaceDirRelative | trimPrefix "go/"}}'
+filename: "{{.InterfaceName}}.go"
+pkgname: '{{.SrcPackageName}}'
+structname: '{{.InterfaceName}}'
+packages:
+  github.com/metal-stack/firewall-controller/v2/pkg/nftables:

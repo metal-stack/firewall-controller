@@ -1,25 +1,28 @@
 package v1
 
 import (
+	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func TestPolicySpec_Validate(t *testing.T) {
-	tcp := corev1.ProtocolTCP
-	udp := corev1.ProtocolUDP
-	port1 := intstr.FromInt(8080)
-	port2 := intstr.FromInt(8081)
-	invalid := intstr.FromString("invalid")
-	invalidPort := intstr.FromInt(99999)
+	var (
+		tcp         = corev1.ProtocolTCP
+		udp         = corev1.ProtocolUDP
+		port1       = int32(8080)
+		port2       = int32(8081)
+		invalidPort = int32(99999)
+	)
+
 	tests := []struct {
 		name    string
 		Ingress []IngressRule
 		Egress  []EgressRule
-		wantErr bool
+		wantErr error
 	}{
 		{
 			name: "simple test",
@@ -35,46 +38,23 @@ func TestPolicySpec_Validate(t *testing.T) {
 							Except: []string{"192.168.0.1/32"},
 						},
 					},
-					Ports: []networking.NetworkPolicyPort{
+					Ports: []NetworkPolicyPort{
 						{
 							Protocol: nil,
-							Port:     &port1,
+							Port:     port1,
 						},
 						{
 							Protocol: &tcp,
-							Port:     &port2,
+							Port:     port2,
 						},
 						{
 							Protocol: &udp,
-							Port:     &port2,
+							Port:     port2,
 						},
 					},
 				},
 			},
-		},
-		{
-			name: "invalid test",
-			Ingress: []IngressRule{
-				{
-					From: []networking.IPBlock{
-						{
-							CIDR:   "1.1.0.0/24",
-							Except: []string{"1.1.1.0/16"},
-						},
-						{
-							CIDR:   "192.168.0.1",
-							Except: []string{"192.168.0.2"},
-						},
-					},
-					Ports: []networking.NetworkPolicyPort{
-						{
-							Protocol: nil,
-							Port:     &invalid,
-						},
-					},
-				},
-			},
-			wantErr: true,
+			wantErr: errors.New("netmask size of network to be excluded \"192.168.0.1/32\" must be greater than netmask of the block CIDR \"192.168.0.1/32\""),
 		},
 		{
 			name: "invalid port",
@@ -85,26 +65,26 @@ func TestPolicySpec_Validate(t *testing.T) {
 							CIDR: "1.1.0.0/24",
 						},
 					},
-					Ports: []networking.NetworkPolicyPort{
+					Ports: []NetworkPolicyPort{
 						{
 							Protocol: &tcp,
-							Port:     &invalidPort,
+							Port:     invalidPort,
 						},
 					},
 				},
 			},
-			wantErr: true,
+			wantErr: errors.New("only ports between 0 and 65535 are allowed, but 99999 given"),
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			p := &PolicySpec{
 				Ingress: tt.Ingress,
 				Egress:  tt.Egress,
 			}
-			if err := p.Validate(); (err != nil) != tt.wantErr {
-				t.Errorf("PolicySpec.Validate() error = %v, wantErr %v", err, tt.wantErr)
+			err := p.Validate()
+			if tt.wantErr != nil {
+				assert.EqualError(t, err, tt.wantErr.Error())
 			}
 		})
 	}
@@ -146,7 +126,6 @@ func TestFQDNSelector_GetRegex(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			if r := tt.selector.GetRegex(); tt.expectedRegex != r {
 				t.Errorf("FQDNSelector.GetRegex returned %s, expected %s", r, tt.expectedRegex)

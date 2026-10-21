@@ -3,11 +3,10 @@ GITVERSION := $(shell git describe --long --all)
 BUILDDATE := $(shell date -Iseconds)
 VERSION := $(or ${VERSION},$(shell git describe --tags --exact-match 2> /dev/null || git symbolic-ref -q --short HEAD || git rev-parse --short HEAD))
 
-CONTROLLER_TOOLS_VERSION ?= v0.18.0
-MOCKGEN_VERSION ?= $(shell go list -m all | grep go.uber.org/mock | awk '{print $$2}')
+CONTROLLER_TOOLS_VERSION ?= v0.21.0
 LOCALBIN ?= $(shell pwd)/bin
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
-MOCKGEN ?= $(LOCALBIN)/mockgen
+MOCKERY ?= $(LOCALBIN)/mockery
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 
 all: firewall-controller
@@ -30,7 +29,7 @@ $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
 
 test: generate fmt vet manifests setup-envtest
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test -race ./... -coverprofile cover.out
 
 clean:
 	rm -rf bin/*
@@ -65,9 +64,9 @@ vet:
 	go vet ./...
 
 # Generate code
-generate: controller-gen mockgen manifests
-	go generate ./...
+generate: controller-gen go-mocks manifests
 	$(CONTROLLER_GEN) object paths="./..."
+	go generate ./...
 
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN)
@@ -80,8 +79,14 @@ setup-envtest: $(ENVTEST)
 $(ENVTEST): $(LOCALBIN)
 	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 
-.PHONY: mockgen
-mockgen: $(MOCKGEN)
-$(MOCKGEN): $(LOCALBIN)
-	test -s $(LOCALBIN)/mockgen && $(LOCALBIN)/mockgen -version | grep -q $(MOCKGEN_VERSION) || \
-	GOBIN=$(LOCALBIN) go install go.uber.org/mock/mockgen@$(MOCKGEN_VERSION)
+.PHONY: go-mocks
+go-mocks:
+	# we remove files explicitly to ensure files really get generated
+	rm -rf pkg/nftables/mocks
+
+	docker run --rm \
+		--user $$(id -u):$$(id -g) \
+		--tmpfs /.cache:uid=$$(id -u),gid=$$(id -g) \
+		-w /work \
+		-v ${PWD}:/work \
+		vektra/mockery:v3.8.0

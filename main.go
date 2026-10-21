@@ -13,7 +13,7 @@ import (
 	"github.com/go-logr/logr"
 
 	corev1 "k8s.io/api/core/v1"
-	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -91,7 +91,13 @@ func main() {
 		return
 	}
 
-	jsonHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{})
+	var sll slog.Level
+	err := sll.UnmarshalText([]byte(logLevel))
+	if err != nil {
+		setupLog.Error(err, "failed to unmarshal log level")
+		os.Exit(1)
+	}
+	jsonHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: sll})
 	l := slog.New(jsonHandler)
 
 	ctrl.SetLogger(logr.FromSlogHandler(jsonHandler))
@@ -105,7 +111,6 @@ func main() {
 
 	// FIXME validation and controller start should be refactored into own func which returns error
 	// instead Fatalw or Error and panic here.
-	var err error
 	if firewallName == "" {
 		firewallName, err = os.Hostname()
 		if err != nil {
@@ -116,7 +121,7 @@ func main() {
 
 	if kubeconfigPath == "" {
 		l.Error("kubeconfig path is empty, aborting")
-		panic(err)
+		panic(fmt.Errorf("kubeconfig path is empty"))
 	}
 
 	seedClient, err := controllerclient.New(seedConfig, controllerclient.Options{
@@ -215,7 +220,7 @@ func main() {
 	fwmReconciler := &controllers.FirewallMonitorReconciler{
 		ShootClient:  shootMgr.GetClient(),
 		Log:          ctrl.Log.WithName("controllers").WithName("FirewallMonitorReconciler"),
-		Recorder:     shootMgr.GetEventRecorderFor("FirewallMonitorController"),
+		Recorder:     shootMgr.GetEventRecorderFor("FirewallMonitorController"), // nolint:staticcheck
 		IDSEnabled:   enableIDS,
 		FirewallName: firewallName,
 		Namespace:    firewallv2.FirewallShootNamespace,
@@ -228,7 +233,7 @@ func main() {
 	}
 	l.Info("detected frr", "version", frrVersion.String())
 
-	updater := updater.New(ctrl.Log.WithName("updater"), shootMgr.GetEventRecorderFor("FirewallController"))
+	updater := updater.New(ctrl.Log.WithName("updater"), shootMgr.GetEventRecorderFor("FirewallController")) // nolint:staticcheck
 
 	// Firewall Reconciler
 	if err = (&controllers.FirewallReconciler{
@@ -238,7 +243,7 @@ func main() {
 		Scheme:          scheme,
 		Namespace:       seedNamespace,
 		FirewallName:    firewallName,
-		Recorder:        shootMgr.GetEventRecorderFor("FirewallController"),
+		Recorder:        shootMgr.GetEventRecorderFor("FirewallController"), // nolint:staticcheck
 		Updater:         updater,
 		SeedUpdatedFunc: fwmReconciler.SeedUpdated,
 		TokenUpdater:    accessTokenUpdater,
@@ -263,7 +268,8 @@ func main() {
 		SeedClient:    seedMgr.GetClient(),
 		ShootClient:   shootMgr.GetClient(),
 		Log:           ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicy"),
-		Recorder:      shootMgr.GetEventRecorderFor("FirewallController"),
+		Ctx:           ctx,
+		Recorder:      shootMgr.GetEventRecorderFor("FirewallController"), // nolint:staticcheck
 		FirewallName:  firewallName,
 		SeedNamespace: seedNamespace,
 	}).SetupWithManager(shootMgr); err != nil {
@@ -274,7 +280,7 @@ func main() {
 	if err = (&controllers.ClusterwideNetworkPolicyValidationReconciler{
 		ShootClient: shootMgr.GetClient(),
 		Log:         ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicyValidation"),
-		Recorder:    shootMgr.GetEventRecorderFor("FirewallController"),
+		Recorder:    shootMgr.GetEventRecorderFor("FirewallController"), // nolint:staticcheck
 	}).SetupWithManager(shootMgr); err != nil {
 		l.Error("unable to create clusterwidenetworkpolicyvalidation controller", "error", err)
 		panic(err)
@@ -283,6 +289,19 @@ func main() {
 	// FirewallMonitorReconciler
 	if err = (fwmReconciler).SetupWithManager(shootMgr); err != nil {
 		l.Error("unable to create firewall monitor controller", "error", err)
+		panic(err)
+	}
+
+	// FirewallMonitorAnnotationReconciler
+	if err = (&controllers.FirewallMonitorAnnotationController{
+		ShootClient:   shootMgr.GetClient(),
+		SeedClient:    seedMgr.GetClient(),
+		Log:           ctrl.Log.WithName("controllers").WithName("FirewallMonitorAnnotation"),
+		FirewallName:  firewallName,
+		SeedNamespace: seedNamespace,
+		Recorder:      shootMgr.GetEventRecorderFor("FirewallMonitorAnnotation"), // nolint:staticcheck
+	}).SetupWithManager(shootMgr); err != nil {
+		l.Error("unable to create firewall monitor annotation controller", "error", err)
 		panic(err)
 	}
 

@@ -4,6 +4,7 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/netip"
 	"os"
 	"os/exec"
@@ -24,8 +25,6 @@ import (
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
-
-	_ "go.uber.org/mock/mockgen/model" // required for go:generate to work
 )
 
 const (
@@ -38,10 +37,9 @@ const (
 //go:embed *.tpl
 var templates embed.FS
 
-//go:generate ../../bin/mockgen -destination=./mocks/mock_fqdncache.go -package=mocks . FQDNCache
 type FQDNCache interface {
 	GetSetsForRendering(fqdns []firewallv1.FQDNSelector) (result []dns.RenderIPSet)
-	GetSetsForFQDN(fqdn firewallv1.FQDNSelector, fqdnSets []firewallv1.IPSet) (result []firewallv1.IPSet)
+	GetSetsForFQDN(fqdn firewallv1.FQDNSelector) (result []firewallv1.IPSet)
 	IsInitialized() bool
 	CacheAddr() (string, error)
 }
@@ -176,12 +174,12 @@ func (f *Firewall) Reconcile() (updated bool, err error) {
 }
 
 func (f *Firewall) ReconcileNetconfTables() error {
-	c, err := netconf.New(network.GetLogger(), network.MetalNetworkerConfig)
+	c, err := netconf.New(slog.Default(), network.MetalNetworkerConfig)
 	if err != nil || c == nil {
 		return fmt.Errorf("failed to init networker config: %w", err)
 	}
 
-	c.Networks = network.GetNewNetworks(f.firewall, c.Networks)
+	c.Networks = network.GetNewNetworks(f.log, f.firewall, c.Networks)
 
 	configurator, err := netconf.NewConfigurator(netconf.Firewall, *c, f.enableDNS)
 	if err != nil {
@@ -193,19 +191,19 @@ func (f *Firewall) ReconcileNetconfTables() error {
 }
 
 func getConfiguredIPs(networkID string) []string {
-	c, err := netconf.New(network.GetLogger(), network.MetalNetworkerConfig)
+	c, err := netconf.New(slog.Default(), network.MetalNetworkerConfig)
 	if err != nil || c == nil {
 		return nil
 	}
 	var ips []string
 	for _, nw := range c.Networks {
-		nw := nw
 		if nw.Networkid == nil || *nw.Networkid != networkID {
 			continue
 		}
 		for _, ip := range nw.Ips {
-			ip := ip
-			ips = append(ips, ip)
+			// Ensure all ips are formatted equally with the stringer as otherwise ipv6 ips may differ.
+			parsed := netip.MustParseAddr(ip)
+			ips = append(ips, parsed.String())
 		}
 	}
 	return ips
@@ -240,6 +238,8 @@ func (f *Firewall) validate(file string) error {
 	return nil
 }
 
+var ipv6linklocal = netip.MustParsePrefix("fe80::/10")
+
 func (f *Firewall) reconcileIfaceAddresses() error {
 	var errs []error
 
@@ -265,13 +265,12 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 		linkName := fmt.Sprintf("vlan%d", *n.Vrf)
 		link, err := netlink.LinkByName(linkName)
 		if err != nil {
-			var notFound netlink.LinkNotFoundError
-			if errors.As(err, &notFound) {
+			if _, ok := errors.AsType[netlink.LinkNotFoundError](err); ok {
 				f.log.Info("skipping link because not found", "name", linkName)
 			}
 			return fmt.Errorf("unable to detect link by name: %w", err)
 		}
-		addrs, err := netlink.AddrList(link, netlink.FAMILY_V4)
+		addrs, err := netlink.AddrList(link, netlink.FAMILY_ALL)
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -279,7 +278,16 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 
 		actualIPs := sets.NewString()
 		for _, addr := range addrs {
-			actualIPs.Insert(addr.IP.String())
+			parsed, err := netip.ParseAddr(addr.IP.String())
+			if err != nil {
+				return fmt.Errorf("unable to parse local address:%s err:%w", addr.IP.String(), err)
+			}
+			if ipv6linklocal.Contains(parsed) {
+				f.log.Info("skipping ipv6 link local address", "address", parsed.String())
+				continue
+			}
+
+			actualIPs.Insert(parsed.String())
 		}
 
 		toAdd := wantedIPs.Difference(actualIPs)

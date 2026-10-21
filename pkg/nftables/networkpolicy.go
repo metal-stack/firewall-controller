@@ -3,9 +3,8 @@ package nftables
 import (
 	"fmt"
 	"net/netip"
+	"strconv"
 	"strings"
-
-	networkingv1 "k8s.io/api/networking/v1"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 )
@@ -84,6 +83,7 @@ func clusterwideNetworkPolicyEgressRules(
 	np firewallv1.ClusterwideNetworkPolicy,
 	logAcceptedConnections bool,
 ) (rules nftablesRules, updated firewallv1.ClusterwideNetworkPolicy) {
+	var fqdnState firewallv1.FQDNState
 	for _, e := range np.Spec.Egress {
 		tcpPorts, udpPorts := calculatePorts(e.Ports)
 		ruleBases := []ruleBase{}
@@ -112,10 +112,9 @@ func clusterwideNetworkPolicyEgressRules(
 			}
 			ruleBases = append(ruleBases, ruleBase{base: rb})
 		} else if len(e.ToFQDNs) > 0 && cache.IsInitialized() {
-			// Generate allow rules based on DNS selectors
-			rbs, u := clusterwideNetworkPolicyEgressToFQDNRules(cache, e)
-			np.Status.FQDNState = u
+			rbs, u := clusterwideNetworkPolicyEgressToFQDNRules(cache, fqdnState, e)
 			ruleBases = append(ruleBases, rbs...)
+			fqdnState = u
 		}
 
 		comment := fmt.Sprintf("accept traffic for np %s", np.Name)
@@ -129,6 +128,7 @@ func clusterwideNetworkPolicyEgressRules(
 		}
 	}
 
+	np.Status.FQDNState = fqdnState
 	return uniqueSorted(rules), np
 }
 
@@ -143,9 +143,12 @@ func clusterwideNetworkPolicyEgressToRules(e firewallv1.EgressRule) (allow, exce
 
 func clusterwideNetworkPolicyEgressToFQDNRules(
 	cache FQDNCache,
+	fqdnState firewallv1.FQDNState,
 	e firewallv1.EgressRule,
 ) (rules []ruleBase, updatedState firewallv1.FQDNState) {
-	fqdnState := firewallv1.FQDNState{}
+	if fqdnState == nil {
+		fqdnState = firewallv1.FQDNState{}
+	}
 
 	for _, fqdn := range e.ToFQDNs {
 		fqdnName := fqdn.MatchName
@@ -153,7 +156,7 @@ func clusterwideNetworkPolicyEgressToFQDNRules(
 			fqdnName = fqdn.MatchPattern
 		}
 
-		fqdnState[fqdnName] = cache.GetSetsForFQDN(fqdn, fqdnState[fqdnName])
+		fqdnState[fqdnName] = cache.GetSetsForFQDN(fqdn)
 		for _, set := range fqdnState[fqdnName] {
 			rb := []string{"ip saddr == @cluster_prefixes"}
 			rb = append(rb, fmt.Sprintf(string(set.Version)+" daddr @%s", set.SetName))
@@ -164,19 +167,26 @@ func clusterwideNetworkPolicyEgressToFQDNRules(
 	return rules, fqdnState
 }
 
-func calculatePorts(ports []networkingv1.NetworkPolicyPort) (tcpPorts, udpPorts []string) {
+func calculatePorts(ports []firewallv1.NetworkPolicyPort) (tcpPorts, udpPorts []string) {
 	for _, p := range ports {
-		proto := proto(p.Protocol)
-		portStr := fmt.Sprint(p.Port)
+		var (
+			proto   = proto(p.Protocol)
+			portStr = strconv.FormatInt(int64(p.Port), 10)
+		)
+
 		if p.EndPort != nil {
-			portStr = fmt.Sprintf("%s-%d", p.Port, *p.EndPort)
+			portStr = fmt.Sprintf("%s-%d", portStr, *p.EndPort)
 		}
+
 		switch proto {
-		case "tcp":
-			tcpPorts = append(tcpPorts, portStr)
 		case "udp":
 			udpPorts = append(udpPorts, portStr)
+		case "tcp":
+			fallthrough
+		default:
+			tcpPorts = append(tcpPorts, portStr)
 		}
 	}
+
 	return tcpPorts, udpPorts
 }

@@ -4,20 +4,12 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"go.uber.org/mock/gomock"
 	corev1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
-	"github.com/metal-stack/firewall-controller/v2/pkg/nftables/mocks"
-	"github.com/metal-stack/metal-lib/pkg/pointer"
+	mocks "github.com/metal-stack/firewall-controller/v2/pkg/nftables/mocks/pkg/nftables"
 )
-
-func port(p int) *intstr.IntOrString {
-	intstr := intstr.FromInt(p)
-	return &intstr
-}
 
 func TestClusterwideNetworkPolicyRules(t *testing.T) {
 	tcp := corev1.ProtocolTCP
@@ -50,19 +42,19 @@ func TestClusterwideNetworkPolicyRules(t *testing.T) {
 									CIDR: "1.1.1.0/24",
 								},
 							},
-							Ports: []networking.NetworkPolicyPort{
+							Ports: []firewallv1.NetworkPolicyPort{
 								{
 									Protocol: &tcp,
-									Port:     port(53),
+									Port:     int32(53),
 								},
 								{
 									Protocol: &udp,
-									Port:     port(53),
+									Port:     int32(53),
 								},
 								{
 									Protocol: &tcp,
-									Port:     port(443),
-									EndPort:  pointer.Pointer(int32(448)),
+									Port:     int32(443),
+									EndPort:  new(int32(448)),
 								},
 							},
 						},
@@ -75,15 +67,15 @@ func TestClusterwideNetworkPolicyRules(t *testing.T) {
 									Except: []string{"1.1.0.1"},
 								},
 							},
-							Ports: []networking.NetworkPolicyPort{
+							Ports: []firewallv1.NetworkPolicyPort{
 								{
 									Protocol: &tcp,
-									Port:     port(80),
+									Port:     int32(80),
 								},
 								{
 									Protocol: &tcp,
-									Port:     port(443),
-									EndPort:  pointer.Pointer(int32(448)),
+									Port:     int32(443),
+									EndPort:  new(int32(448)),
 								},
 							},
 						},
@@ -99,20 +91,16 @@ func TestClusterwideNetworkPolicyRules(t *testing.T) {
 					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } udp dport { 53 } counter accept comment "accept traffic for np  udp"`,
 				},
 				ingressAL: nftablesRules{
-					`ip saddr != { 1.1.0.1 } ip saddr { 1.1.0.0/24 } tcp dport { 80, 443-448 } log prefix "nftables-firewall-accepted: " limit rate 10/second`,
-					`ip saddr != { 1.1.0.1 } ip saddr { 1.1.0.0/24 } tcp dport { 80, 443-448 } counter accept comment "accept traffic for k8s network policy  tcp"`,
+					`ip saddr != { 1.1.0.1 } ip saddr { 1.1.0.0/24 } tcp dport { 80, 443-448 } log prefix "nftables-firewall-accepted: " limit rate 10/second` + "\n" + `ip saddr != { 1.1.0.1 } ip saddr { 1.1.0.0/24 } tcp dport { 80, 443-448 } counter accept comment "accept traffic for k8s network policy  tcp"`,
 				},
 				egressAL: nftablesRules{
-					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } tcp dport { 53, 443-448 } log prefix "nftables-firewall-accepted: " limit rate 10/second`,
-					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } tcp dport { 53, 443-448 } counter accept comment "accept traffic for np  tcp"`,
-					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } udp dport { 53 } log prefix "nftables-firewall-accepted: " limit rate 10/second`,
-					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } udp dport { 53 } counter accept comment "accept traffic for np  udp"`,
+					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } tcp dport { 53, 443-448 } log prefix "nftables-firewall-accepted: " limit rate 10/second` + "\n" + `ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } tcp dport { 53, 443-448 } counter accept comment "accept traffic for np  tcp"`,
+					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } udp dport { 53 } log prefix "nftables-firewall-accepted: " limit rate 10/second` + "\n" + `ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } udp dport { 53 } counter accept comment "accept traffic for np  udp"`,
 				},
 			},
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			ingress, egress, _ := clusterwideNetworkPolicyRules(nil, tt.input, false)
 			if !cmp.Equal(ingress, tt.want.ingress) {
@@ -145,7 +133,7 @@ func TestClusterwideNetworkPolicyEgressRules(t *testing.T) {
 	tests := []struct {
 		name   string
 		input  firewallv1.ClusterwideNetworkPolicy
-		record func(*mocks.MockFQDNCache)
+		record func(*mocks.FQDNCache)
 		want   want
 	}{
 		{
@@ -163,31 +151,29 @@ func TestClusterwideNetworkPolicyEgressRules(t *testing.T) {
 									CIDR: "1.1.1.0/24",
 								},
 							},
-							Ports: []networking.NetworkPolicyPort{
+							Ports: []firewallv1.NetworkPolicyPort{
 								{
 									Protocol: &tcp,
-									Port:     port(53),
+									Port:     int32(53),
 								},
 								{
 									Protocol: &udp,
-									Port:     port(53),
+									Port:     int32(53),
 								},
 							},
 						},
 					},
 				},
 			},
-			record: func(cache *mocks.MockFQDNCache) {},
+			record: func(cache *mocks.FQDNCache) {},
 			want: want{
 				egress: nftablesRules{
 					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } tcp dport { 53 } counter accept comment "accept traffic for np  tcp"`,
 					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } udp dport { 53 } counter accept comment "accept traffic for np  udp"`,
 				},
 				egressAL: nftablesRules{
-					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } tcp dport { 53 } log prefix "nftables-firewall-accepted: " limit rate 10/second`,
-					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } tcp dport { 53 } counter accept comment "accept traffic for np  tcp"`,
-					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } udp dport { 53 } log prefix "nftables-firewall-accepted: " limit rate 10/second`,
-					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } udp dport { 53 } counter accept comment "accept traffic for np  udp"`,
+					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } tcp dport { 53 } log prefix "nftables-firewall-accepted: " limit rate 10/second` + "\n" + `ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } tcp dport { 53 } counter accept comment "accept traffic for np  tcp"`,
+					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } udp dport { 53 } log prefix "nftables-firewall-accepted: " limit rate 10/second` + "\n" + `ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } ip daddr { 1.1.0.0/24, 1.1.1.0/24 } udp dport { 53 } counter accept comment "accept traffic for np  udp"`,
 				},
 			},
 		},
@@ -205,32 +191,29 @@ func TestClusterwideNetworkPolicyEgressRules(t *testing.T) {
 									MatchPattern: "*.test.com",
 								},
 							},
-							Ports: []networking.NetworkPolicyPort{
+							Ports: []firewallv1.NetworkPolicyPort{
 								{
 									Protocol: &tcp,
-									Port:     port(53),
+									Port:     int32(53),
 								},
 								{
 									Protocol: &udp,
-									Port:     port(53),
+									Port:     int32(53),
 								},
 							},
 						},
 					},
 				},
 			},
-			record: func(cache *mocks.MockFQDNCache) {
+			record: func(cache *mocks.FQDNCache) {
 				cache.
-					EXPECT().
-					IsInitialized().
+					On("IsInitialized").
 					Return(true)
 				cache.
-					EXPECT().
-					GetSetsForFQDN(gomock.Any(), gomock.Any()).
+					On("GetSetsForFQDN", firewallv1.FQDNSelector{MatchName: "test.com"}).
 					Return([]firewallv1.IPSet{{SetName: "test", Version: firewallv1.IPv4}})
 				cache.
-					EXPECT().
-					GetSetsForFQDN(gomock.Any(), gomock.Any()).
+					On("GetSetsForFQDN", firewallv1.FQDNSelector{MatchPattern: "*.test.com"}).
 					Return([]firewallv1.IPSet{{SetName: "test2", Version: firewallv1.IPv6}})
 			},
 			want: want{
@@ -244,13 +227,9 @@ func TestClusterwideNetworkPolicyEgressRules(t *testing.T) {
 		},
 	}
 
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	fqdnCache := mocks.NewMockFQDNCache(ctrl)
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			fqdnCache := mocks.NewFQDNCache(t)
 			tt.record(fqdnCache)
 			if len(tt.want.egress) > 0 {
 				egress, _ := clusterwideNetworkPolicyEgressRules(fqdnCache, tt.input, false)

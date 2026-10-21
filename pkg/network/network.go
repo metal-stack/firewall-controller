@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/go-logr/logr"
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	"github.com/metal-stack/metal-go/api/models"
 	"github.com/metal-stack/metal-networker/pkg/netconf"
@@ -17,21 +18,8 @@ const (
 	frrConfig            = "/etc/frr/frr.conf"
 )
 
-var logger *slog.Logger
-
-func init() {
-	jsonHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{})
-	l := slog.New(jsonHandler)
-
-	logger = l.WithGroup("networker")
-}
-
-func GetLogger() *slog.Logger {
-	return logger
-}
-
 // GetNewNetworks returns updated network models
-func GetNewNetworks(f *firewallv2.Firewall, oldNetworks []*models.V1MachineNetwork) []*models.V1MachineNetwork {
+func GetNewNetworks(log logr.Logger, f *firewallv2.Firewall, oldNetworks []*models.V1MachineNetwork) []*models.V1MachineNetwork {
 	networkMap := map[string]firewallv2.FirewallNetwork{}
 	for _, n := range f.Status.FirewallNetworks {
 		if n.NetworkType == nil {
@@ -56,7 +44,7 @@ func GetNewNetworks(f *firewallv2.Firewall, oldNetworks []*models.V1MachineNetwo
 
 // ReconcileNetwork reconciles the network settings for a firewall
 // Changes both the FRR-Configuration and Nftable rules when network prefixes or FRR template changes
-func ReconcileNetwork(f *firewallv2.Firewall, frrVersion *semver.Version) (changed bool, err error) {
+func ReconcileNetwork(log logr.Logger, f *firewallv2.Firewall, frrVersion *semver.Version) (changed bool, err error) {
 	tmpFile, err := tmpFile(frrConfig)
 	if err != nil {
 		return false, fmt.Errorf("error during network reconciliation %v: %w", tmpFile, err)
@@ -65,11 +53,11 @@ func ReconcileNetwork(f *firewallv2.Firewall, frrVersion *semver.Version) (chang
 		_ = os.Remove(tmpFile)
 	}()
 
-	c, err := netconf.New(GetLogger(), MetalNetworkerConfig)
+	c, err := netconf.New(slog.Default(), MetalNetworkerConfig)
 	if err != nil || c == nil {
 		return false, fmt.Errorf("failed to init networker config: %w", err)
 	}
-	c.Networks = GetNewNetworks(f, c.Networks)
+	c.Networks = GetNewNetworks(log, f, c.Networks)
 
 	a := netconf.NewFrrConfigApplier(netconf.Firewall, *c, tmpFile, frrVersion)
 	tpl := netconf.MustParseTpl(netconf.TplFirewallFRR)

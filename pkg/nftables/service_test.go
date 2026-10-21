@@ -8,6 +8,7 @@ import (
 	"go4.org/netipx"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func helpMustParseIPSet(ips []string) *netipx.IPSet {
@@ -39,7 +40,7 @@ func TestServiceRules(t *testing.T) {
 					Ports: []corev1.ServicePort{
 						{
 							Port:       443,
-							TargetPort: *port(30443),
+							TargetPort: intstr.FromInt(30443),
 							Protocol:   corev1.ProtocolTCP,
 						},
 					},
@@ -60,8 +61,7 @@ func TestServiceRules(t *testing.T) {
 					`ip saddr { 185.0.0.0/16, 185.1.0.0/16 } ip daddr { 185.0.0.1 } tcp dport { 443 } counter accept comment "accept traffic for k8s service test/svc"`,
 				},
 				ingressAL: nftablesRules{
-					`ip saddr { 185.0.0.0/16, 185.1.0.0/16 } ip daddr { 185.0.0.1 } tcp dport { 443 } log prefix "nftables-firewall-accepted: " limit rate 10/second`,
-					`ip saddr { 185.0.0.0/16, 185.1.0.0/16 } ip daddr { 185.0.0.1 } tcp dport { 443 } counter accept comment "accept traffic for k8s service test/svc"`,
+					`ip saddr { 185.0.0.0/16, 185.1.0.0/16 } ip daddr { 185.0.0.1 } tcp dport { 443 } log prefix "nftables-firewall-accepted: " limit rate 10/second` + "\n" + `ip saddr { 185.0.0.0/16, 185.1.0.0/16 } ip daddr { 185.0.0.1 } tcp dport { 443 } counter accept comment "accept traffic for k8s service test/svc"`,
 				},
 			},
 		},
@@ -73,7 +73,7 @@ func TestServiceRules(t *testing.T) {
 					Ports: []corev1.ServicePort{
 						{
 							Port:       443,
-							TargetPort: *port(30443),
+							TargetPort: intstr.FromInt(30443),
 							Protocol:   corev1.ProtocolTCP,
 						},
 					},
@@ -89,7 +89,7 @@ func TestServiceRules(t *testing.T) {
 					Ports: []corev1.ServicePort{
 						{
 							Port:       443,
-							TargetPort: *port(30443),
+							TargetPort: intstr.FromInt(30443),
 							Protocol:   corev1.ProtocolTCP,
 						},
 					},
@@ -110,7 +110,7 @@ func TestServiceRules(t *testing.T) {
 					Ports: []corev1.ServicePort{
 						{
 							Port:       443,
-							TargetPort: *port(30443),
+							TargetPort: intstr.FromInt(30443),
 							Protocol:   corev1.ProtocolTCP,
 						},
 					},
@@ -131,8 +131,7 @@ func TestServiceRules(t *testing.T) {
 					`ip saddr { 185.0.0.0/16, 185.1.0.0/16 } tcp dport { 443 } counter accept comment "accept traffic for k8s service test/svc"`,
 				},
 				ingressAL: nftablesRules{
-					`ip saddr { 185.0.0.0/16, 185.1.0.0/16 } tcp dport { 443 } log prefix "nftables-firewall-accepted: " limit rate 10/second`,
-					`ip saddr { 185.0.0.0/16, 185.1.0.0/16 } tcp dport { 443 } counter accept comment "accept traffic for k8s service test/svc"`,
+					`ip saddr { 185.0.0.0/16, 185.1.0.0/16 } tcp dport { 443 } log prefix "nftables-firewall-accepted: " limit rate 10/second` + "\n" + `ip saddr { 185.0.0.0/16, 185.1.0.0/16 } tcp dport { 443 } counter accept comment "accept traffic for k8s service test/svc"`,
 				},
 			},
 		},
@@ -149,7 +148,7 @@ func TestServiceRules(t *testing.T) {
 					Ports: []corev1.ServicePort{
 						{
 							Port:       443,
-							TargetPort: *port(30443),
+							TargetPort: intstr.FromInt(30443),
 							Protocol:   corev1.ProtocolTCP,
 						},
 					},
@@ -170,8 +169,7 @@ func TestServiceRules(t *testing.T) {
 					`ip daddr { 185.0.1.2, 185.0.1.1 } tcp dport { 443 } counter accept comment "accept traffic for k8s service test/svc"`,
 				},
 				ingressAL: nftablesRules{
-					`ip daddr { 185.0.1.2, 185.0.1.1 } tcp dport { 443 } log prefix "nftables-firewall-accepted: " limit rate 10/second`,
-					`ip daddr { 185.0.1.2, 185.0.1.1 } tcp dport { 443 } counter accept comment "accept traffic for k8s service test/svc"`,
+					`ip daddr { 185.0.1.2, 185.0.1.1 } tcp dport { 443 } log prefix "nftables-firewall-accepted: " limit rate 10/second` + "\n" + `ip daddr { 185.0.1.2, 185.0.1.1 } tcp dport { 443 } counter accept comment "accept traffic for k8s service test/svc"`,
 				},
 			},
 		},
@@ -188,7 +186,7 @@ func TestServiceRules(t *testing.T) {
 					Ports: []corev1.ServicePort{
 						{
 							Port:       443,
-							TargetPort: *port(30443),
+							TargetPort: intstr.FromInt(30443),
 							Protocol:   corev1.ProtocolTCP,
 						},
 					},
@@ -209,14 +207,12 @@ func TestServiceRules(t *testing.T) {
 					`ip daddr { 185.0.1.1 } tcp dport { 443 } counter accept comment "accept traffic for k8s service test/svc"`,
 				},
 				ingressAL: nftablesRules{
-					`ip daddr { 185.0.1.1 } tcp dport { 443 } log prefix "nftables-firewall-accepted: " limit rate 10/second`,
-					`ip daddr { 185.0.1.1 } tcp dport { 443 } counter accept comment "accept traffic for k8s service test/svc"`,
+					`ip daddr { 185.0.1.1 } tcp dport { 443 } log prefix "nftables-firewall-accepted: " limit rate 10/second` + "\n" + `ip daddr { 185.0.1.1 } tcp dport { 443 } counter accept comment "accept traffic for k8s service test/svc"`,
 				},
 			},
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			ingress := serviceRules(tt.input, tt.allowed, false, nil)
 			if !cmp.Equal(ingress, tt.want.ingress) {

@@ -31,9 +31,7 @@ func TestConvert(t *testing.T) {
 		{
 			"np should yield proper cnwp",
 			networking.NetworkPolicy{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-np",
-				},
+				Name: "test-np",
 				Spec: networking.NetworkPolicySpec{
 					Egress: []networking.NetworkPolicyEgressRule{
 						{
@@ -55,16 +53,14 @@ func TestConvert(t *testing.T) {
 				},
 			},
 			&firewallv1.ClusterwideNetworkPolicy{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-np",
-					Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
-				},
+				Name:      "test-np",
+				Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
 				Spec: firewallv1.PolicySpec{
 					Egress: []firewallv1.EgressRule{
 						{
-							Ports: []networking.NetworkPolicyPort{
+							Ports: []firewallv1.NetworkPolicyPort{
 								{
-									Port:     &p,
+									Port:     p.IntVal,
 									Protocol: &tcp,
 								},
 							},
@@ -82,9 +78,7 @@ func TestConvert(t *testing.T) {
 		{
 			"np with pod selector are ignored",
 			networking.NetworkPolicy{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-np",
-				},
+				Name: "test-np",
 				Spec: networking.NetworkPolicySpec{
 					PodSelector: metav1.LabelSelector{
 						MatchLabels: map[string]string{"test": "test"},
@@ -97,9 +91,7 @@ func TestConvert(t *testing.T) {
 		{
 			"np with blacklisted name are ignored",
 			networking.NetworkPolicy{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "egress-allow-http",
-				},
+				Name: "egress-allow-http",
 				Spec: networking.NetworkPolicySpec{
 					Egress: []networking.NetworkPolicyEgressRule{
 						{
@@ -125,7 +117,6 @@ func TestConvert(t *testing.T) {
 		},
 	}
 	for _, tc := range tt {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			actualCwnp, actualErr := convert(tc.np)
 			if !errors.Is(actualErr, tc.expectedErr) {
@@ -144,10 +135,8 @@ func TestConvert(t *testing.T) {
 // converts a network-policy object that was used before in a cluster-wide manner to the new CRD
 func convert(np networking.NetworkPolicy) (*firewallv1.ClusterwideNetworkPolicy, error) {
 	cwnp := firewallv1.ClusterwideNetworkPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      np.Name,
-			Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
-		},
+		Name:      np.Name,
+		Namespace: firewallv1.ClusterwideNetworkPolicyNamespace,
 	}
 	newEgresses := []firewallv1.EgressRule{}
 	for _, egress := range np.Spec.Egress {
@@ -167,8 +156,18 @@ func convert(np networking.NetworkPolicy) (*firewallv1.ClusterwideNetworkPolicy,
 		if len(newTos) == 0 {
 			continue
 		}
+
+		var ports []firewallv1.NetworkPolicyPort
+		for _, p := range egress.Ports {
+			ports = append(ports, firewallv1.NetworkPolicyPort{
+				Protocol: p.Protocol,
+				Port:     p.Port.IntVal,
+				EndPort:  p.EndPort,
+			})
+		}
+
 		newEgresses = append(newEgresses, firewallv1.EgressRule{
-			Ports: egress.Ports,
+			Ports: ports,
 			To:    newTos,
 		})
 	}

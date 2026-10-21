@@ -3,10 +3,13 @@ package dns
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"strconv"
+	"time"
 
 	"github.com/metal-stack/metal-networker/pkg/netconf"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 
@@ -20,28 +23,36 @@ const (
 	defaultDNSPort uint = 53
 )
 
-type DNSHandler interface {
-	ServeDNS(w dnsgo.ResponseWriter, r *dnsgo.Msg)
-	UpdateDNSServerAddr(addr string) error
-}
-
-type DNSProxy struct {
-	log    logr.Logger
-	cache  *DNSCache
-	stopCh chan struct{}
-
-	udpServer *dnsgo.Server
-	tcpServer *dnsgo.Server
-
-	handler DNSHandler
-}
-
-func NewDNSProxy(dns string, port *uint, log logr.Logger) (*DNSProxy, error) {
-	if dns == "" {
-		dns = defaultDNSServerAddr
+type (
+	DNSHandler interface {
+		ServeDNS(w dnsgo.ResponseWriter, r *dnsgo.Msg)
+		UpdateDNSServerAddr(addr string) error
 	}
-	cache := newDNSCache(dns, true, false, log.WithName("DNS cache"))
-	handler := NewDNSProxyHandler(log, cache)
+
+	DNSProxy struct {
+		log        logr.Logger
+		ctx        context.Context
+		cancelFunc context.CancelFunc
+		cache      *DNSCache
+
+		udpServer *dnsgo.Server
+		tcpServer *dnsgo.Server
+
+		handler DNSHandler
+	}
+
+	DNSProxyConfig struct {
+		DNSServer   string
+		Port        *uint
+		ShootClient client.Client
+		Log         logr.Logger
+	}
+)
+
+func NewDNSProxy(ctx context.Context, cfg *DNSProxyConfig) (*DNSProxy, error) {
+	if cfg.DNSServer == "" {
+		cfg.DNSServer = defaultDNSServerAddr
+	}
 
 	host, err := getHost()
 	if err != nil {
@@ -49,21 +60,30 @@ func NewDNSProxy(dns string, port *uint, log logr.Logger) (*DNSProxy, error) {
 	}
 
 	p := defaultDNSPort
-	if port != nil {
-		p = *port
+	if cfg.Port != nil {
+		p = *cfg.Port
 	}
-	udpConn, tcpListener, err := bindToPort(host, int(p), log) // nolint:gosec
+	udpConn, tcpListener, err := bindToPort(host, int(p), cfg.Log) // nolint:gosec
 	if err != nil {
 		return nil, fmt.Errorf("failed to bind to port: %w", err)
 	}
+
+	backgroundCtx, cancel := context.WithCancel(ctx)
+	cache, err := newDNSCache(backgroundCtx, cfg.DNSServer, true, false, cfg.ShootClient, cfg.Log.WithName("DNS cache"))
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	handler := NewDNSProxyHandler(cfg.Log, cache)
 
 	udpServer := &dnsgo.Server{PacketConn: udpConn, Addr: udpConn.LocalAddr().String(), Net: "udp", Handler: handler}
 	tcpServer := &dnsgo.Server{Listener: tcpListener, Addr: udpConn.LocalAddr().String(), Net: "tcp", Handler: handler}
 
 	return &DNSProxy{
-		log:    log,
-		cache:  cache,
-		stopCh: make(chan struct{}),
+		log:        cfg.Log,
+		ctx:        backgroundCtx,
+		cancelFunc: cancel,
+		cache:      cache,
 
 		udpServer: udpServer,
 		tcpServer: tcpServer,
@@ -73,7 +93,7 @@ func NewDNSProxy(dns string, port *uint, log logr.Logger) (*DNSProxy, error) {
 }
 
 // Run starts TCP/UDP servers
-func (p *DNSProxy) Run(ctx context.Context) {
+func (p *DNSProxy) Run() {
 	go func() {
 		p.log.Info("starting UDP server")
 		if err := p.udpServer.ActivateAndServe(); err != nil {
@@ -88,7 +108,9 @@ func (p *DNSProxy) Run(ctx context.Context) {
 		}
 	}()
 
-	<-p.stopCh
+	<-p.ctx.Done()
+	ctx, cancel := context.WithTimeout(p.ctx, time.Second*5)
+	defer cancel()
 
 	if err := p.udpServer.ShutdownContext(ctx); err != nil {
 		p.log.Error(err, "failed to shut down UDP server")
@@ -100,7 +122,7 @@ func (p *DNSProxy) Run(ctx context.Context) {
 
 // Stop starts TCP/UDP servers
 func (p *DNSProxy) Stop() {
-	close(p.stopCh)
+	p.cancelFunc()
 }
 
 func (p *DNSProxy) UpdateDNSServerAddr(addr string) error {
@@ -116,8 +138,8 @@ func (p *DNSProxy) GetSetsForRendering(fqdns []firewallv1.FQDNSelector) (result 
 	return p.cache.getSetsForRendering(fqdns)
 }
 
-func (p *DNSProxy) GetSetsForFQDN(fqdn firewallv1.FQDNSelector, fqdnSets []firewallv1.IPSet) (result []firewallv1.IPSet) {
-	return p.cache.getSetsForFQDN(fqdn, fqdnSets)
+func (p *DNSProxy) GetSetsForFQDN(fqdn firewallv1.FQDNSelector) (result []firewallv1.IPSet) {
+	return p.cache.getSetsForFQDN(fqdn)
 }
 
 func (p *DNSProxy) IsInitialized() bool {
@@ -129,7 +151,7 @@ func (p *DNSProxy) CacheAddr() (string, error) {
 }
 
 func getHost() (string, error) {
-	c, err := netconf.New(network.GetLogger(), network.MetalNetworkerConfig)
+	c, err := netconf.New(slog.Default(), network.MetalNetworkerConfig)
 	if err != nil || c == nil {
 		return "", fmt.Errorf("failed to init networker config: %w", err)
 	}
