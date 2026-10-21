@@ -2,12 +2,16 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
 	"os"
 	"time"
 
+	"github.com/metal-stack/api/go/enum"
+	apiv2 "github.com/metal-stack/api/go/metalstack/api/v2"
+	"github.com/metal-stack/metal-lib/pkg/pointer"
 	"github.com/metal-stack/v"
 
 	"github.com/go-logr/logr"
@@ -32,6 +36,8 @@ import (
 	"github.com/metal-stack/firewall-controller/v2/pkg/frr"
 	"github.com/metal-stack/firewall-controller/v2/pkg/sysctl"
 	"github.com/metal-stack/firewall-controller/v2/pkg/updater"
+
+	osnet "github.com/metal-stack/os-installer/pkg/network"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -233,21 +239,41 @@ func main() {
 	}
 	l.Info("detected frr", "version", frrVersion.String())
 
+	allocation, err := getMachineAllocation(fw)
+	if err != nil {
+		l.Error("converting machine allocation from firewall spec", "error", err)
+		panic(err)
+	}
+
+	l.Info("machine allocation", "allocation", allocation)
+
+	defaultRouteNetwork, err := osnet.New(allocation).GetDefaultRouteNetwork()
+	if err != nil {
+		l.Error("unable to get a default route network", "error", err)
+		panic(err)
+	}
+	if len(defaultRouteNetwork.Ips) == 0 {
+		l.Error("default route network does not have ips")
+		panic(errors.New("default route network does not have ips"))
+	}
+	defaultRouteIp := defaultRouteNetwork.Ips[0]
+
 	updater := updater.New(ctrl.Log.WithName("updater"), shootMgr.GetEventRecorderFor("FirewallController")) // nolint:staticcheck
 
 	// Firewall Reconciler
 	if err = (&controllers.FirewallReconciler{
-		SeedClient:      seedMgr.GetClient(),
-		ShootClient:     shootClient,
-		Log:             ctrl.Log.WithName("controllers").WithName("Firewall"),
-		Scheme:          scheme,
-		Namespace:       seedNamespace,
-		FirewallName:    firewallName,
-		Recorder:        shootMgr.GetEventRecorderFor("FirewallController"), // nolint:staticcheck
-		Updater:         updater,
-		SeedUpdatedFunc: fwmReconciler.SeedUpdated,
-		TokenUpdater:    accessTokenUpdater,
-		FrrVersion:      frrVersion,
+		SeedClient:        seedMgr.GetClient(),
+		ShootClient:       shootClient,
+		Log:               ctrl.Log.WithName("controllers").WithName("Firewall"),
+		Scheme:            scheme,
+		Namespace:         seedNamespace,
+		FirewallName:      firewallName,
+		Recorder:          shootMgr.GetEventRecorderFor("FirewallController"), // nolint:staticcheck
+		Updater:           updater,
+		SeedUpdatedFunc:   fwmReconciler.SeedUpdated,
+		TokenUpdater:      accessTokenUpdater,
+		FrrVersion:        frrVersion,
+		MachineAllocation: allocation,
 	}).SetupWithManager(seedMgr); err != nil {
 		l.Error("unable to create firewall controller", "error", err)
 		panic(err)
@@ -265,13 +291,15 @@ func main() {
 
 	// ClusterwideNetworkPolicy Reconciler
 	if err = (&controllers.ClusterwideNetworkPolicyReconciler{
-		SeedClient:    seedMgr.GetClient(),
-		ShootClient:   shootMgr.GetClient(),
-		Log:           ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicy"),
-		Ctx:           ctx,
-		Recorder:      shootMgr.GetEventRecorderFor("FirewallController"), // nolint:staticcheck
-		FirewallName:  firewallName,
-		SeedNamespace: seedNamespace,
+		SeedClient:        seedMgr.GetClient(),
+		ShootClient:       shootMgr.GetClient(),
+		Log:               ctrl.Log.WithName("controllers").WithName("ClusterwideNetworkPolicy"),
+		Ctx:               ctx,
+		Recorder:          shootMgr.GetEventRecorderFor("FirewallController"), // nolint:staticcheck
+		FirewallName:      firewallName,
+		SeedNamespace:     seedNamespace,
+		DefaultRouteIp:    defaultRouteIp,
+		MachineAllocation: allocation,
 	}).SetupWithManager(shootMgr); err != nil {
 		l.Error("unable to create clusterwidenetworkpolicy controller", "error", err)
 		panic(err)
@@ -377,4 +405,58 @@ func getSeedNamespace(rawKubeconfig []byte) (string, error) {
 	}
 
 	return "", fmt.Errorf("unable to figure out seed namespace from kubeconfig")
+}
+
+func getMachineAllocation(f *firewallv2.Firewall) (*apiv2.MachineAllocation, error) {
+	var vpn *apiv2.MachineVPN
+	if f.Status.VPN != nil {
+		vpn = &apiv2.MachineVPN{
+			// Authkey is omitted for security reasons
+			ControlPlaneAddress: pointer.SafeDeref(&f.Status.VPN.ControlPlaneAddress),
+		}
+	}
+
+	var networks []*apiv2.MachineNetwork
+	for _, nw := range f.Status.FirewallNetworks {
+
+		natType := apiv2.NATType_NAT_TYPE_NONE
+		if nw.Nat != nil && *nw.Nat {
+			natType = apiv2.NATType_NAT_TYPE_IPV4_MASQUERADE
+		}
+
+		networkType, err := enum.GetEnum[apiv2.NetworkType](pointer.SafeDeref(nw.NetworkTypeV2))
+		if err != nil {
+			return nil, err
+		}
+
+		networks = append(networks, &apiv2.MachineNetwork{
+			Network:             pointer.SafeDeref(nw.NetworkID),
+			Prefixes:            nw.Prefixes,
+			DestinationPrefixes: nw.DestinationPrefixes,
+			Ips:                 nw.IPs,
+			Vrf:                 uint64(pointer.SafeDeref(nw.Vrf)),
+			Asn:                 uint32(pointer.SafeDeref(nw.ASN)),
+			Project:             nw.Project,
+			NatType:             natType,
+			NetworkType:         networkType,
+		})
+	}
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		return nil, err
+	}
+	machineAllocation := &apiv2.MachineAllocation{
+		Project:        f.Spec.Project,
+		Hostname:       hostname,
+		AllocationType: apiv2.MachineAllocationType_MACHINE_ALLOCATION_TYPE_FIREWALL,
+		Networks:       networks,
+		// TODO the following properties are not required during reconciliation
+		// FirewallRules:  firewallRules,
+		// DnsServers:     dnsservers,
+		// NtpServers:     ntpservers,
+		Vpn: vpn,
+	}
+
+	return machineAllocation, nil
 }
