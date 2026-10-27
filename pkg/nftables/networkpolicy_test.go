@@ -220,8 +220,144 @@ func TestClusterwideNetworkPolicyEgressRules(t *testing.T) {
 				egress: nftablesRules{
 					`ip saddr == @cluster_prefixes ip daddr @test tcp dport { 53 } counter accept comment "accept traffic for np  tcp, fqdn: test.com"`,
 					`ip saddr == @cluster_prefixes ip daddr @test udp dport { 53 } counter accept comment "accept traffic for np  udp, fqdn: test.com"`,
-					`ip saddr == @cluster_prefixes ip6 daddr @test2 tcp dport { 53 } counter accept comment "accept traffic for np  tcp, fqdn: *.test.com"`,
-					`ip saddr == @cluster_prefixes ip6 daddr @test2 udp dport { 53 } counter accept comment "accept traffic for np  udp, fqdn: *.test.com"`,
+					`ip6 saddr == @cluster_prefixes6 ip6 daddr @test2 tcp dport { 53 } counter accept comment "accept traffic for np  tcp, fqdn: *.test.com"`,
+					`ip6 saddr == @cluster_prefixes6 ip6 daddr @test2 udp dport { 53 } counter accept comment "accept traffic for np  udp, fqdn: *.test.com"`,
+				},
+			},
+		},
+
+		{
+			name: "allow to any ipv4",
+			input: firewallv1.ClusterwideNetworkPolicy{
+				Spec: firewallv1.PolicySpec{
+					Egress: []firewallv1.EgressRule{
+						{
+							To: []networking.IPBlock{
+								{
+									CIDR:   "0.0.0.0/0",
+									Except: []string{"1.1.0.1"},
+								},
+								{
+									CIDR: "1.1.0.0/24",
+								},
+							},
+							Ports: []firewallv1.NetworkPolicyPort{
+								{
+									Protocol: &tcp,
+									Port:     int32(443),
+								},
+							},
+						},
+					},
+				},
+			},
+			record: func(cache *mocks.FQDNCache) {},
+			want: want{
+				// an IPv4 any destination must not be added as a daddr set
+				egress: nftablesRules{
+					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } tcp dport { 443 } counter accept comment "accept traffic for np  tcp"`,
+				},
+				egressAL: nftablesRules{
+					`ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } tcp dport { 443 } log prefix "nftables-firewall-accepted: " limit rate 10/second` + "\n" + `ip saddr == @cluster_prefixes ip daddr != { 1.1.0.1 } tcp dport { 443 } counter accept comment "accept traffic for np  tcp"`,
+				},
+			},
+		},
+		{
+			name: "allow to any ipv6",
+			input: firewallv1.ClusterwideNetworkPolicy{
+				Spec: firewallv1.PolicySpec{
+					Egress: []firewallv1.EgressRule{
+						{
+							To: []networking.IPBlock{
+								{
+									CIDR:   "::/0",
+									Except: []string{"2001:db8::/32"},
+								},
+							},
+							Ports: []firewallv1.NetworkPolicyPort{
+								{
+									Protocol: &tcp,
+									Port:     int32(443),
+								},
+							},
+						},
+					},
+				},
+			},
+			record: func(cache *mocks.FQDNCache) {},
+			want: want{
+				// an IPv6 any destination must not be added as a daddr set, and
+				// the exception must use the ip6 keyword
+				egress: nftablesRules{
+					`ip6 saddr == @cluster_prefixes6 ip6 daddr != { 2001:db8::/32 } tcp dport { 443 } counter accept comment "accept traffic for np  tcp"`,
+				},
+				egressAL: nftablesRules{
+					`ip6 saddr == @cluster_prefixes6 ip6 daddr != { 2001:db8::/32 } tcp dport { 443 } log prefix "nftables-firewall-accepted: " limit rate 10/second` + "\n" + `ip6 saddr == @cluster_prefixes6 ip6 daddr != { 2001:db8::/32 } tcp dport { 443 } counter accept comment "accept traffic for np  tcp"`,
+				},
+			},
+		},
+		{
+			name: "multiple ipv6 ip blocks with exception",
+			input: firewallv1.ClusterwideNetworkPolicy{
+				Spec: firewallv1.PolicySpec{
+					Egress: []firewallv1.EgressRule{
+						{
+							To: []networking.IPBlock{
+								{
+									CIDR:   "2001:db8::/32",
+									Except: []string{"2001:db8:1::1"},
+								},
+								{
+									CIDR: "2001:db9::/32",
+								},
+							},
+							Ports: []firewallv1.NetworkPolicyPort{
+								{
+									Protocol: &tcp,
+									Port:     int32(443),
+								},
+							},
+						},
+					},
+				},
+			},
+			record: func(cache *mocks.FQDNCache) {},
+			want: want{
+				egress: nftablesRules{
+					`ip6 saddr == @cluster_prefixes6 ip6 daddr != { 2001:db8:1::1 } ip6 daddr { 2001:db8::/32, 2001:db9::/32 } tcp dport { 443 } counter accept comment "accept traffic for np  tcp"`,
+				},
+			},
+		},
+		{
+			name: "mixed ipv4 and ipv6 destinations",
+			input: firewallv1.ClusterwideNetworkPolicy{
+				Spec: firewallv1.PolicySpec{
+					Egress: []firewallv1.EgressRule{
+						{
+							To: []networking.IPBlock{
+								{
+									CIDR: "1.1.0.0/24",
+								},
+								{
+									CIDR: "2001:db8::/32",
+								},
+							},
+							Ports: []firewallv1.NetworkPolicyPort{
+								{
+									Protocol: &tcp,
+									Port:     int32(443),
+								},
+							},
+						},
+					},
+				},
+			},
+			record: func(cache *mocks.FQDNCache) {},
+			want: want{
+				// one rule per address family, each with the correct keyword
+				egress: nftablesRules{
+					`ip saddr == @cluster_prefixes ip daddr { 1.1.0.0/24 } tcp dport { 443 } counter accept comment "accept traffic for np  tcp"`,
+					`ip6 saddr == @cluster_prefixes6 ip6 daddr { 2001:db8::/32 } tcp dport { 443 } counter accept comment "accept traffic for np  tcp"`,
 				},
 			},
 		},

@@ -17,6 +17,15 @@ table inet firewall {
 		auto-merge
 		elements = { 10.0.0.0/8 }
 	}
+
+	# IPv6 prefixes in the cluster, typically fd00::/8
+	# FIXME Should be filled with nodeCidr
+	set cluster_prefixes6 {
+		type ipv6_addr
+		flags interval
+		auto-merge
+		elements = { fd00::/8 }
+	}
 	{{- range .Sets }}
 
 	set {{ .SetName }} {
