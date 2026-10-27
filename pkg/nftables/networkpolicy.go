@@ -2,6 +2,7 @@ package nftables
 
 import (
 	"fmt"
+	"net/netip"
 	"strconv"
 	"strings"
 
@@ -72,6 +73,11 @@ func clusterwideNetworkPolicyEgressDNSCacheRules(cache FQDNCache, logAcceptedCon
 	}, nil
 }
 
+var (
+	ipv4any = netip.MustParsePrefix("0.0.0.0/0")
+	ipv6any = netip.MustParsePrefix("::/0")
+)
+
 func clusterwideNetworkPolicyEgressRules(
 	cache FQDNCache,
 	np firewallv1.ClusterwideNetworkPolicy,
@@ -82,17 +88,7 @@ func clusterwideNetworkPolicyEgressRules(
 		tcpPorts, udpPorts := calculatePorts(e.Ports)
 		ruleBases := []ruleBase{}
 		if len(e.To) > 0 {
-			allow, except := clusterwideNetworkPolicyEgressToRules(e)
-			rb := []string{"ip saddr == @cluster_prefixes"}
-			if len(except) > 0 {
-				rb = append(rb, fmt.Sprintf("ip daddr != { %s }", strings.Join(except, ", ")))
-			}
-			if len(allow) > 0 {
-				if allow[0] != "0.0.0.0/0" {
-					rb = append(rb, fmt.Sprintf("ip daddr { %s }", strings.Join(allow, ", ")))
-				}
-			}
-			ruleBases = append(ruleBases, ruleBase{base: rb})
+			ruleBases = append(ruleBases, clusterwideNetworkPolicyEgressToRules(e)...)
 		} else if len(e.ToFQDNs) > 0 && cache.IsInitialized() {
 			rbs, u := clusterwideNetworkPolicyEgressToFQDNRules(cache, fqdnState, e)
 			ruleBases = append(ruleBases, rbs...)
@@ -114,13 +110,69 @@ func clusterwideNetworkPolicyEgressRules(
 	return uniqueSorted(rules), np
 }
 
-func clusterwideNetworkPolicyEgressToRules(e firewallv1.EgressRule) (allow, except []string) {
+// clusterwideNetworkPolicyEgressToRules assembles the rule bases for an egress
+// rule with IPBlock destinations. IPv4 and IPv6 destinations are kept separate
+// so that the correct address family keyword (ip/ip6) is used for the
+// destination match. A rule base is emitted for each family that is present.
+// If a family contains its "any" prefix (0.0.0.0/0 or ::/0), no destination set
+// is emitted for that family, but its exceptions are still honoured.
+func clusterwideNetworkPolicyEgressToRules(e firewallv1.EgressRule) (rules []ruleBase) {
+	var (
+		v4Allow, v6Allow   []string
+		v4Except, v6Except []string
+		v4Any, v6Any       bool
+	)
 	for _, ipBlock := range e.To {
-		allow = append(allow, ipBlock.CIDR)
-		except = append(except, ipBlock.Except...)
+		// contains only already validated cidrs
+		prefix := netip.MustParsePrefix(ipBlock.CIDR)
+		if prefix.Addr().Is4() {
+			if prefix == ipv4any {
+				v4Any = true
+			} else {
+				v4Allow = append(v4Allow, ipBlock.CIDR)
+			}
+			v4Except = append(v4Except, ipBlock.Except...)
+			continue
+		}
+		if prefix == ipv6any {
+			v6Any = true
+		} else {
+			v6Allow = append(v6Allow, ipBlock.CIDR)
+		}
+		v6Except = append(v6Except, ipBlock.Except...)
 	}
 
-	return
+	if v4Any || len(v4Allow) > 0 {
+		rules = append(rules, ruleBase{base: egressDestinationBase("ip", v4Any, v4Allow, v4Except)})
+	}
+	if v6Any || len(v6Allow) > 0 {
+		rules = append(rules, ruleBase{base: egressDestinationBase("ip6", v6Any, v6Allow, v6Except)})
+	}
+
+	return rules
+}
+
+// egressDestinationBase builds the match part of an egress destination rule for
+// a single address family. The destination set is omitted when the family's
+// "any" prefix is allowed.
+func egressDestinationBase(family string, anyDestination bool, allow, except []string) []string {
+	base := []string{clusterPrefixMatch(family)}
+	if len(except) > 0 {
+		base = append(base, fmt.Sprintf("%s daddr != { %s }", family, strings.Join(except, ", ")))
+	}
+	if !anyDestination && len(allow) > 0 {
+		base = append(base, fmt.Sprintf("%s daddr { %s }", family, strings.Join(allow, ", ")))
+	}
+	return base
+}
+
+// clusterPrefixMatch returns the match against the cluster prefixes of the
+// given address family.
+func clusterPrefixMatch(family string) string {
+	if family == string(firewallv1.IPv6) {
+		return "ip6 saddr == @cluster_prefixes6"
+	}
+	return "ip saddr == @cluster_prefixes"
 }
 
 func clusterwideNetworkPolicyEgressToFQDNRules(
@@ -140,7 +192,7 @@ func clusterwideNetworkPolicyEgressToFQDNRules(
 
 		fqdnState[fqdnName] = cache.GetSetsForFQDN(fqdn)
 		for _, set := range fqdnState[fqdnName] {
-			rb := []string{"ip saddr == @cluster_prefixes"}
+			rb := []string{clusterPrefixMatch(string(set.Version))}
 			rb = append(rb, fmt.Sprintf(string(set.Version)+" daddr @%s", set.SetName))
 			rules = append(rules, ruleBase{comment: fmt.Sprintf(", fqdn: %s", fqdn.GetName()), base: rb})
 		}
