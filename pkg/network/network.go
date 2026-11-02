@@ -20,8 +20,8 @@ const (
 
 // ReconcileNetwork reconciles the network settings for a firewall
 // Changes both the FRR-Configuration and Nftable rules when network prefixes or FRR template changes
-func ReconcileNetwork(log logr.Logger, f *firewallv2.Firewall, allocation *apiv2.MachineAllocation, frrVersion *semver.Version) (bool, error) {
-	changed, err := frr.Render(context.Background(), &frr.Config{
+func ReconcileNetwork(ctx context.Context, log logr.Logger, f *firewallv2.Firewall, allocation *apiv2.MachineAllocation, frrVersion *semver.Version) (bool, error) {
+	changed, err := frr.Render(ctx, &frr.Config{
 		Log:        slog.New(logr.ToSlogHandler(log)),
 		Reload:     true,
 		Validate:   true,

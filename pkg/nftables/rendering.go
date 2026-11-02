@@ -26,7 +26,7 @@ type firewallRenderingData struct {
 	AdditionalDNSAddrs []string
 }
 
-func newFirewallRenderingData(f *Firewall) (*firewallRenderingData, error) {
+func newFirewallRenderingData(f *Nftables) (*firewallRenderingData, error) {
 	ingress, egress := nftablesRules{}, nftablesRules{}
 	for ind, np := range f.clusterwideNetworkPolicies.Items {
 		if err := np.Spec.Validate(); err != nil {

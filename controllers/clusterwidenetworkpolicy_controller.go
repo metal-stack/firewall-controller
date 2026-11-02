@@ -44,7 +44,6 @@ type ClusterwideNetworkPolicyReconciler struct {
 
 	Interval time.Duration
 	DnsProxy *dns.DNSProxy
-	SkipDNS  bool
 }
 
 // SetupWithManager configures this controller to run in schedule
@@ -108,11 +107,17 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ct
 	}
 	cwnps.Items = validCwnps
 
-	nftablesFirewall := nftables.NewFirewall(f, &cwnps, &services, r.DnsProxy, r.Log, r.Recorder, allocation)
-	if err := r.manageDNSProxy(f, cwnps, nftablesFirewall, defaultRouteIP); err != nil {
+	nft := nftables.New(f, &cwnps, &services, r.DnsProxy, r.Log, r.Recorder, allocation)
+
+	if err := nft.Apply(ctx); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to reconcile nftables for DNS proxy: %w", err)
+	}
+
+	if err := r.manageDNSProxy(f, cwnps, defaultRouteIP); err != nil {
 		return ctrl.Result{}, err
 	}
-	updated, err := nftablesFirewall.Reconcile()
+
+	updated, err := nft.ApplyInterfaces()
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -132,18 +137,9 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ct
 // manageDNSProxy start DNS proxy if toFQDN rules are present
 // if rules were deleted it will stop running DNS proxy
 func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
-	f *firewallv2.Firewall, cwnps firewallv1.ClusterwideNetworkPolicyList, nftablesFirewall *nftables.Firewall, defaultRouteIP string,
+	f *firewallv2.Firewall, cwnps firewallv1.ClusterwideNetworkPolicyList, defaultRouteIP string,
 ) (err error) {
-	// Skipping is needed for testing
-	if r.SkipDNS {
-		return nil
-	}
-
 	enableDNS := len(cwnps.GetFQDNs()) > 0
-
-	if err := nftablesFirewall.ReconcileNfTables(); err != nil {
-		return fmt.Errorf("failed to reconcile nftables for DNS proxy: %w", err)
-	}
 
 	if enableDNS && r.DnsProxy == nil {
 		r.Log.Info("DNS Proxy is initialized")

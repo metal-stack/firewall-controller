@@ -45,8 +45,8 @@ type FQDNCache interface {
 	CacheAddr() string
 }
 
-// Firewall assembles nftable rules based on k8s entities
-type Firewall struct {
+// Nftables assembles nftable rules based on k8s entities
+type Nftables struct {
 	log logr.Logger
 
 	recorder record.EventRecorder
@@ -74,8 +74,8 @@ type forwardingRules struct {
 	Egress  nftablesRules
 }
 
-// NewFirewall creates a new nftables firewall object based on k8s entities
-func NewFirewall(
+// New creates a new nftables firewall object based on k8s entities
+func New(
 	firewall *firewallv2.Firewall,
 	cwnps *firewallv1.ClusterwideNetworkPolicyList,
 	svcs *corev1.ServiceList,
@@ -83,7 +83,7 @@ func NewFirewall(
 	log logr.Logger,
 	recorder record.EventRecorder,
 	allocation *apiv2.MachineAllocation,
-) *Firewall {
+) *Nftables {
 	networkMap := networkMap{}
 	var primaryPrivateNet *firewallv2.FirewallNetwork
 	for i, n := range firewall.Status.FirewallNetworks {
@@ -96,7 +96,7 @@ func NewFirewall(
 		networkMap[*n.NetworkID] = n
 	}
 
-	return &Firewall{
+	return &Nftables{
 		firewall:                   firewall,
 		clusterwideNetworkPolicies: cwnps,
 		services:                   svcs,
@@ -112,7 +112,7 @@ func NewFirewall(
 	}
 }
 
-func (f *Firewall) ipv4RuleFile() string {
+func (f *Nftables) ipv4RuleFile() string {
 	if f.firewall.Spec.Ipv4RuleFile != "" {
 		return f.firewall.Spec.Ipv4RuleFile
 	}
@@ -121,7 +121,7 @@ func (f *Firewall) ipv4RuleFile() string {
 
 // Flush flushes the nftables rules that were deduced from a k8s resources
 // after that the firewall is a "plain metal firewall" with default policy accept in the forward chain.
-func (f *Firewall) Flush() error {
+func (f *Nftables) Flush() error {
 	_, err := os.Stat(f.ipv4RuleFile())
 	if os.IsNotExist(err) {
 		return f.reload()
@@ -134,8 +134,8 @@ func (f *Firewall) Flush() error {
 	return f.reload()
 }
 
-// Reconcile drives the nftables firewall against the desired state by comparison with the current rule file.
-func (f *Firewall) Reconcile() (updated bool, err error) {
+// ApplyInterfaces applies the interface addresses through netlink.
+func (f *Nftables) ApplyInterfaces() (updated bool, err error) {
 	tmpFile, err := os.CreateTemp(filepath.Dir(f.ipv4RuleFile()), "."+filepath.Base(f.ipv4RuleFile()))
 	if err != nil {
 		return
@@ -177,8 +177,8 @@ func (f *Firewall) Reconcile() (updated bool, err error) {
 	return true, nil
 }
 
-func (f *Firewall) ReconcileNfTables() error {
-	changed, err := nftables.Render(context.Background(), &nftables.Config{
+func (f *Nftables) Apply(ctx context.Context) error {
+	changed, err := nftables.Render(ctx, &nftables.Config{
 		Log:            slog.New(logr.ToSlogHandler(f.log)),
 		Reload:         true,
 		Validate:       true,
@@ -196,7 +196,7 @@ func (f *Firewall) ReconcileNfTables() error {
 	return nil
 }
 
-func (f *Firewall) getConfiguredIPs(networkID string) []string {
+func (f *Nftables) getConfiguredIPs(networkID string) []string {
 	var ips []string
 	for _, nw := range osnet.New(f.allocation).AllocationNetworks() {
 		if nw.Network != networkID {
@@ -211,7 +211,7 @@ func (f *Firewall) getConfiguredIPs(networkID string) []string {
 	return ips
 }
 
-func (f *Firewall) renderFile(file string) error {
+func (f *Nftables) renderFile(file string) error {
 	fd, err := newFirewallRenderingData(f)
 	if err != nil {
 		return err
@@ -231,7 +231,7 @@ func (f *Firewall) renderFile(file string) error {
 	return nil
 }
 
-func (f *Firewall) validate(file string) error {
+func (f *Nftables) validate(file string) error {
 	c := exec.Command(nftBin, "-c", "-f", file)
 	out, err := c.CombinedOutput()
 	if err != nil {
@@ -242,7 +242,7 @@ func (f *Firewall) validate(file string) error {
 
 var ipv6linklocal = netip.MustParsePrefix("fe80::/10")
 
-func (f *Firewall) reconcileIfaceAddresses() error {
+func (f *Nftables) reconcileIfaceAddresses() error {
 	var errs []error
 
 	for _, n := range f.networkMap {
@@ -335,7 +335,7 @@ func (f *Firewall) reconcileIfaceAddresses() error {
 	return errors.Join(errs...)
 }
 
-func (f *Firewall) reload() error {
+func (f *Nftables) reload() error {
 	c := exec.Command(systemctlBin, "reload", nftablesService)
 	err := c.Run()
 	if err != nil {
