@@ -109,7 +109,7 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ct
 
 	nft := nftables.New(f, &cwnps, &services, r.DnsProxy, r.Log, r.Recorder, allocation)
 
-	if err := nft.Apply(ctx); err != nil {
+	if err := nft.ApplyBaseRules(ctx); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to reconcile nftables for DNS proxy: %w", err)
 	}
 
@@ -117,7 +117,7 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ct
 		return ctrl.Result{}, err
 	}
 
-	updated, err := nft.ApplyInterfaces()
+	updated, err := nft.Apply()
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -143,6 +143,7 @@ func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
 
 	if enableDNS && r.DnsProxy == nil {
 		r.Log.Info("DNS Proxy is initialized")
+
 		dnsProxyConfig := &dns.DNSProxyConfig{
 			Log:         ctrl.Log.WithName("DNS proxy"),
 			DNSServer:   f.Spec.DNSServerAddress,

@@ -134,8 +134,8 @@ func (f *Nftables) Flush() error {
 	return f.reload()
 }
 
-// ApplyInterfaces applies the interface addresses through netlink.
-func (f *Nftables) ApplyInterfaces() (updated bool, err error) {
+// Apply applies the interface addresses through netlink and writes the /etc/nftables/firewall-controller.v4 rules file.
+func (f *Nftables) Apply() (updated bool, err error) {
 	tmpFile, err := os.CreateTemp(filepath.Dir(f.ipv4RuleFile()), "."+filepath.Base(f.ipv4RuleFile()))
 	if err != nil {
 		return
@@ -177,7 +177,8 @@ func (f *Nftables) ApplyInterfaces() (updated bool, err error) {
 	return true, nil
 }
 
-func (f *Nftables) Apply(ctx context.Context) error {
+// ApplyBaseRules applies the /etc/nftables/rules file (to enable or disable the DNS proxy).
+func (f *Nftables) ApplyBaseRules(ctx context.Context) error {
 	changed, err := nftables.Render(ctx, &nftables.Config{
 		Log:            slog.New(logr.ToSlogHandler(f.log)),
 		Reload:         true,
