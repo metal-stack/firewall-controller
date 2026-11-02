@@ -41,7 +41,7 @@ func GetNewNetworks(log logr.Logger, f *firewallv2.Firewall, oldNetworks []*apiv
 			newNet.Prefixes = newNetwork.Prefixes
 			newNetworks = append(newNetworks, newNet)
 		} else {
-			log.Error(errors.New("network not present firewall networks"), "network", n.Network)
+			log.Error(errors.New("network not present in firewall networks"), "network", n.Network)
 		}
 	}
 

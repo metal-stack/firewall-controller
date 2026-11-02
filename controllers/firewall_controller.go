@@ -96,7 +96,8 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 				&firewallv2.Firewall{},
 				&firewallv1.ClusterwideNetworkPolicyList{},
 				&corev1.ServiceList{},
-				nil, logr.Discard(),
+				nil,
+				r.Log,
 				r.Recorder,
 				r.MachineAllocation,
 			)
