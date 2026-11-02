@@ -270,7 +270,6 @@ func (f *Nftables) reconcileIfaceAddresses() error {
 		if err != nil {
 			if _, ok := errors.AsType[netlink.LinkNotFoundError](err); ok {
 				f.log.Info("skipping link because not found", "name", linkName)
-				continue
 			}
 			return fmt.Errorf("unable to detect link by name: %w", err)
 		}
