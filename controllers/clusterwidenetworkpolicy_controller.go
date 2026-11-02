@@ -44,7 +44,6 @@ type ClusterwideNetworkPolicyReconciler struct {
 
 	Interval time.Duration
 	DnsProxy *dns.DNSProxy
-	SkipDNS  bool
 }
 
 // SetupWithManager configures this controller to run in schedule
@@ -85,6 +84,11 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ct
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	allocation, defaultRouteIP, err := toMachineAllocation(f)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	// Set CWNP requeue interval
 	if interval, err := time.ParseDuration(f.Spec.Interval); err == nil {
 		r.Interval = interval
@@ -103,11 +107,17 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ct
 	}
 	cwnps.Items = validCwnps
 
-	nftablesFirewall := nftables.NewFirewall(f, &cwnps, &services, r.DnsProxy, r.Log, r.Recorder)
-	if err := r.manageDNSProxy(f, cwnps, nftablesFirewall); err != nil {
+	nft := nftables.New(f, &cwnps, &services, r.DnsProxy, r.Log, r.Recorder, allocation)
+
+	if err := nft.ApplyBaseRules(ctx); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to reconcile nftables for DNS proxy: %w", err)
+	}
+
+	if err := r.manageDNSProxy(f, cwnps, defaultRouteIP); err != nil {
 		return ctrl.Result{}, err
 	}
-	updated, err := nftablesFirewall.Reconcile()
+
+	updated, err := nft.Apply()
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -127,26 +137,19 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ct
 // manageDNSProxy start DNS proxy if toFQDN rules are present
 // if rules were deleted it will stop running DNS proxy
 func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
-	f *firewallv2.Firewall, cwnps firewallv1.ClusterwideNetworkPolicyList, nftablesFirewall *nftables.Firewall,
+	f *firewallv2.Firewall, cwnps firewallv1.ClusterwideNetworkPolicyList, defaultRouteIP string,
 ) (err error) {
-	// Skipping is needed for testing
-	if r.SkipDNS {
-		return nil
-	}
-
 	enableDNS := len(cwnps.GetFQDNs()) > 0
-
-	if err := nftablesFirewall.ReconcileNetconfTables(); err != nil {
-		return fmt.Errorf("failed to reconcile nftables for DNS proxy: %w", err)
-	}
 
 	if enableDNS && r.DnsProxy == nil {
 		r.Log.Info("DNS Proxy is initialized")
+
 		dnsProxyConfig := &dns.DNSProxyConfig{
 			Log:         ctrl.Log.WithName("DNS proxy"),
 			DNSServer:   f.Spec.DNSServerAddress,
 			Port:        f.Spec.DNSPort,
 			ShootClient: r.ShootClient,
+			BindAddress: defaultRouteIP,
 		}
 		if r.DnsProxy, err = dns.NewDNSProxy(r.Ctx, dnsProxyConfig); err != nil {
 			return fmt.Errorf("failed to init DNS proxy: %w", err)

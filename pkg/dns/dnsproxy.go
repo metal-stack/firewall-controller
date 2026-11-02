@@ -3,20 +3,16 @@ package dns
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"net"
 	"strconv"
 	"time"
 
-	"github.com/metal-stack/metal-networker/pkg/netconf"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 
 	"github.com/go-logr/logr"
 	dnsgo "github.com/miekg/dns"
-
-	"github.com/metal-stack/firewall-controller/v2/pkg/network"
 )
 
 const (
@@ -39,6 +35,8 @@ type (
 		tcpServer *dnsgo.Server
 
 		handler DNSHandler
+
+		bindAddress string
 	}
 
 	DNSProxyConfig struct {
@@ -46,6 +44,8 @@ type (
 		Port        *uint
 		ShootClient client.Client
 		Log         logr.Logger
+		// BindAddress is the first ip of the defaultRouteNetwork
+		BindAddress string
 	}
 )
 
@@ -54,16 +54,11 @@ func NewDNSProxy(ctx context.Context, cfg *DNSProxyConfig) (*DNSProxy, error) {
 		cfg.DNSServer = defaultDNSServerAddr
 	}
 
-	host, err := getHost()
-	if err != nil {
-		return nil, err
-	}
-
 	p := defaultDNSPort
 	if cfg.Port != nil {
 		p = *cfg.Port
 	}
-	udpConn, tcpListener, err := bindToPort(host, int(p), cfg.Log) // nolint:gosec
+	udpConn, tcpListener, err := bindToPort(cfg.BindAddress, int(p), cfg.Log) // nolint:gosec
 	if err != nil {
 		return nil, fmt.Errorf("failed to bind to port: %w", err)
 	}
@@ -89,6 +84,8 @@ func NewDNSProxy(ctx context.Context, cfg *DNSProxyConfig) (*DNSProxy, error) {
 		tcpServer: tcpServer,
 
 		handler: handler,
+
+		bindAddress: cfg.BindAddress,
 	}, nil
 }
 
@@ -146,22 +143,8 @@ func (p *DNSProxy) IsInitialized() bool {
 	return p != nil
 }
 
-func (p *DNSProxy) CacheAddr() (string, error) {
-	return getHost()
-}
-
-func getHost() (string, error) {
-	c, err := netconf.New(slog.Default(), network.MetalNetworkerConfig)
-	if err != nil || c == nil {
-		return "", fmt.Errorf("failed to init networker config: %w", err)
-	}
-
-	defaultNetwork := c.GetDefaultRouteNetwork()
-	if defaultNetwork == nil || len(defaultNetwork.Ips) < 1 {
-		return "", fmt.Errorf("failed to retrieve host IP for DNS Proxy")
-	}
-
-	return defaultNetwork.Ips[0], nil
+func (p *DNSProxy) CacheAddr() string {
+	return p.bindAddress
 }
 
 // bindToPort attempts to bind to port for both UDP and TCP

@@ -28,7 +28,6 @@ import (
 	"github.com/metal-stack/firewall-controller-manager/api/v2/helper"
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 	"github.com/metal-stack/firewall-controller/v2/pkg/network"
-	"github.com/metal-stack/firewall-controller/v2/pkg/nftables"
 	"github.com/metal-stack/firewall-controller/v2/pkg/updater"
 )
 
@@ -87,26 +86,12 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	f := &firewallv2.Firewall{}
 	if err := r.SeedClient.Get(ctx, req.NamespacedName, f); err != nil {
-		if apierrors.IsNotFound(err) {
-			r.Log.Info("flushing k8s firewall rules")
-
-			defaultFw := nftables.NewFirewall(
-				&firewallv2.Firewall{},
-				&firewallv1.ClusterwideNetworkPolicyList{},
-				&corev1.ServiceList{}, nil, logr.Discard(),
-				r.Recorder,
-			)
-
-			flushErr := defaultFw.Flush()
-			if flushErr != nil {
-				r.Log.Error(flushErr, "error flushing k8s firewall rules")
-				return ctrl.Result{}, flushErr
-			}
-
-			return ctrl.Result{}, nil
-		}
-
 		return ctrl.Result{}, fmt.Errorf("error retrieving resource: %w", err)
+	}
+
+	allocation, _, err := toMachineAllocation(f)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
 	if r.Updater != nil {
@@ -124,7 +109,8 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	r.Log.Info("reconciling network settings")
 
 	var errs []error
-	changed, err := network.ReconcileNetwork(r.Log, f, r.FrrVersion)
+
+	changed, err := network.ReconcileNetwork(ctx, r.Log, f, allocation, r.FrrVersion)
 	if changed && err == nil {
 		r.recordFirewallEvent(f, corev1.EventTypeNormal, "Network settings", "reconciliation succeeded (frr.conf)")
 	} else if changed && err != nil {
@@ -170,14 +156,14 @@ type firewallService struct {
 func (r *FirewallReconciler) reconcileFirewallServices(ctx context.Context, f *firewallv2.Firewall) error {
 	services := []firewallService{
 		{
-			name:      nodeExporterService,
-			port:      nodeExporterPort,
-			namedPort: nodeExporterNamedPort,
-		},
-		{
 			name:      nftablesExporterService,
 			port:      nftablesExporterPort,
 			namedPort: nftablesExporterNamedPort,
+		},
+		{
+			name:      nodeExporterService,
+			port:      nodeExporterPort,
+			namedPort: nodeExporterNamedPort,
 		},
 	}
 

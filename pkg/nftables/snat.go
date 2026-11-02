@@ -20,7 +20,7 @@ func (s *snatRule) String() string {
 }
 
 // snatRules generates the nftables rules for SNAT based on the firewall spec
-func snatRules(f *Firewall) (nftablesRules, error) {
+func snatRules(f *Nftables) (nftablesRules, error) {
 	if f.primaryPrivateNet == nil {
 		return nil, fmt.Errorf("no primary private network found")
 	}
