@@ -13,14 +13,13 @@ require (
 	github.com/metal-stack/api v0.8.4
 	github.com/metal-stack/firewall-controller-manager v0.6.2
 	github.com/metal-stack/metal-lib v0.26.4
-	github.com/metal-stack/os-installer v0.3.3
+	github.com/metal-stack/os-installer v0.3.4-0.20261102100649-593f3c1dff9f
 	github.com/metal-stack/v v1.0.3
 	github.com/miekg/dns v1.1.73
 	github.com/stretchr/testify v1.12.1
 	github.com/txn2/txeh v1.8.1
 	github.com/vishvananda/netlink v1.3.1
 	go4.org/netipx v0.0.0-20260823151212-3075585bcbeb
-	google.golang.org/protobuf v1.36.12
 	k8s.io/api v0.36.3
 	k8s.io/apiextensions-apiserver v0.36.3
 	k8s.io/apimachinery v0.36.3
@@ -98,6 +97,7 @@ require (
 	golang.org/x/time v0.16.0 // indirect
 	golang.org/x/tools v0.52.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
+	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
