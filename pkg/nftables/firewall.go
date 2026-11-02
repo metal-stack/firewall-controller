@@ -14,8 +14,6 @@ import (
 	apiv2 "github.com/metal-stack/api/go/metalstack/api/v2"
 	"github.com/metal-stack/firewall-controller/v2/pkg/dns"
 
-	"github.com/metal-stack/firewall-controller/v2/pkg/network"
-
 	"github.com/go-logr/logr"
 	"github.com/vishvananda/netlink"
 	corev1 "k8s.io/api/core/v1"
@@ -180,8 +178,6 @@ func (f *Firewall) Reconcile() (updated bool, err error) {
 }
 
 func (f *Firewall) ReconcileNfTables() error {
-	f.allocation.Networks = network.GetNewNetworks(f.log, f.firewall, f.allocation.Networks)
-
 	changed, err := nftables.Render(context.Background(), &nftables.Config{
 		Log:            slog.New(logr.ToSlogHandler(f.log)),
 		Reload:         true,
