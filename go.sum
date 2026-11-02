@@ -143,8 +143,8 @@ github.com/metal-stack/firewall-controller-manager v0.6.2 h1:QgL4sFqwZ8PYAOddN0V
 github.com/metal-stack/firewall-controller-manager v0.6.2/go.mod h1:sYlFUCZDo1l60edNKAGzJ2PmligSwC5942ucY7b7F/Q=
 github.com/metal-stack/metal-lib v0.26.4 h1:Qg+JorX0AgQCkrCK07wvstGEoRcm/Y97E2UG5ZBAXjo=
 github.com/metal-stack/metal-lib v0.26.4/go.mod h1:cNXjPBs8SFnjqfBobuSbm5mDk6E/jS8PVeIOrV/7POE=
-github.com/metal-stack/os-installer v0.3.4-0.20261102100649-593f3c1dff9f h1:Ch5CEcBtde1WvB55m7LJKVmnZjm8cwVPZmTBPLrRu8g=
-github.com/metal-stack/os-installer v0.3.4-0.20261102100649-593f3c1dff9f/go.mod h1:vMOW7otAMwe8ReQxCPb/VE5KLvA9+q9VauDBhYwInEc=
+github.com/metal-stack/os-installer v0.3.4 h1:Ku9NvzxaYaKK4QIPJ7OyNYXiYZqBbNKxzcEfhrhwvDU=
+github.com/metal-stack/os-installer v0.3.4/go.mod h1:vMOW7otAMwe8ReQxCPb/VE5KLvA9+q9VauDBhYwInEc=
 github.com/metal-stack/v v1.0.3 h1:Sh2oBlnxrCUD+mVpzfC8HiqL045YWkxs0gpTvkjppqs=
 github.com/metal-stack/v v1.0.3/go.mod h1:YTahEu7/ishwpYKnp/VaW/7nf8+PInogkfGwLcGPdXg=
 github.com/miekg/dns v1.1.73 h1:uhT8nJxmTrPJYClxVxTCX+CVn6qnzSiybRk72Z6DgrE=
