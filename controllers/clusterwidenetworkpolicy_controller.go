@@ -7,7 +7,6 @@ import (
 
 	"go4.org/netipx"
 
-	apiv2 "github.com/metal-stack/api/go/metalstack/api/v2"
 	"github.com/metal-stack/firewall-controller/v2/pkg/dns"
 	"github.com/metal-stack/firewall-controller/v2/pkg/helper"
 	"github.com/metal-stack/firewall-controller/v2/pkg/nftables"
@@ -46,9 +45,6 @@ type ClusterwideNetworkPolicyReconciler struct {
 	Interval time.Duration
 	DnsProxy *dns.DNSProxy
 	SkipDNS  bool
-
-	DefaultRouteIp    string
-	MachineAllocation *apiv2.MachineAllocation
 }
 
 // SetupWithManager configures this controller to run in schedule
@@ -89,6 +85,11 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ct
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	allocation, defaultRouteIP, err := toMachineAllocation(f)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	// Set CWNP requeue interval
 	if interval, err := time.ParseDuration(f.Spec.Interval); err == nil {
 		r.Interval = interval
@@ -107,8 +108,8 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ct
 	}
 	cwnps.Items = validCwnps
 
-	nftablesFirewall := nftables.NewFirewall(f, &cwnps, &services, r.DnsProxy, r.Log, r.Recorder, r.MachineAllocation)
-	if err := r.manageDNSProxy(f, cwnps, nftablesFirewall); err != nil {
+	nftablesFirewall := nftables.NewFirewall(f, &cwnps, &services, r.DnsProxy, r.Log, r.Recorder, allocation)
+	if err := r.manageDNSProxy(f, cwnps, nftablesFirewall, defaultRouteIP); err != nil {
 		return ctrl.Result{}, err
 	}
 	updated, err := nftablesFirewall.Reconcile()
@@ -131,7 +132,7 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ct
 // manageDNSProxy start DNS proxy if toFQDN rules are present
 // if rules were deleted it will stop running DNS proxy
 func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
-	f *firewallv2.Firewall, cwnps firewallv1.ClusterwideNetworkPolicyList, nftablesFirewall *nftables.Firewall,
+	f *firewallv2.Firewall, cwnps firewallv1.ClusterwideNetworkPolicyList, nftablesFirewall *nftables.Firewall, defaultRouteIP string,
 ) (err error) {
 	// Skipping is needed for testing
 	if r.SkipDNS {
@@ -151,7 +152,7 @@ func (r *ClusterwideNetworkPolicyReconciler) manageDNSProxy(
 			DNSServer:   f.Spec.DNSServerAddress,
 			Port:        f.Spec.DNSPort,
 			ShootClient: r.ShootClient,
-			BindAddress: r.DefaultRouteIp,
+			BindAddress: defaultRouteIP,
 		}
 		if r.DnsProxy, err = dns.NewDNSProxy(r.Ctx, dnsProxyConfig); err != nil {
 			return fmt.Errorf("failed to init DNS proxy: %w", err)

@@ -11,7 +11,6 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/go-logr/logr"
-	apiv2 "github.com/metal-stack/api/go/metalstack/api/v2"
 	mn "github.com/metal-stack/metal-lib/pkg/net"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -29,7 +28,6 @@ import (
 	"github.com/metal-stack/firewall-controller-manager/api/v2/helper"
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 	"github.com/metal-stack/firewall-controller/v2/pkg/network"
-	"github.com/metal-stack/firewall-controller/v2/pkg/nftables"
 	"github.com/metal-stack/firewall-controller/v2/pkg/updater"
 )
 
@@ -53,8 +51,7 @@ type FirewallReconciler struct {
 
 	SeedUpdatedFunc func()
 
-	FrrVersion        *semver.Version
-	MachineAllocation *apiv2.MachineAllocation
+	FrrVersion *semver.Version
 }
 
 const (
@@ -89,29 +86,12 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	f := &firewallv2.Firewall{}
 	if err := r.SeedClient.Get(ctx, req.NamespacedName, f); err != nil {
-		if apierrors.IsNotFound(err) {
-			r.Log.Info("flushing k8s firewall rules")
-
-			defaultFw := nftables.NewFirewall(
-				&firewallv2.Firewall{},
-				&firewallv1.ClusterwideNetworkPolicyList{},
-				&corev1.ServiceList{},
-				nil,
-				r.Log,
-				r.Recorder,
-				r.MachineAllocation,
-			)
-
-			flushErr := defaultFw.Flush()
-			if flushErr != nil {
-				r.Log.Error(flushErr, "error flushing k8s firewall rules")
-				return ctrl.Result{}, flushErr
-			}
-
-			return ctrl.Result{}, nil
-		}
-
 		return ctrl.Result{}, fmt.Errorf("error retrieving resource: %w", err)
+	}
+
+	allocation, _, err := toMachineAllocation(f)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
 	if r.Updater != nil {
@@ -130,7 +110,7 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	var errs []error
 
-	changed, err := network.ReconcileNetwork(r.Log, f, r.MachineAllocation, r.FrrVersion)
+	changed, err := network.ReconcileNetwork(r.Log, f, allocation, r.FrrVersion)
 	if changed && err == nil {
 		r.recordFirewallEvent(f, corev1.EventTypeNormal, "Network settings", "reconciliation succeeded (frr.conf)")
 	} else if changed && err != nil {
