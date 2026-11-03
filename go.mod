@@ -13,7 +13,7 @@ require (
 	github.com/metal-stack/api v0.8.4
 	github.com/metal-stack/firewall-controller-manager v0.6.2
 	github.com/metal-stack/metal-lib v0.26.4
-	github.com/metal-stack/os-installer v0.3.4-0.20261102130556-e53c3effc076
+	github.com/metal-stack/os-installer v0.3.5-0.20261103044557-9d7ee66db389
 	github.com/metal-stack/v v1.0.3
 	github.com/miekg/dns v1.1.73
 	github.com/stretchr/testify v1.12.1
