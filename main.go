@@ -59,7 +59,6 @@ func main() {
 		logLevel             string
 		isVersion            bool
 		metricsAddr          string
-		enableIDS            bool
 		enableSignatureCheck bool
 		hostsFile            string
 		firewallName         string
@@ -69,7 +68,6 @@ func main() {
 	flag.StringVar(&logLevel, "log-level", "info", "the log level of the controller")
 	flag.BoolVar(&isVersion, "v", false, "Show firewall-controller version")
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
-	flag.BoolVar(&enableIDS, "enable-IDS", true, "Set this to false to exclude IDS.")
 	flag.StringVar(&hostsFile, "hosts-file", "/etc/hosts", "The hosts file to manipulate for the droptailer.")
 	flag.BoolVar(&enableSignatureCheck, "enable-signature-check", true, "Set this to false to ignore signature checking.")
 	flag.StringVar(&firewallName, "firewall-name", "", "the name of the firewall resource in the seed cluster to reconcile (defaults to hostname)")
@@ -221,7 +219,6 @@ func main() {
 		ShootClient:  shootMgr.GetClient(),
 		Log:          ctrl.Log.WithName("controllers").WithName("FirewallMonitorReconciler"),
 		Recorder:     shootMgr.GetEventRecorderFor("FirewallMonitorController"), // nolint:staticcheck
-		IDSEnabled:   enableIDS,
 		FirewallName: firewallName,
 		Namespace:    firewallv2.FirewallShootNamespace,
 	}
