@@ -117,7 +117,7 @@ func (r *ClusterwideNetworkPolicyReconciler) Reconcile(ctx context.Context, _ ct
 		return ctrl.Result{}, err
 	}
 
-	updated, err := nft.Apply()
+	updated, err := nft.Apply(ctx)
 	if err != nil {
 		return ctrl.Result{}, err
 	}

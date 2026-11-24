@@ -72,7 +72,7 @@ func (r *FirewallMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	var (
 		idsStats = firewallv2.IDSStatsByDevice{}
-		s        = suricata.New()
+		s        = suricata.New(r.Log)
 	)
 
 	suricataStatus, err := s.Status(ctx, r.ShootClient)

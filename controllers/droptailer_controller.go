@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 
 	"github.com/go-logr/logr"
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
+	"github.com/metal-stack/firewall-controller/v2/pkg/systemd"
 
 	"github.com/txn2/txeh"
 	corev1 "k8s.io/api/core/v1"
@@ -173,7 +173,7 @@ func (r *DroptailerReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		r.oldPodIP = podIP
 	}
 
-	err = exec.Command("systemctl", "restart", "droptailer.service").Run()
+	err = systemd.Restart(ctx, "droptailer.service")
 	if err != nil {
 		return ctrl.Result{}, err
 	}

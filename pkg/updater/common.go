@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/coreos/go-systemd/v22/dbus"
+	"github.com/metal-stack/firewall-controller/v2/pkg/systemd"
 )
 
 func fetchBinaryAndChecksum(url string) (io.ReadCloser, string, error) {
@@ -96,26 +96,6 @@ func slurpFile(url string) (string, error) {
 	return strings.Split(string(content), " ")[0], nil
 }
 
-const done = "done"
-
 func Restart(ctx context.Context, unitName string) error {
-	dbc, err := dbus.NewWithContext(ctx)
-	if err != nil {
-		return fmt.Errorf("unable to connect to dbus: %w", err)
-	}
-	defer dbc.Close()
-
-	c := make(chan string)
-	_, err = dbc.RestartUnitContext(ctx, unitName, "replace", c)
-
-	if err != nil {
-		return err
-	}
-
-	job := <-c
-	if job != done {
-		return fmt.Errorf("restart failed %s", job)
-	}
-
-	return nil
+	return systemd.Restart(ctx, unitName)
 }

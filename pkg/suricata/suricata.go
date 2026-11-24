@@ -3,33 +3,40 @@ package suricata
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io/fs"
-	"os"
-	"os/exec"
-	"path"
-	"path/filepath"
-	"sort"
-	"strings"
 	"time"
 
-	"github.com/coreos/go-systemd/v22/dbus"
+	"github.com/go-logr/logr"
 	"github.com/ks2211/go-suricata/client"
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
+	"github.com/metal-stack/firewall-controller/v2/pkg/systemd"
 	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kclient "sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/yaml"
 )
 
-// defaultSocket to communicate with suricata
-const defaultSocket = "/run/suricata-command.socket"
+const (
+	suricataAfPacketService = "suricata.service"
+	suricataNFQueueService  = "suricata-nfqueue.service"
+	suricataUpdateService   = "suricata_update.service"
+	eveboxAgentService      = "evebox-agent.service"
+
+	eveboxAgentConfigPath = "/etc/evebox/agent.yaml"
+	eveboxSocketDir       = "/run/evebox"
+	eveboxSocketPath      = "/run/evebox/eve.sock"
+
+	suricataUpdate = "suricata-update"
+	suricatasc     = "suricatasc"
+
+	// defaultSocket to communicate with suricata
+	defaultSocket = "/run/suricata-command.socket"
+)
 
 type (
 	Suricata struct {
 		socket string
+		log    logr.Logger
 	}
 
 	InterfaceStats map[string]InterFaceStat
@@ -41,8 +48,11 @@ type (
 	}
 )
 
-func New() *Suricata {
-	return &Suricata{socket: defaultSocket}
+func New(log logr.Logger) *Suricata {
+	return &Suricata{
+		socket: defaultSocket,
+		log:    log,
+	}
 }
 
 func (s *Suricata) InterfaceStats(ctx context.Context) (InterfaceStats, error) {
@@ -73,33 +83,6 @@ func (s *Suricata) InterfaceStats(ctx context.Context) (InterfaceStats, error) {
 }
 
 func (s *Suricata) Status(ctx context.Context, c kclient.Client) (*firewallv2.SuricataStatus, error) {
-	isServiceEnabled := func(name string) (bool, error) {
-		dbc, err := dbus.NewSystemConnectionContext(ctx)
-		if err != nil {
-			return false, fmt.Errorf("unable to connect to dbus: %w", err)
-		}
-		defer dbc.Close()
-
-		units, err := dbc.ListUnitFilesContext(ctx)
-		if err != nil {
-			return false, fmt.Errorf("failed to list unit files: %w", err)
-		}
-
-		for _, unit := range units {
-			if path.Base(unit.Path) != name {
-				continue
-			}
-
-			return unit.Type == "enabled" || unit.Type == "enabled-runtime", nil
-		}
-
-		return false, nil
-	}
-
-	const (
-		suricatasc = "suricatasc"
-	)
-
 	status := &firewallv2.SuricataStatus{
 		Running:                    false,
 		Uptime:                     metav1.Duration{},
@@ -110,7 +93,7 @@ func (s *Suricata) Status(ctx context.Context, c kclient.Client) (*firewallv2.Su
 		EveboxServerRunning:        false,
 	}
 
-	enabled, err := isServiceEnabled("suricata.service")
+	enabled, err := systemd.AnyUnitFileEnabled(ctx, suricataAfPacketService, suricataNFQueueService)
 	if err != nil {
 		return nil, fmt.Errorf("unable to figure out if service is running: %w", err)
 	}
@@ -120,8 +103,7 @@ func (s *Suricata) Status(ctx context.Context, c kclient.Client) (*firewallv2.Su
 	}
 
 	querySuricata := func(command string) (json.RawMessage, error) {
-		cmd := exec.CommandContext(ctx, suricatasc, s.socket, "-c", command)
-		out, err := cmd.Output()
+		out, err := runCommand(ctx, suricatasc, s.socket, "-c", command)
 		if err != nil {
 			return nil, fmt.Errorf("unable to query suricata socket: %w", err)
 		}
@@ -163,7 +145,7 @@ func (s *Suricata) Status(ctx context.Context, c kclient.Client) (*firewallv2.Su
 		return nil, fmt.Errorf("unable to parse suricata version: %w", err)
 	}
 
-	enabled, err = isServiceEnabled("evebox-agent.service")
+	enabled, err = systemd.AnyUnitFileEnabled(ctx, eveboxAgentService)
 	if err != nil {
 		return nil, err
 	}
@@ -183,65 +165,15 @@ func (s *Suricata) Status(ctx context.Context, c kclient.Client) (*firewallv2.Su
 		status.EveboxServerRunning = true
 	}
 
-	const stateDir = "/var/lib/suricata/"
-
-	path := filepath.Join(stateDir, "update", "cache", "index.yaml")
-	content, err := os.ReadFile(path)
-	switch {
-	case err == nil:
-		var index struct {
-			Sources map[string]map[string]any `json:"sources"`
-		}
-		if err := yaml.Unmarshal(content, &index); err != nil {
-			return nil, fmt.Errorf("unable to parse suricata update source index: %w", err)
-		}
-
-		for name, source := range index.Sources {
-			if _, ok := source["deprecated"]; ok {
-				continue
-			}
-			if _, ok := source["obsolete"]; ok {
-				continue
-			}
-
-			status.AvailableDetectionRulesets = append(status.AvailableDetectionRulesets, name)
-		}
-		sort.Strings(status.AvailableDetectionRulesets)
-	case errors.Is(err, fs.ErrNotExist):
-		// noop
-	default:
-		return nil, fmt.Errorf("unable to read suricata update source index: %w", err)
+	status.AvailableDetectionRulesets, err = availableDetectionRulesets()
+	if err != nil {
+		return nil, err
 	}
 
-	err = filepath.WalkDir(filepath.Join(stateDir, "update", "sources"), func(p string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() || !strings.HasSuffix(d.Name(), ".yaml") {
-			return nil
-		}
-
-		content, err := os.ReadFile(p)
-		if err != nil {
-			return err
-		}
-
-		var source struct {
-			Source string `json:"source"`
-		}
-		if err := yaml.Unmarshal(content, &source); err != nil {
-			return fmt.Errorf("unable to parse suricata source config %s: %w", p, err)
-		}
-		if source.Source != "" {
-			status.EnabledDetectionRulesets = append(status.EnabledDetectionRulesets, source.Source)
-		}
-
-		return nil
-	})
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return nil, fmt.Errorf("unable to read enabled suricata sources: %w", err)
+	status.EnabledDetectionRulesets, err = enabledDetectionRulesets()
+	if err != nil {
+		return nil, err
 	}
-	sort.Strings(status.EnabledDetectionRulesets)
 
 	return status, nil
 }

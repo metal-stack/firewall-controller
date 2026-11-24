@@ -30,6 +30,7 @@ import (
 	"github.com/metal-stack/firewall-controller/v2/pkg/network"
 	"github.com/metal-stack/firewall-controller/v2/pkg/suricata"
 	"github.com/metal-stack/firewall-controller/v2/pkg/updater"
+	osnet "github.com/metal-stack/os-installer/pkg/network"
 )
 
 // FirewallReconciler reconciles a Firewall object
@@ -95,6 +96,8 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
+	firewallNetwork := osnet.New(allocation)
+
 	if r.Updater != nil {
 		r.Log.Info("running binary updater")
 
@@ -111,7 +114,7 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	var errs []error
 
-	changed, err := network.ReconcileNetwork(ctx, r.Log, f, allocation, r.FrrVersion)
+	changed, err := network.ReconcileNetwork(ctx, r.Log, f, firewallNetwork, r.FrrVersion)
 	if changed && err == nil {
 		r.recordFirewallEvent(f, corev1.EventTypeNormal, "Network settings", "reconciliation succeeded (frr.conf)")
 	} else if changed && err != nil {
@@ -127,7 +130,7 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	r.Log.Info("reconciling suricata")
-	if err = suricata.New().Reconcile(ctx, f); err != nil {
+	if err = suricata.New(r.Log).Reconcile(ctx, f, firewallNetwork); err != nil {
 		errs = append(errs, err)
 	}
 
