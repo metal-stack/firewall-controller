@@ -28,6 +28,7 @@ import (
 	"github.com/metal-stack/firewall-controller-manager/api/v2/helper"
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 	"github.com/metal-stack/firewall-controller/v2/pkg/network"
+	"github.com/metal-stack/firewall-controller/v2/pkg/suricata"
 	"github.com/metal-stack/firewall-controller/v2/pkg/updater"
 )
 
@@ -122,6 +123,11 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	r.Log.Info("reconciling firewall services")
 	if err = r.reconcileFirewallServices(ctx, f); err != nil {
+		errs = append(errs, err)
+	}
+
+	r.Log.Info("reconciling suricata")
+	if err = suricata.New().Reconcile(ctx, f); err != nil {
 		errs = append(errs, err)
 	}
 

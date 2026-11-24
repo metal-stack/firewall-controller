@@ -175,5 +175,9 @@ func (r *FirewallMonitorAnnotationController) Reconcile(ctx context.Context, req
 		}
 	}
 
+	if _, ok := fw.GetAnnotations()[firewallv2.FirewallSuricataUpdateSourcesAnnotation]; ok {
+		// TODO: parse for true, run suricata-update update-sources
+	}
+
 	return ctrl.Result{}, nil
 }
