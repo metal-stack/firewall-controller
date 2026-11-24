@@ -15,9 +15,9 @@ import (
 
 const (
 	suricataAfPacketService = "suricata.service"
-	suricataNFQueueService  = "suricata-nfqueue.service"
-	suricataUpdateService   = "suricata_update.service"
-	eveboxAgentService      = "evebox-agent.service"
+	suricataNFQueueService  = "suricata-ips.service"
+	suricataUpdateService   = "suricata-update.service"
+	eveboxAgentService      = "evebox.service"
 
 	eveboxAgentConfigPath = "/etc/evebox/agent.yaml"
 	eveboxSocketDir       = "/run/evebox"
