@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"os/exec"
 	"slices"
 	"strings"
 
@@ -89,7 +90,7 @@ func (r *FirewallMonitorAnnotationController) Reconcile(ctx context.Context, req
 
 	services, ok := fwmon.Annotations[firewallv2.FirewallRestartSystemdServicesAnnotation]
 	if !ok {
-		return reconcile.Result{}, nil
+		return r.reconcileSuricataUpdateSources(ctx, fwmon)
 	}
 
 	var (
@@ -175,8 +176,43 @@ func (r *FirewallMonitorAnnotationController) Reconcile(ctx context.Context, req
 		}
 	}
 
-	if _, ok := fw.GetAnnotations()[firewallv2.FirewallSuricataUpdateSourcesAnnotation]; ok {
-		// TODO: parse for true, run suricata-update update-sources
+	return r.reconcileSuricataUpdateSources(ctx, fwmon)
+}
+
+func (r *FirewallMonitorAnnotationController) reconcileSuricataUpdateSources(ctx context.Context, fwmon *firewallv2.FirewallMonitor) (ctrl.Result, error) {
+	if !firewallv2.IsAnnotationTrue(fwmon, firewallv2.FirewallSuricataUpdateSourcesAnnotation) {
+		return ctrl.Result{}, nil
+	}
+
+	r.Log.Info("updating suricata sources")
+
+	cmd := exec.CommandContext(ctx, "suricata-update", "update-sources")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		r.Recorder.Event(
+			fwmon,
+			corev1.EventTypeWarning,
+			"SuricataUpdateSources",
+			fmt.Sprintf("suricata source update failed: %s: %s", err, strings.TrimSpace(string(out))),
+		)
+
+		r.Log.Error(err, "error updating suricata sources", "output", string(out))
+		return ctrl.Result{}, fmt.Errorf("unable to update suricata sources: %w", err)
+	}
+
+	r.Recorder.Event(
+		fwmon,
+		corev1.EventTypeNormal,
+		"SuricataUpdateSources",
+		"suricata sources were updated through monitor annotation",
+	)
+
+	r.Log.Info("Removing annotation from firewall monitor", "annotation", firewallv2.FirewallSuricataUpdateSourcesAnnotation)
+
+	patch := client.MergeFrom(fwmon.DeepCopy())
+	delete(fwmon.Annotations, firewallv2.FirewallSuricataUpdateSourcesAnnotation)
+	if err := r.ShootClient.Patch(ctx, fwmon, patch); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
