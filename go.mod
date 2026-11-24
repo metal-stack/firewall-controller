@@ -11,7 +11,7 @@ require (
 	github.com/google/nftables v0.3.0
 	github.com/ks2211/go-suricata v0.0.0-20200823200910-986ce1470707
 	github.com/metal-stack/api v0.8.4
-	github.com/metal-stack/firewall-controller-manager v0.6.3-0.20261124084057-48407cce440a
+	github.com/metal-stack/firewall-controller-manager v0.6.3-0.20261124135016-7814df59a32e
 	github.com/metal-stack/metal-lib v0.26.4
 	github.com/metal-stack/os-installer v0.3.5-0.20261124113501-67fb7a0e3b4c
 	github.com/metal-stack/v v1.0.3
