@@ -10,10 +10,7 @@ import (
 	"github.com/ks2211/go-suricata/client"
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
 	"github.com/metal-stack/firewall-controller/v2/pkg/systemd"
-	appsv1 "k8s.io/api/apps/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -82,7 +79,7 @@ func (s *Suricata) InterfaceStats(ctx context.Context) (InterfaceStats, error) {
 	return result, nil
 }
 
-func (s *Suricata) Status(ctx context.Context, c kclient.Client) (*firewallv2.SuricataStatus, error) {
+func (s *Suricata) Status(ctx context.Context) (*firewallv2.SuricataStatus, error) {
 	status := &firewallv2.SuricataStatus{
 		Running:                    false,
 		Uptime:                     metav1.Duration{},
@@ -90,7 +87,6 @@ func (s *Suricata) Status(ctx context.Context, c kclient.Client) (*firewallv2.Su
 		AvailableDetectionRulesets: []string{},
 		EnabledDetectionRulesets:   []string{},
 		EveboxAgentRunning:         false,
-		EveboxServerRunning:        false,
 	}
 
 	enabled, err := systemd.AnyUnitFileEnabled(ctx, suricataAfPacketService, suricataNFQueueService)
@@ -151,19 +147,6 @@ func (s *Suricata) Status(ctx context.Context, c kclient.Client) (*firewallv2.Su
 	}
 
 	status.EveboxAgentRunning = enabled
-
-	deploy := &appsv1.Deployment{
-		Name:      "evebox",
-		Namespace: firewallv2.FirewallShootNamespace,
-	}
-	err = c.Get(ctx, kclient.ObjectKeyFromObject(deploy), deploy)
-	if err != nil && !apierrors.IsNotFound(err) {
-		return nil, err
-	}
-
-	if err == nil && deploy.Status.Replicas > 0 && deploy.Status.Replicas == deploy.Status.ReadyReplicas {
-		status.EveboxServerRunning = true
-	}
 
 	status.AvailableDetectionRulesets, err = availableDetectionRulesets()
 	if err != nil {

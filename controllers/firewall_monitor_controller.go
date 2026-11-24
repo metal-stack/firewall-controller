@@ -75,7 +75,7 @@ func (r *FirewallMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		s        = suricata.New(r.Log)
 	)
 
-	suricataStatus, err := s.Status(ctx, r.ShootClient)
+	suricataStatus, err := s.Status(ctx)
 	if err != nil {
 		r.Log.Error(err, "unable to figure out suricata status")
 	}

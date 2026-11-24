@@ -38,7 +38,7 @@ type eveboxAgentTemplateData struct {
 	SocketPath string
 }
 
-func (s *Suricata) Reconcile(ctx context.Context, f *firewallv2.Firewall, network *osnet.Network) error {
+func (s *Suricata) Reconcile(ctx context.Context, log logr.Logger, f *firewallv2.Firewall, network *osnet.Network) error {
 	enabled := true
 
 	if f.Spec.Suricata.Enabled != nil {
@@ -46,6 +46,8 @@ func (s *Suricata) Reconcile(ctx context.Context, f *firewallv2.Firewall, networ
 	}
 
 	if !enabled {
+		log.Info("disabling suricata")
+
 		if err := s.deleteEveboxAgent(ctx); err != nil {
 			return err
 		}
@@ -63,14 +65,20 @@ func (s *Suricata) Reconcile(ctx context.Context, f *firewallv2.Firewall, networ
 		return nil
 	}
 
+	log.Info("enabling suricata", "listen-mode", f.Spec.Suricata.ListenMode, "evebox", f.Spec.Suricata.Evebox.Enabled, "evebox-server-url", f.Spec.Suricata.Evebox.ServerURL)
+
 	if f.Spec.Suricata.Evebox.Enabled {
 		if err := s.deployEveboxAgent(ctx, &f.Spec.Suricata.Evebox); err != nil {
 			return err
 		}
+
+		log.Info("evebox agent deployed")
 	} else {
 		if err := s.deleteEveboxAgent(ctx); err != nil {
 			return err
 		}
+
+		log.Info("evebox agent deleted")
 	}
 
 	if err := nftables.NewSuricata(network, s.log).Reconcile(ctx, f.Spec.Suricata.ListenMode); err != nil {

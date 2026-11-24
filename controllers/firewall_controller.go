@@ -130,7 +130,7 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	r.Log.Info("reconciling suricata")
-	if err = suricata.New(r.Log).Reconcile(ctx, f, firewallNetwork); err != nil {
+	if err = suricata.New(r.Log).Reconcile(ctx, r.Log, f, firewallNetwork); err != nil {
 		errs = append(errs, err)
 	}
 
