@@ -9,7 +9,7 @@ import (
 
 	"github.com/go-logr/logr"
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
-	"github.com/metal-stack/firewall-controller/v2/pkg/updater"
+	"github.com/metal-stack/firewall-controller/v2/pkg/systemd"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/tools/record"
@@ -127,7 +127,7 @@ func (r *FirewallMonitorAnnotationController) Reconcile(ctx context.Context, req
 
 		r.Log.Info("restart service", "service-name", serviceName)
 
-		if err := updater.Restart(ctx, serviceName); err != nil {
+		if err := systemd.Restart(ctx, serviceName); err != nil {
 			r.Recorder.Event(
 				fwmon,
 				corev1.EventTypeWarning,
@@ -157,7 +157,7 @@ func (r *FirewallMonitorAnnotationController) Reconcile(ctx context.Context, req
 	if restartFirewallController {
 		r.Log.Info("restart firewall-controller")
 
-		if err := updater.Restart(ctx, firewallControllerService); err != nil {
+		if err := systemd.Restart(ctx, firewallControllerService); err != nil {
 			r.Recorder.Event(
 				fwmon,
 				corev1.EventTypeWarning,

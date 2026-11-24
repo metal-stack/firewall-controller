@@ -1,7 +1,6 @@
 package updater
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -10,8 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/metal-stack/firewall-controller/v2/pkg/systemd"
 )
 
 func fetchBinaryAndChecksum(url string) (io.ReadCloser, string, error) {
@@ -94,8 +91,4 @@ func slurpFile(url string) (string, error) {
 		return "", err
 	}
 	return strings.Split(string(content), " ")[0], nil
-}
-
-func Restart(ctx context.Context, unitName string) error {
-	return systemd.Restart(ctx, unitName)
 }

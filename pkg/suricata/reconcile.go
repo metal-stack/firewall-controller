@@ -45,11 +45,6 @@ func (s *Suricata) Reconcile(ctx context.Context, f *firewallv2.Firewall, networ
 		enabled = *f.Spec.Suricata.Enabled
 	}
 
-	suricataService, _, err := suricataUnits(f.Spec.Suricata.ListenMode)
-	if err != nil {
-		return err
-	}
-
 	if !enabled {
 		if err := s.deleteEveboxAgent(ctx); err != nil {
 			return err
@@ -83,6 +78,11 @@ func (s *Suricata) Reconcile(ctx context.Context, f *firewallv2.Firewall, networ
 	}
 
 	if err := s.reconcileListenMode(ctx, f.Spec.Suricata.ListenMode); err != nil {
+		return err
+	}
+
+	suricataService, _, err := suricataUnits(f.Spec.Suricata.ListenMode)
+	if err != nil {
 		return err
 	}
 
@@ -234,7 +234,7 @@ func (s *Suricata) reconcileDetectionRulesets(ctx context.Context, rulesets []st
 		return fmt.Errorf("unable to update suricata rules: %w", err)
 	}
 
-	if err := systemd.Restart(ctx, suricataService); err != nil {
+	if err := systemd.Reload(ctx, suricataService); err != nil {
 		return fmt.Errorf("unable to reload suricata with updated rules: %w", err)
 	}
 
