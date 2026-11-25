@@ -68,7 +68,7 @@ func main() {
 	flag.StringVar(&logLevel, "log-level", "info", "the log level of the controller")
 	flag.BoolVar(&isVersion, "v", false, "Show firewall-controller version")
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
-	flag.StringVar(&hostsFile, "hosts-file", "/etc/hosts", "The hosts file to manipulate for the droptailer.")
+	flag.StringVar(&hostsFile, "hosts-file", "/etc/hosts", "The hosts file to manipulate for the droptailer and evebox server.")
 	flag.BoolVar(&enableSignatureCheck, "enable-signature-check", true, "Set this to false to ignore signature checking.")
 	flag.StringVar(&firewallName, "firewall-name", "", "the name of the firewall resource in the seed cluster to reconcile (defaults to hostname)")
 
@@ -250,13 +250,29 @@ func main() {
 		panic(err)
 	}
 
+	hosts, err := controllers.NewHostsFile(hostsFile)
+	if err != nil {
+		l.Error("unable to create hosts file editor", "error", err)
+		panic(err)
+	}
+
 	// Droptailer Reconciler
 	if err = (&controllers.DroptailerReconciler{
 		ShootClient: shootMgr.GetClient(),
 		Log:         ctrl.Log.WithName("controllers").WithName("Droptailer"),
-		HostsFile:   hostsFile,
+		Hosts:       hosts,
 	}).SetupWithManager(shootMgr); err != nil {
 		l.Error("unable to create droptailer controller", "error", err)
+		panic(err)
+	}
+
+	// Evebox Reconciler
+	if err = (&controllers.EveboxReconciler{
+		ShootClient: shootMgr.GetClient(),
+		Log:         ctrl.Log.WithName("controllers").WithName("Evebox"),
+		Hosts:       hosts,
+	}).SetupWithManager(shootMgr); err != nil {
+		l.Error("unable to create evebox controller", "error", err)
 		panic(err)
 	}
 
