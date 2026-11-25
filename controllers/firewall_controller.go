@@ -65,6 +65,9 @@ const (
 	nftablesExporterService   = "nftables-exporter"
 	nftablesExporterNamedPort = "nftexporter"
 	nftablesExporterPort      = 9630
+	suricataExporterService   = "suricata-exporter"
+	suricataExporterNamedPort = "suricataexporter"
+	suricataExporterPort      = 9917
 	exporterLabelKey          = "app"
 )
 
@@ -173,6 +176,11 @@ func (r *FirewallReconciler) reconcileFirewallServices(ctx context.Context, f *f
 			name:      nodeExporterService,
 			port:      nodeExporterPort,
 			namedPort: nodeExporterNamedPort,
+		},
+		{
+			name:      suricataExporterNamedPort,
+			port:      suricataExporterPort,
+			namedPort: suricataExporterNamedPort,
 		},
 	}
 
