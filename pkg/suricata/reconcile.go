@@ -94,8 +94,28 @@ func (s *Suricata) Reconcile(ctx context.Context, log logr.Logger, f *firewallv2
 		return err
 	}
 
-	if err := s.reconcileDetectionRulesets(ctx, f.Spec.Suricata.DetectionRulesets, suricataService); err != nil {
+	rulesetsChanged, err := s.reconcileDetectionRulesets(ctx, f.Spec.Suricata.DetectionRulesets)
+	if err != nil {
 		return err
+	}
+
+	dropRulesChanged, err := reconcileDropRules(f.Spec.Suricata.DropRules)
+	if err != nil {
+		return err
+	}
+
+	if !rulesetsChanged && !dropRulesChanged {
+		return nil
+	}
+
+	log.Info("suricata rule configuration changed, updating rules", "detection-rulesets-changed", rulesetsChanged, "drop-rules-changed", dropRulesChanged)
+
+	if err := systemd.Start(ctx, suricataUpdateService); err != nil {
+		return fmt.Errorf("unable to update suricata rules: %w", err)
+	}
+
+	if err := systemd.Reload(ctx, suricataService); err != nil {
+		return fmt.Errorf("unable to reload suricata with updated rules: %w", err)
 	}
 
 	return nil
@@ -196,7 +216,9 @@ func suricataUnits(mode *firewallv2.SuricataListenMode) (desired string, other s
 	}
 }
 
-func (s *Suricata) reconcileDetectionRulesets(ctx context.Context, rulesets []string, suricataService string) error {
+// reconcileDetectionRulesets enables the desired suricata-update sources and disables all others.
+// It returns true if the enabled sources were changed and the rules need to be updated.
+func (s *Suricata) reconcileDetectionRulesets(ctx context.Context, rulesets []string) (bool, error) {
 	desired := []string{defaultDetectionRule}
 	if len(rulesets) > 0 {
 		desired = uniqueSorted(rulesets)
@@ -204,11 +226,11 @@ func (s *Suricata) reconcileDetectionRulesets(ctx context.Context, rulesets []st
 
 	enabled, err := enabledDetectionRulesets()
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	if slices.Equal(desired, enabled) {
-		return nil
+		return false, nil
 	}
 
 	for _, ruleset := range desired {
@@ -217,7 +239,7 @@ func (s *Suricata) reconcileDetectionRulesets(ctx context.Context, rulesets []st
 		}
 
 		if _, err := runCommand(ctx, suricataUpdate, "enable-source", ruleset); err != nil {
-			return fmt.Errorf("unable to enable suricata detection ruleset %q: %w", ruleset, err)
+			return false, fmt.Errorf("unable to enable suricata detection ruleset %q: %w", ruleset, err)
 		}
 	}
 
@@ -225,7 +247,7 @@ func (s *Suricata) reconcileDetectionRulesets(ctx context.Context, rulesets []st
 	// enabled sources and disable everything that is not desired.
 	enabled, err = enabledDetectionRulesets()
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	for _, ruleset := range enabled {
@@ -234,19 +256,62 @@ func (s *Suricata) reconcileDetectionRulesets(ctx context.Context, rulesets []st
 		}
 
 		if _, err := runCommand(ctx, suricataUpdate, "disable-source", ruleset); err != nil {
-			return fmt.Errorf("unable to disable suricata detection ruleset %q: %w", ruleset, err)
+			return false, fmt.Errorf("unable to disable suricata detection ruleset %q: %w", ruleset, err)
 		}
 	}
 
-	if err := systemd.Start(ctx, suricataUpdateService); err != nil {
-		return fmt.Errorf("unable to update suricata rules: %w", err)
+	return true, nil
+}
+
+// reconcileDropRules writes the drop.conf for suricata-update, which converts the matching rules from alert to drop.
+// It returns true if the file was changed and the rules need to be updated.
+func reconcileDropRules(rules []string) (bool, error) {
+	return reconcileDropRulesFile(suricataDropConfPath, rules)
+}
+
+func reconcileDropRulesFile(path string, rules []string) (bool, error) {
+	desired := uniqueSorted(rules)
+
+	for _, rule := range desired {
+		if strings.ContainsAny(rule, "\r\n") {
+			return false, fmt.Errorf("suricata drop rule %q must not contain line breaks", rule)
+		}
+		if strings.HasPrefix(rule, "#") {
+			return false, fmt.Errorf("suricata drop rule %q must not start with a comment character", rule)
+		}
 	}
 
-	if err := systemd.Reload(ctx, suricataService); err != nil {
-		return fmt.Errorf("unable to reload suricata with updated rules: %w", err)
+	current, err := os.ReadFile(path)
+	exists := err == nil
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return false, fmt.Errorf("unable to read suricata drop config: %w", err)
 	}
 
-	return nil
+	if len(desired) == 0 {
+		if !exists {
+			return false, nil
+		}
+		if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return false, fmt.Errorf("unable to remove suricata drop config: %w", err)
+		}
+		return true, nil
+	}
+
+	content := []byte(dropConfHeader + strings.Join(desired, "\n") + "\n")
+
+	if exists && bytes.Equal(current, content) {
+		return false, nil
+	}
+
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return false, fmt.Errorf("unable to create suricata config directory: %w", err)
+	}
+
+	if err := os.WriteFile(path, content, 0644); err != nil { // nolint:gosec
+		return false, fmt.Errorf("unable to write suricata drop config: %w", err)
+	}
+
+	return true, nil
 }
 
 func runCommand(ctx context.Context, name string, args ...string) ([]byte, error) {

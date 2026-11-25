@@ -139,8 +139,8 @@ github.com/mdlayher/socket v0.8.0 h1:1lIVvHAs3sT623kPkPDa+I0nLVusskwnpWzp6ZUcNyc
 github.com/mdlayher/socket v0.8.0/go.mod h1:EhNb63aXqexVoTJDblxvDOSuIGIJinC4H5ZktnaJ6Rk=
 github.com/metal-stack/api v0.8.4 h1:jpArmt1s1NvIsg/ZH1bclTAGiuYjDo2tLGi8PxnxtXU=
 github.com/metal-stack/api v0.8.4/go.mod h1:U0CJxoo35jpS87HNDbVDrilxR106TnE5rJ/xSmgQkPg=
-github.com/metal-stack/firewall-controller-manager v0.6.3-0.20261124150835-47dde34c1b2f h1:qAMmW8cYok3iakOvKWJM4/Vx3BUvo2X2+dxtqWHv7xg=
-github.com/metal-stack/firewall-controller-manager v0.6.3-0.20261124150835-47dde34c1b2f/go.mod h1:sYlFUCZDo1l60edNKAGzJ2PmligSwC5942ucY7b7F/Q=
+github.com/metal-stack/firewall-controller-manager v0.6.3-0.20261125123020-7a65284b555d h1:fIYRR2G3Ifmo7L0vPOKnKCKZaTTBz2KAjdqu/4yIPg8=
+github.com/metal-stack/firewall-controller-manager v0.6.3-0.20261125123020-7a65284b555d/go.mod h1:sYlFUCZDo1l60edNKAGzJ2PmligSwC5942ucY7b7F/Q=
 github.com/metal-stack/metal-lib v0.26.4 h1:Qg+JorX0AgQCkrCK07wvstGEoRcm/Y97E2UG5ZBAXjo=
 github.com/metal-stack/metal-lib v0.26.4/go.mod h1:cNXjPBs8SFnjqfBobuSbm5mDk6E/jS8PVeIOrV/7POE=
 github.com/metal-stack/os-installer v0.3.5-0.20261124113501-67fb7a0e3b4c h1:dzF19vzllIvkxf9ICK4I70M6Y1dXatdK8t+Olv9Hc6U=

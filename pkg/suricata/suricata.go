@@ -20,6 +20,10 @@ const (
 	eveboxAgentService      = "evebox.service"
 
 	eveboxAgentConfigPath = "/etc/evebox/agent.yaml"
+
+	// suricataDropConfPath is read by suricata-update, matching rules are converted to drop rules
+	suricataDropConfPath = "/etc/suricata/drop.conf"
+	dropConfHeader       = "# This file is managed by the firewall-controller, do not edit.\n"
 	eveboxSocketDir       = "/run/evebox"
 	eveboxSocketPath      = "/run/evebox/eve.sock"
 
