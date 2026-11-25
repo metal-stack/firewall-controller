@@ -14,12 +14,16 @@ import (
 )
 
 const (
-	suricataNFTablesPath     = "/etc/nftables/suricata.nft"
+	suricataNFTablesPath = "/etc/nftables/suricata.nft"
+	// Forwarded traffic which enters through a VRF slave interface carries the
+	// VRF device as input interface in the forward hook. Match both devices like
+	// the main ruleset does, otherwise Suricata only sees the outgoing direction
+	// and drops the replies as midstream packets.
 	suricataNFTablesTemplate = `table inet suricata {
     chain forward {
         type filter hook forward priority -10; policy accept;
-        iifname "{{ .Interface }}" queue num 0 bypass comment "suricata nfqueue incoming"
-        oifname "{{ .Interface }}" queue num 0 bypass comment "suricata nfqueue outgoing"
+        iifname { "{{ .Interface }}", "{{ .Vrf }}" } queue num 0 bypass comment "suricata nfqueue incoming"
+        oifname { "{{ .Interface }}", "{{ .Vrf }}" } queue num 0 bypass comment "suricata nfqueue outgoing"
     }
 }
 `
@@ -60,11 +64,17 @@ func (s *Suricata) Reconcile(ctx context.Context, mode *firewallv2.SuricataListe
 		return fmt.Errorf("unable to determine external interface for suricata nfqueue mode: %w", err)
 	}
 
+	externalVrf, err := s.network.GetDefaultRouteNetworkVrfName()
+	if err != nil {
+		return fmt.Errorf("unable to determine external vrf for suricata nfqueue mode: %w", err)
+	}
+
 	r, err := renderer.New(&renderer.Config{
 		Log:            slog.New(logr.ToSlogHandler(s.log)),
 		TemplateString: suricataNFTablesTemplate,
 		Data: map[string]string{
 			"Interface": externalInterface,
+			"Vrf":       externalVrf,
 		},
 		Validate: validateNFTablesFile,
 	})
