@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 
 	"github.com/go-logr/logr"
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
+	"github.com/metal-stack/firewall-controller/v2/pkg/systemd"
 
 	"github.com/txn2/txeh"
 	corev1 "k8s.io/api/core/v1"
@@ -37,35 +37,19 @@ type DroptailerReconciler struct {
 
 	Log logr.Logger
 
-	HostsFile string
+	// Hosts is the hosts file editor, it must be shared with other reconcilers manipulating the same hosts file.
+	Hosts *txeh.Hosts
 
 	certificateBase string
 	oldPodIP        string
-	hosts           *txeh.Hosts
 }
 
 // SetupWithManager configure this controller with required defaults
 func (r *DroptailerReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	hc := &txeh.HostsConfig{
-		ReadFilePath:  r.HostsFile,
-		WriteFilePath: r.HostsFile,
+	if r.Hosts == nil {
+		return fmt.Errorf("hosts editor must be specified")
 	}
 
-	_, err := os.Stat(r.HostsFile)
-	if os.IsNotExist(err) {
-		empty, err := os.Create(r.HostsFile)
-		if err != nil {
-			return err
-		}
-		_ = empty.Close()
-	}
-
-	hosts, err := txeh.NewHosts(hc)
-	if err != nil {
-		return fmt.Errorf("unable to create hosts editor:%w", err)
-	}
-
-	r.hosts = hosts
 	certificateBase := os.Getenv("DROPTAILER_CLIENT_CERTIFICATE_BASE")
 
 	if certificateBase != "" {
@@ -163,9 +147,9 @@ func (r *DroptailerReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	podIP := pod.Status.PodIP
 	if podIP != "" && r.oldPodIP != podIP {
 		r.Log.Info("podIP changed, update /etc/hosts", "old", r.oldPodIP, "new", podIP)
-		r.hosts.RemoveHost("droptailer")
-		r.hosts.AddHost(podIP, "droptailer")
-		err := r.hosts.Save()
+		r.Hosts.RemoveHost("droptailer")
+		r.Hosts.AddHost(podIP, "droptailer")
+		err := r.Hosts.Save()
 		if err != nil {
 			r.Log.Error(err, "could not write droptailer hosts entry")
 			return ctrl.Result{}, fmt.Errorf("could not write droptailer hosts entry:%w", err)
@@ -173,7 +157,7 @@ func (r *DroptailerReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		r.oldPodIP = podIP
 	}
 
-	err = exec.Command("systemctl", "restart", "droptailer.service").Run()
+	err = systemd.Restart(ctx, "droptailer.service")
 	if err != nil {
 		return ctrl.Result{}, err
 	}

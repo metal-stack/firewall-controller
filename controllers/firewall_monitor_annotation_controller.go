@@ -3,12 +3,13 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"os/exec"
 	"slices"
 	"strings"
 
 	"github.com/go-logr/logr"
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
-	"github.com/metal-stack/firewall-controller/v2/pkg/updater"
+	"github.com/metal-stack/firewall-controller/v2/pkg/systemd"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/tools/record"
@@ -89,7 +90,7 @@ func (r *FirewallMonitorAnnotationController) Reconcile(ctx context.Context, req
 
 	services, ok := fwmon.Annotations[firewallv2.FirewallRestartSystemdServicesAnnotation]
 	if !ok {
-		return reconcile.Result{}, nil
+		return r.reconcileSuricataUpdateSources(ctx, fwmon)
 	}
 
 	var (
@@ -126,7 +127,7 @@ func (r *FirewallMonitorAnnotationController) Reconcile(ctx context.Context, req
 
 		r.Log.Info("restart service", "service-name", serviceName)
 
-		if err := updater.Restart(ctx, serviceName); err != nil {
+		if err := systemd.Restart(ctx, serviceName); err != nil {
 			r.Recorder.Event(
 				fwmon,
 				corev1.EventTypeWarning,
@@ -156,7 +157,7 @@ func (r *FirewallMonitorAnnotationController) Reconcile(ctx context.Context, req
 	if restartFirewallController {
 		r.Log.Info("restart firewall-controller")
 
-		if err := updater.Restart(ctx, firewallControllerService); err != nil {
+		if err := systemd.Restart(ctx, firewallControllerService); err != nil {
 			r.Recorder.Event(
 				fwmon,
 				corev1.EventTypeWarning,
@@ -173,6 +174,45 @@ func (r *FirewallMonitorAnnotationController) Reconcile(ctx context.Context, req
 				fmt.Sprintf("systemd service %q was restarted through monitor annotation", firewallControllerService),
 			)
 		}
+	}
+
+	return r.reconcileSuricataUpdateSources(ctx, fwmon)
+}
+
+func (r *FirewallMonitorAnnotationController) reconcileSuricataUpdateSources(ctx context.Context, fwmon *firewallv2.FirewallMonitor) (ctrl.Result, error) {
+	if !firewallv2.IsAnnotationTrue(fwmon, firewallv2.FirewallSuricataUpdateSourcesAnnotation) {
+		return ctrl.Result{}, nil
+	}
+
+	r.Log.Info("updating suricata sources")
+
+	cmd := exec.CommandContext(ctx, "suricata-update", "update-sources")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		r.Recorder.Event(
+			fwmon,
+			corev1.EventTypeWarning,
+			"SuricataUpdateSources",
+			fmt.Sprintf("suricata source update failed: %s: %s", err, strings.TrimSpace(string(out))),
+		)
+
+		r.Log.Error(err, "error updating suricata sources", "output", string(out))
+		return ctrl.Result{}, fmt.Errorf("unable to update suricata sources: %w", err)
+	}
+
+	r.Recorder.Event(
+		fwmon,
+		corev1.EventTypeNormal,
+		"SuricataUpdateSources",
+		"suricata sources were updated through monitor annotation",
+	)
+
+	r.Log.Info("Removing annotation from firewall monitor", "annotation", firewallv2.FirewallSuricataUpdateSourcesAnnotation)
+
+	patch := client.MergeFrom(fwmon.DeepCopy())
+	delete(fwmon.Annotations, firewallv2.FirewallSuricataUpdateSourcesAnnotation)
+	if err := r.ShootClient.Patch(ctx, fwmon, patch); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil

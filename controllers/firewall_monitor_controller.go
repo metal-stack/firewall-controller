@@ -70,14 +70,23 @@ func (r *FirewallMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return ctrl.Result{}, err
 	}
 
-	idsStats := firewallv2.IDSStatsByDevice{}
+	var (
+		idsStats = firewallv2.IDSStatsByDevice{}
+		s        = suricata.New(r.Log)
+	)
+
+	suricataStatus, err := s.Status(ctx)
+	if err != nil {
+		r.Log.Error(err, "unable to figure out suricata status")
+	}
+
 	if r.IDSEnabled {
-		s := suricata.New()
-		ss, err := s.InterfaceStats(ctx)
+		interfaceStats, err := s.InterfaceStats(ctx)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-		for iface, stat := range *ss {
+
+		for iface, stat := range interfaceStats {
 			idsStats[iface] = firewallv2.InterfaceStat{
 				Drop:             stat.Drop,
 				InvalidChecksums: stat.InvalidChecksums,
@@ -119,6 +128,10 @@ func (r *FirewallMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 			Updated:                 metav1.NewTime(now),
 			Distance:                0,
 			DistanceSupported:       false,
+		}
+
+		if suricataStatus != nil {
+			mon.ControllerStatus.Suricata = *suricataStatus
 		}
 
 		if !r.seedUpdated.IsZero() {

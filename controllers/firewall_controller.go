@@ -28,7 +28,9 @@ import (
 	"github.com/metal-stack/firewall-controller-manager/api/v2/helper"
 	firewallv1 "github.com/metal-stack/firewall-controller/v2/api/v1"
 	"github.com/metal-stack/firewall-controller/v2/pkg/network"
+	"github.com/metal-stack/firewall-controller/v2/pkg/suricata"
 	"github.com/metal-stack/firewall-controller/v2/pkg/updater"
+	osnet "github.com/metal-stack/os-installer/pkg/network"
 )
 
 // FirewallReconciler reconciles a Firewall object
@@ -63,6 +65,9 @@ const (
 	nftablesExporterService   = "nftables-exporter"
 	nftablesExporterNamedPort = "nftexporter"
 	nftablesExporterPort      = 9630
+	suricataExporterService   = "suricata-exporter"
+	suricataExporterNamedPort = "suricataexporter"
+	suricataExporterPort      = 9917
 	exporterLabelKey          = "app"
 )
 
@@ -94,6 +99,8 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{}, err
 	}
 
+	firewallNetwork := osnet.New(allocation)
+
 	if r.Updater != nil {
 		r.Log.Info("running binary updater")
 
@@ -110,7 +117,7 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	var errs []error
 
-	changed, err := network.ReconcileNetwork(ctx, r.Log, f, allocation, r.FrrVersion)
+	changed, err := network.ReconcileNetwork(ctx, r.Log, f, firewallNetwork, r.FrrVersion)
 	if changed && err == nil {
 		r.recordFirewallEvent(f, corev1.EventTypeNormal, "Network settings", "reconciliation succeeded (frr.conf)")
 	} else if changed && err != nil {
@@ -122,6 +129,11 @@ func (r *FirewallReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	r.Log.Info("reconciling firewall services")
 	if err = r.reconcileFirewallServices(ctx, f); err != nil {
+		errs = append(errs, err)
+	}
+
+	r.Log.Info("reconciling suricata")
+	if err = suricata.New(r.Log).Reconcile(ctx, r.Log, f, firewallNetwork); err != nil {
 		errs = append(errs, err)
 	}
 
@@ -164,6 +176,11 @@ func (r *FirewallReconciler) reconcileFirewallServices(ctx context.Context, f *f
 			name:      nodeExporterService,
 			port:      nodeExporterPort,
 			namedPort: nodeExporterNamedPort,
+		},
+		{
+			name:      suricataExporterNamedPort,
+			port:      suricataExporterPort,
+			namedPort: suricataExporterNamedPort,
 		},
 	}
 

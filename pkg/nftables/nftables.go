@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 
+	"github.com/metal-stack/firewall-controller/v2/pkg/systemd"
 	mn "github.com/metal-stack/metal-lib/pkg/net"
 	osnet "github.com/metal-stack/os-installer/pkg/network"
 	"github.com/metal-stack/os-installer/pkg/nftables"
@@ -32,7 +33,6 @@ const (
 	defaultIpv4RuleFile = "/etc/nftables/firewall-controller.v4"
 	nftablesService     = "nftables.service"
 	nftBin              = "/usr/sbin/nft"
-	systemctlBin        = "/bin/systemctl"
 )
 
 //go:embed *.tpl
@@ -121,21 +121,21 @@ func (f *Nftables) ipv4RuleFile() string {
 
 // Flush flushes the nftables rules that were deduced from a k8s resources
 // after that the firewall is a "plain metal firewall" with default policy accept in the forward chain.
-func (f *Nftables) Flush() error {
+func (f *Nftables) Flush(ctx context.Context) error {
 	_, err := os.Stat(f.ipv4RuleFile())
 	if os.IsNotExist(err) {
-		return f.reload()
+		return f.reload(ctx)
 	}
 	// only remove if rule file exists
 	err = os.Remove(f.ipv4RuleFile())
 	if err != nil {
 		return fmt.Errorf("could not delete ipv4 rule file: %w", err)
 	}
-	return f.reload()
+	return f.reload(ctx)
 }
 
 // Apply applies the interface addresses through netlink and writes the /etc/nftables/firewall-controller.v4 rules file.
-func (f *Nftables) Apply() (updated bool, err error) {
+func (f *Nftables) Apply(ctx context.Context) (updated bool, err error) {
 	tmpFile, err := os.CreateTemp(filepath.Dir(f.ipv4RuleFile()), "."+filepath.Base(f.ipv4RuleFile()))
 	if err != nil {
 		return
@@ -169,7 +169,7 @@ func (f *Nftables) Apply() (updated bool, err error) {
 	if f.dryRun {
 		return
 	}
-	err = f.reload()
+	err = f.reload(ctx)
 	if err != nil {
 		return
 	}
@@ -233,6 +233,10 @@ func (f *Nftables) renderFile(file string) error {
 }
 
 func (f *Nftables) validate(file string) error {
+	return validateNFTablesFile(file)
+}
+
+func validateNFTablesFile(file string) error {
 	c := exec.Command(nftBin, "-c", "-f", file)
 	out, err := c.CombinedOutput()
 	if err != nil {
@@ -335,11 +339,10 @@ func (f *Nftables) reconcileIfaceAddresses() error {
 	return errors.Join(errs...)
 }
 
-func (f *Nftables) reload() error {
-	c := exec.Command(systemctlBin, "reload", nftablesService)
-	err := c.Run()
-	if err != nil {
-		return fmt.Errorf("could not reload nftables service, err: %w", err)
-	}
-	return nil
+func (f *Nftables) reload(ctx context.Context) error {
+	return reloadNFTablesService(ctx)
+}
+
+func reloadNFTablesService(ctx context.Context) error {
+	return systemd.Reload(ctx, nftablesService)
 }

@@ -1,7 +1,6 @@
 package updater
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -10,8 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/coreos/go-systemd/v22/dbus"
 )
 
 func fetchBinaryAndChecksum(url string) (io.ReadCloser, string, error) {
@@ -94,28 +91,4 @@ func slurpFile(url string) (string, error) {
 		return "", err
 	}
 	return strings.Split(string(content), " ")[0], nil
-}
-
-const done = "done"
-
-func Restart(ctx context.Context, unitName string) error {
-	dbc, err := dbus.NewWithContext(ctx)
-	if err != nil {
-		return fmt.Errorf("unable to connect to dbus: %w", err)
-	}
-	defer dbc.Close()
-
-	c := make(chan string)
-	_, err = dbc.RestartUnitContext(ctx, unitName, "replace", c)
-
-	if err != nil {
-		return err
-	}
-
-	job := <-c
-	if job != done {
-		return fmt.Errorf("restart failed %s", job)
-	}
-
-	return nil
 }

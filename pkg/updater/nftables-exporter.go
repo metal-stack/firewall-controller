@@ -9,6 +9,7 @@ import (
 	"os/exec"
 
 	firewallv2 "github.com/metal-stack/firewall-controller-manager/api/v2"
+	"github.com/metal-stack/firewall-controller/v2/pkg/systemd"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -64,7 +65,7 @@ func (u *Updater) updateNFTablesExporter(ctx context.Context, f *firewallv2.Fire
 		return err
 	}
 
-	err = Restart(ctx, "nftables-exporter.service")
+	err = systemd.Restart(ctx, "nftables-exporter.service")
 	if err != nil {
 		u.log.Error(err, "error restarting nftables-exporter")
 		return err
